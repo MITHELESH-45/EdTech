@@ -13,6 +13,39 @@ export interface ComponentMetadata {
   height: number;
 }
 
+function generateSimpleBreadboardTerminals(): Terminal[] {
+  const terminals: Terminal[] = [];
+  const spacing = 8;
+  const numCols = 30;
+  const startX = -(numCols * spacing) / 2 + spacing / 2;
+  
+  for (let col = 0; col < numCols; col++) {
+    const x = startX + col * spacing;
+    
+    terminals.push({ id: `a${col + 1}`, name: `A${col + 1}`, type: "signal", offsetX: x, offsetY: -35 });
+    terminals.push({ id: `b${col + 1}`, name: `B${col + 1}`, type: "signal", offsetX: x, offsetY: -27 });
+    terminals.push({ id: `c${col + 1}`, name: `C${col + 1}`, type: "signal", offsetX: x, offsetY: -19 });
+    terminals.push({ id: `d${col + 1}`, name: `D${col + 1}`, type: "signal", offsetX: x, offsetY: -11 });
+    terminals.push({ id: `e${col + 1}`, name: `E${col + 1}`, type: "signal", offsetX: x, offsetY: -3 });
+    
+    terminals.push({ id: `f${col + 1}`, name: `F${col + 1}`, type: "signal", offsetX: x, offsetY: 13 });
+    terminals.push({ id: `g${col + 1}`, name: `G${col + 1}`, type: "signal", offsetX: x, offsetY: 21 });
+    terminals.push({ id: `h${col + 1}`, name: `H${col + 1}`, type: "signal", offsetX: x, offsetY: 29 });
+    terminals.push({ id: `i${col + 1}`, name: `I${col + 1}`, type: "signal", offsetX: x, offsetY: 37 });
+    terminals.push({ id: `j${col + 1}`, name: `J${col + 1}`, type: "signal", offsetX: x, offsetY: 45 });
+  }
+  
+  for (let i = 0; i < numCols; i++) {
+    const x = startX + i * spacing;
+    terminals.push({ id: `power-top-${i + 1}`, name: `+`, type: "power", offsetX: x, offsetY: -50 });
+    terminals.push({ id: `gnd-top-${i + 1}`, name: `-`, type: "ground", offsetX: x, offsetY: -43 });
+    terminals.push({ id: `power-bottom-${i + 1}`, name: `+`, type: "power", offsetX: x, offsetY: 52 });
+    terminals.push({ id: `gnd-bottom-${i + 1}`, name: `-`, type: "ground", offsetX: x, offsetY: 59 });
+  }
+  
+  return terminals;
+}
+
 export const componentMetadata: Record<string, ComponentMetadata> = {
   led: {
     id: "led",
@@ -121,32 +154,47 @@ export const componentMetadata: Record<string, ComponentMetadata> = {
     id: "arduino-uno",
     terminals: [
       { id: "5v", name: "5V", type: "power", offsetX: -30, offsetY: -28 },
-      { id: "gnd", name: "GND", type: "ground", offsetX: -22, offsetY: -28 },
-      { id: "d13", name: "D13", type: "signal", offsetX: -14, offsetY: -28 },
-      { id: "d12", name: "D12", type: "signal", offsetX: -6, offsetY: -28 },
-      { id: "d11", name: "D11", type: "signal", offsetX: 2, offsetY: -28 },
-      { id: "d10", name: "D10", type: "signal", offsetX: 10, offsetY: -28 },
-      { id: "d9", name: "D9", type: "signal", offsetX: 18, offsetY: -28 },
-      { id: "d8", name: "D8", type: "signal", offsetX: 26, offsetY: -28 },
+      { id: "3v3", name: "3.3V", type: "power", offsetX: -22, offsetY: -28 },
+      { id: "gnd", name: "GND", type: "ground", offsetX: -14, offsetY: -28 },
+      { id: "gnd2", name: "GND", type: "ground", offsetX: -6, offsetY: -28 },
+      { id: "vin", name: "VIN", type: "power", offsetX: 2, offsetY: -28 },
+      { id: "a0", name: "A0", type: "signal", offsetX: 10, offsetY: -28 },
+      { id: "a1", name: "A1", type: "signal", offsetX: 18, offsetY: -28 },
+      { id: "a2", name: "A2", type: "signal", offsetX: 26, offsetY: -28 },
+      { id: "d13", name: "D13", type: "signal", offsetX: -30, offsetY: 28 },
+      { id: "d12", name: "D12", type: "signal", offsetX: -22, offsetY: 28 },
+      { id: "d11", name: "D11~", type: "signal", offsetX: -14, offsetY: 28 },
+      { id: "d10", name: "D10~", type: "signal", offsetX: -6, offsetY: 28 },
+      { id: "d9", name: "D9~", type: "signal", offsetX: 2, offsetY: 28 },
+      { id: "d8", name: "D8", type: "signal", offsetX: 10, offsetY: 28 },
+      { id: "d7", name: "D7", type: "signal", offsetX: 18, offsetY: 28 },
+      { id: "d6", name: "D6~", type: "signal", offsetX: 26, offsetY: 28 },
     ],
     width: 80,
-    height: 50,
+    height: 60,
   },
   esp32: {
     id: "esp32",
     terminals: [
-      { id: "3v3", name: "3.3V", type: "power", offsetX: -12, offsetY: -16 },
-      { id: "gnd", name: "GND", type: "ground", offsetX: 0, offsetY: -16 },
-      { id: "gpio", name: "GPIO", type: "signal", offsetX: 12, offsetY: -16 },
+      { id: "3v3", name: "3.3V", type: "power", offsetX: -16, offsetY: -24 },
+      { id: "gnd", name: "GND", type: "ground", offsetX: -8, offsetY: -24 },
+      { id: "en", name: "EN", type: "signal", offsetX: 0, offsetY: -24 },
+      { id: "vp", name: "VP", type: "signal", offsetX: 8, offsetY: -24 },
+      { id: "vn", name: "VN", type: "signal", offsetX: 16, offsetY: -24 },
+      { id: "d34", name: "D34", type: "signal", offsetX: -16, offsetY: 24 },
+      { id: "d35", name: "D35", type: "signal", offsetX: -8, offsetY: 24 },
+      { id: "d32", name: "D32", type: "signal", offsetX: 0, offsetY: 24 },
+      { id: "d33", name: "D33", type: "signal", offsetX: 8, offsetY: 24 },
+      { id: "d25", name: "D25", type: "signal", offsetX: 16, offsetY: 24 },
     ],
     width: 48,
-    height: 48,
+    height: 56,
   },
   breadboard: {
     id: "breadboard",
-    terminals: [],
-    width: 160,
-    height: 80,
+    terminals: generateSimpleBreadboardTerminals(),
+    width: 260,
+    height: 140,
   },
   "jumper-wire": {
     id: "jumper-wire",
