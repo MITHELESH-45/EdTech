@@ -4,6 +4,7 @@ import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, Zap, Target, AlertCircle } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 import type { Course } from "@shared/schema";
 
 function CourseCardSkeleton() {
@@ -34,6 +35,7 @@ function StatSkeleton() {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
@@ -42,28 +44,28 @@ export default function Dashboard() {
   const inProgressCourses = activeCourses.filter((c) => c.progress > 0);
   const coursesCompleted = 0;
 
+  const displayName = user?.name?.split(" ")[0] || "Learner";
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      
+
       <div className="flex flex-1">
         <ToolSidebar />
-        
+
         <main className="flex-1 overflow-auto">
-          {/* Hero Section */}
           <div className="border-b border-border bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
             <div className="max-w-6xl mx-auto px-6 py-8">
               <div className="flex items-start justify-between gap-8 flex-wrap">
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground mb-2">
-                    Welcome back, John
+                  <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="heading-welcome">
+                    Welcome back, {displayName}
                   </h1>
                   <p className="text-muted-foreground max-w-lg">
                     Learn Electronics. Simulate Visually. Build Confidently.
                   </p>
                 </div>
-                
-                {/* Stats */}
+
                 <div className="flex gap-4 flex-wrap">
                   {isLoading ? (
                     <>
@@ -84,7 +86,7 @@ export default function Dashboard() {
                           <div className="text-xs text-muted-foreground">In Progress</div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-card border border-border">
                         <div className="w-10 h-10 rounded-md bg-chart-4/10 flex items-center justify-center">
                           <Target className="h-5 w-5 text-chart-4" />
@@ -96,7 +98,7 @@ export default function Dashboard() {
                           <div className="text-xs text-muted-foreground">Completed</div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-card border border-border">
                         <div className="w-10 h-10 rounded-md bg-chart-1/10 flex items-center justify-center">
                           <Zap className="h-5 w-5 text-chart-1" />
@@ -115,7 +117,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Course Grid */}
           <div className="max-w-6xl mx-auto px-6 py-8">
             {error ? (
               <div className="flex items-center gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20 mb-6">
@@ -124,7 +125,6 @@ export default function Dashboard() {
               </div>
             ) : null}
 
-            {/* Continue Learning Section */}
             {!isLoading && inProgressCourses.length > 0 && (
               <section className="mb-10">
                 <div className="flex items-center gap-2 mb-4">
@@ -141,7 +141,6 @@ export default function Dashboard() {
               </section>
             )}
 
-            {/* All Courses Section */}
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <h2 className="text-lg font-semibold text-foreground" data-testid="heading-all-courses">All Courses</h2>

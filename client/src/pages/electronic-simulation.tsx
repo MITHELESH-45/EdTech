@@ -5,7 +5,14 @@ import { ComponentPalette } from "@/components/simulation/component-palette";
 import { CircuitCanvas } from "@/components/simulation/circuit-canvas";
 import { ControlPanel } from "@/components/simulation/control-panel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { validateCircuitConnections } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
+
+interface ExtendedWire extends Wire {
+  startTerminal?: { componentId: string; terminalId: string };
+  endTerminal?: { componentId: string; terminalId: string };
+}
 
 function PaletteSkeleton() {
   return (
@@ -31,14 +38,16 @@ function PaletteSkeleton() {
 }
 
 export default function ElectronicSimulation() {
+  const { toast } = useToast();
   const [selectedComponent, setSelectedComponent] = useState<ElectronicComponent | null>(null);
   const [placedComponents, setPlacedComponents] = useState<PlacedComponent[]>([]);
-  const [wires, setWires] = useState<Wire[]>([]);
+  const [wires, setWires] = useState<ExtendedWire[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [ledState, setLedState] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [wireMode, setWireMode] = useState(false);
-  const [wireStart, setWireStart] = useState<{ x: number; y: number } | null>(null);
+  const [wireStart, setWireStart] = useState<{ x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null>(null);
+  const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
 
   const { data: components, isLoading } = useQuery<ElectronicComponent[]>({
     queryKey: ["/api/components"],
@@ -48,6 +57,7 @@ export default function ElectronicSimulation() {
     setSelectedComponent(component);
     setWireMode(false);
     setWireStart(null);
+    setSelectedPlacedId(null);
   };
 
   const handlePlaceComponent = useCallback(
@@ -64,8 +74,8 @@ export default function ElectronicSimulation() {
     []
   );
 
-  const handleAddWire = useCallback((wire: Omit<Wire, "id">) => {
-    const newWire: Wire = {
+  const handleAddWire = useCallback((wire: Omit<ExtendedWire, "id">) => {
+    const newWire: ExtendedWire = {
       ...wire,
       id: `wire-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
@@ -76,53 +86,46 @@ export default function ElectronicSimulation() {
     setWireMode(!wireMode);
     setSelectedComponent(null);
     setWireStart(null);
+    setSelectedPlacedId(null);
   };
 
-  const validateCircuit = (): { valid: boolean; error: string | null } => {
-    const componentIds = placedComponents.map((p) => p.componentId);
-    
-    const hasLed = componentIds.includes("led");
-    const hasResistor = componentIds.includes("resistor");
-    const has5V = componentIds.includes("5v");
-    const hasGnd = componentIds.includes("gnd");
-
-    if (hasLed && !hasResistor) {
-      return { valid: false, error: "LED requires a resistor in series to prevent damage." };
-    }
-
-    if (hasLed && hasResistor && has5V && hasGnd && wires.length >= 3) {
-      return { valid: true, error: null };
-    }
-
-    if (hasLed && !has5V) {
-      return { valid: false, error: "Circuit needs a 5V power source." };
-    }
-
-    if (hasLed && !hasGnd) {
-      return { valid: false, error: "Circuit needs a ground connection." };
-    }
-
-    if (wires.length < 3 && hasLed && hasResistor && has5V && hasGnd) {
-      return { valid: false, error: "Components need to be connected with wires." };
-    }
-
-    return { valid: false, error: null };
+  const handleSelectPlaced = (id: string | null) => {
+    setSelectedPlacedId(id);
+    setSelectedComponent(null);
   };
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedPlacedId) {
+      setPlacedComponents((prev) => prev.filter((p) => p.id !== selectedPlacedId));
+      setWires((prev) =>
+        prev.filter(
+          (w) =>
+            w.startTerminal?.componentId !== selectedPlacedId &&
+            w.endTerminal?.componentId !== selectedPlacedId
+        )
+      );
+      setSelectedPlacedId(null);
+      toast({
+        title: "Component deleted",
+        description: "The component and its connected wires have been removed.",
+      });
+    }
+  }, [selectedPlacedId, toast]);
 
   const handleRun = () => {
-    const { valid, error } = validateCircuit();
-    
+    const { isValid, ledShouldGlow, error } = validateCircuitConnections(placedComponents, wires);
+
     if (error) {
       setErrorMessage(error);
       setLedState(false);
     } else {
       setErrorMessage(null);
-      setLedState(valid);
+      setLedState(ledShouldGlow);
     }
-    
+
     setIsRunning(true);
 
-    if (valid) {
+    if (isValid && ledShouldGlow) {
       setWires((prev) =>
         prev.map((w) => ({ ...w, isActive: true }))
       );
@@ -146,14 +149,14 @@ export default function ElectronicSimulation() {
     setSelectedComponent(null);
     setWireMode(false);
     setWireStart(null);
+    setSelectedPlacedId(null);
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      
+
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel - Component Palette */}
         <div className="w-56 flex-shrink-0">
           {isLoading ? (
             <PaletteSkeleton />
@@ -166,21 +169,22 @@ export default function ElectronicSimulation() {
           )}
         </div>
 
-        {/* Center Panel - Circuit Canvas */}
         <CircuitCanvas
           placedComponents={placedComponents}
           wires={wires}
           selectedComponent={selectedComponent}
+          selectedPlacedId={selectedPlacedId}
           isRunning={isRunning}
           ledState={ledState}
           onPlaceComponent={handlePlaceComponent}
           onAddWire={handleAddWire}
+          onSelectPlaced={handleSelectPlaced}
+          onDeleteSelected={handleDeleteSelected}
           wireMode={wireMode}
           wireStart={wireStart}
           onWireStart={setWireStart}
         />
 
-        {/* Right Panel - Controls */}
         <ControlPanel
           isRunning={isRunning}
           ledState={ledState}

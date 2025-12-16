@@ -1,0 +1,155 @@
+You are a senior frontend engineer and UI architect.
+
+I already have a generated frontend, but it has multiple functional and UX issues.
+Your task is to FIX and EXTEND the existing frontend WITHOUT breaking current structure.
+
+IMPORTANT RULES:
+- Do NOT remove existing files unless necessary
+- Reuse existing components where possible
+- Write clean, modular, readable code
+- Add comments where logic is non-trivial
+- Ensure all features work end-to-end visually and logically
+
+=====================================================
+1) LOGIN / SIGNUP PAGE (TEMP AUTH)
+=====================================================
+
+- Build a Login & Signup page UI
+- For now, authentication is TEMPORARY:
+  → Any entered email + password should successfully log the user in
+- No backend validation required
+- Store logged-in user info in:
+  → localStorage (userId, email, name)
+- After login/signup, redirect to Dashboard/Home
+- Add basic form validation (required fields)
+
+=====================================================
+2) USER PROFILE PAGE
+=====================================================
+
+- Create a Profile page for each logged-in user
+- Fetch user data from localStorage
+- Display:
+  - Name
+  - Email
+  - Joined date (mock)
+- Add "Edit Profile" (UI only, no backend)
+- Add Logout button:
+  → clears localStorage
+  → redirects to Login page
+
+=====================================================
+3) HELP / CONTACT PAGE
+=====================================================
+
+- Build a Help page with a Contact Form
+- Fields:
+  - Name
+  - Email
+  - Subject
+  - Message
+- On submit:
+  → Show success message (mock submit)
+  → No backend required
+- Add basic validation and clean UI
+
+=====================================================
+4) COURSES PAGE – LEVELS + YOUTUBE + NOTES
+=====================================================
+
+- In Courses section:
+  - Clicking a Course Card opens Course Levels
+- Each Level should contain:
+  - Level name
+  - YouTube video link (opens YouTube in new tab)
+  - Downloadable Notes (PDF / placeholder file)
+- Proper navigation between:
+  Course → Levels → External YouTube
+- Ensure responsive layout
+
+=====================================================
+5) COMPONENT TERMINALS (POSITIVE / NEGATIVE / PINS)
+=====================================================
+
+- For EACH circuit component:
+  - Clearly visible terminals / pins
+  - Example:
+    - LED → Anode (+), Cathode (-)
+    - Resistor → Terminal A, Terminal B
+    - Sensors → VCC, GND, DATA
+- Terminals must be visible and clickable
+- Add visual indicators (small circles / labels)
+
+=====================================================
+6) DELETE COMPONENT LOGIC
+=====================================================
+
+- User should be able to delete a selected component by:
+  - Pressing DELETE key
+  - Pressing ESC key
+- When deleted:
+  - Component is removed from circuit
+  - All connected wires are also removed
+- Add clear selection highlight when component is clicked
+
+=====================================================
+7) ADD & FIX COMPONENTS
+=====================================================
+
+FIX VISIBILITY ISSUES:
+- Buzzer → visible when added
+- ESP32 → visible and draggable
+
+ADD NEW COMPONENTS:
+- Ultrasonic Sensor
+- IR Sensor
+- DHT11 Sensor
+- Servo Motor
+- ESP32 Microcontroller
+
+FOR EACH COMPONENT:
+- Proper pin layout
+- Clear labels
+- Correct default orientation
+- Pins must be connectable
+
+=====================================================
+8) WIRE CONNECTION LOGIC (STRICT)
+=====================================================
+
+- Wires MUST connect ONLY between terminals
+- Disallow free-floating wire connections
+- Flow:
+  Terminal → Wire → Terminal
+- Highlight terminal when wire is near
+- Prevent invalid connections visually
+
+=====================================================
+9) CIRCUIT LOGIC CORRECTION
+=====================================================
+
+CURRENT ISSUE:
+- LED glows regardless of wiring
+
+FIX:
+- Implement basic electrical logic simulation:
+  - LED glows ONLY if:
+    - Proper polarity
+    - Power source connected
+    - Circuit is complete
+- Apply same validation logic to ALL components
+- Invalid wiring → no output
+
+=====================================================
+FINAL REQUIREMENTS
+=====================================================
+
+- Improve UI/UX (selection, hover, feedback)
+- Keep the app stable
+- Do not introduce breaking changes
+- Ensure all new features are DEMO-READY
+
+Deliver:
+- Updated frontend code
+- Clear structure
+- Fully working interactions
