@@ -9,13 +9,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/lib/auth-context";
 
 export function Header() {
+  const { user, logout, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    setLocation("/login");
+  };
+
+  const initials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "U";
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center justify-between gap-4 px-6">
-        {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2" data-testid="link-logo-home">
           <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary">
             <svg
@@ -33,7 +50,6 @@ export function Header() {
           <span className="font-semibold text-lg tracking-tight">E-GROOTS</span>
         </Link>
 
-        {/* Search */}
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -46,7 +62,6 @@ export function Header() {
           </div>
         </div>
 
-        {/* Right section */}
         <div className="flex items-center gap-2">
           <Link href="/about">
             <Button variant="ghost" size="sm" data-testid="link-about">
@@ -54,46 +69,62 @@ export function Header() {
             </Button>
           </Link>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="flex items-center gap-2 px-2"
-                data-testid="button-profile-dropdown"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                    JD
-                  </AvatarFallback>
-                </Avatar>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-2 px-2"
+                  data-testid="button-profile-dropdown"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <Link href="/profile">
+                  <DropdownMenuItem data-testid="menu-item-profile" className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuItem data-testid="menu-item-settings" className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <Link href="/help">
+                  <DropdownMenuItem data-testid="menu-item-help" className="cursor-pointer">
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    Help & Support
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive cursor-pointer"
+                  onClick={handleLogout}
+                  data-testid="menu-item-logout"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/login">
+              <Button size="sm" data-testid="button-login">
+                Sign In
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="px-2 py-1.5">
-                <p className="text-sm font-medium">John Doe</p>
-                <p className="text-xs text-muted-foreground">john@example.com</p>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem data-testid="menu-item-profile">
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem data-testid="menu-item-settings">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem data-testid="menu-item-help">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help & Support
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" data-testid="menu-item-logout">
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </Link>
+          )}
         </div>
       </div>
     </header>
