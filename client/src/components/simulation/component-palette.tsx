@@ -49,6 +49,7 @@ function ComponentIcon({ componentId, className }: { componentId: string; classN
         <circle cx="20" cy="18" r="4" fill="currentColor" opacity="0.3" />
         <line x1="16" y1="28" x2="16" y2="34" />
         <line x1="24" y1="28" x2="24" y2="34" />
+        <text x="20" y="20" textAnchor="middle" fontSize="6" fill="currentColor" stroke="none">+</text>
       </svg>
     ),
     potentiometer: (
@@ -59,6 +60,47 @@ function ComponentIcon({ componentId, className }: { componentId: string; classN
         <line x1="12" y1="28" x2="12" y2="34" />
         <line x1="20" y1="28" x2="20" y2="34" />
         <line x1="28" y1="28" x2="28" y2="34" />
+      </svg>
+    ),
+    ultrasonic: (
+      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="6" y="10" width="28" height="18" rx="2" />
+        <circle cx="14" cy="19" r="5" />
+        <circle cx="26" cy="19" r="5" />
+        <line x1="10" y1="28" x2="10" y2="34" />
+        <line x1="17" y1="28" x2="17" y2="34" />
+        <line x1="23" y1="28" x2="23" y2="34" />
+        <line x1="30" y1="28" x2="30" y2="34" />
+      </svg>
+    ),
+    "ir-sensor": (
+      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="10" y="8" width="20" height="24" rx="2" />
+        <circle cx="20" cy="16" r="4" fill="currentColor" opacity="0.3" />
+        <rect x="16" y="24" width="8" height="4" fill="currentColor" opacity="0.2" />
+        <line x1="14" y1="32" x2="14" y2="36" />
+        <line x1="20" y1="32" x2="20" y2="36" />
+        <line x1="26" y1="32" x2="26" y2="36" />
+      </svg>
+    ),
+    dht11: (
+      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="10" y="6" width="20" height="26" rx="2" />
+        <rect x="14" y="10" width="12" height="12" rx="1" fill="currentColor" opacity="0.2" />
+        <circle cx="20" cy="16" r="3" />
+        <line x1="14" y1="32" x2="14" y2="36" />
+        <line x1="20" y1="32" x2="20" y2="36" />
+        <line x1="26" y1="32" x2="26" y2="36" />
+      </svg>
+    ),
+    servo: (
+      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="6" y="12" width="28" height="16" rx="2" />
+        <circle cx="30" cy="20" r="4" />
+        <line x1="30" y1="16" x2="36" y2="10" strokeWidth="2" />
+        <line x1="10" y1="28" x2="10" y2="34" />
+        <line x1="20" y1="28" x2="20" y2="34" />
+        <line x1="30" y1="28" x2="30" y2="34" />
       </svg>
     ),
     "power-5v": (
@@ -90,6 +132,10 @@ function ComponentIcon({ componentId, className }: { componentId: string; classN
         <rect x="8" y="8" width="24" height="24" rx="2" />
         <rect x="14" y="14" width="12" height="8" fill="currentColor" opacity="0.2" />
         <circle cx="20" cy="28" r="2" fill="currentColor" opacity="0.5" />
+        <line x1="10" y1="4" x2="10" y2="8" />
+        <line x1="15" y1="4" x2="15" y2="8" />
+        <line x1="25" y1="4" x2="25" y2="8" />
+        <line x1="30" y1="4" x2="30" y2="8" />
       </svg>
     ),
     breadboard: (

@@ -1,8 +1,21 @@
 import { type User, type InsertUser, type Course, type ElectronicComponent } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// Mock courses data
-const mockCourses: Course[] = [
+interface CourseLevel {
+  id: string;
+  name: string;
+  description: string;
+  youtubeUrl: string;
+  notesUrl: string;
+  duration: string;
+  isCompleted: boolean;
+}
+
+interface ExtendedCourse extends Course {
+  levels: CourseLevel[];
+}
+
+const mockCourses: ExtendedCourse[] = [
   {
     id: "1",
     title: "Basics of Electronics",
@@ -23,6 +36,35 @@ const mockCourses: Course[] = [
         content: "Voltage, also called electromotive force, is the pressure from an electrical circuit's power source that pushes charged electrons through a conducting loop.",
         diagramPlaceholder: "voltage-diagram"
       }
+    ],
+    levels: [
+      {
+        id: "1-level-1",
+        name: "Level 1: What is Electronics?",
+        description: "Introduction to the world of electronics and its applications",
+        youtubeUrl: "https://www.youtube.com/watch?v=mc979OhitAg",
+        notesUrl: "/notes/electronics-basics-level1.pdf",
+        duration: "15 min",
+        isCompleted: true
+      },
+      {
+        id: "1-level-2",
+        name: "Level 2: Voltage and Current",
+        description: "Understanding voltage, current, and their relationship",
+        youtubeUrl: "https://www.youtube.com/watch?v=w82aSjLuD_8",
+        notesUrl: "/notes/electronics-basics-level2.pdf",
+        duration: "20 min",
+        isCompleted: false
+      },
+      {
+        id: "1-level-3",
+        name: "Level 3: Resistance and Ohm's Law",
+        description: "Learn about resistance and the fundamental Ohm's Law",
+        youtubeUrl: "https://www.youtube.com/watch?v=HsLLq6Rm5tU",
+        notesUrl: "/notes/electronics-basics-level3.pdf",
+        duration: "25 min",
+        isCompleted: false
+      }
     ]
   },
   {
@@ -38,6 +80,26 @@ const mockCourses: Course[] = [
         title: "Binary Number System",
         content: "The binary numeral system is a base-2 numeral system that typically uses just two symbols: 0 and 1.",
         diagramPlaceholder: "binary-diagram"
+      }
+    ],
+    levels: [
+      {
+        id: "2-level-1",
+        name: "Level 1: Binary Numbers",
+        description: "Understanding the binary number system",
+        youtubeUrl: "https://www.youtube.com/watch?v=LpuPe81bc2w",
+        notesUrl: "/notes/digital-electronics-level1.pdf",
+        duration: "18 min",
+        isCompleted: true
+      },
+      {
+        id: "2-level-2",
+        name: "Level 2: Logic Gates",
+        description: "AND, OR, NOT, NAND, NOR, XOR gates explained",
+        youtubeUrl: "https://www.youtube.com/watch?v=gI-qXk7XojA",
+        notesUrl: "/notes/digital-electronics-level2.pdf",
+        duration: "30 min",
+        isCompleted: false
       }
     ]
   },
@@ -55,6 +117,26 @@ const mockCourses: Course[] = [
         content: "Arduino is an open-source electronics platform based on easy-to-use hardware and software.",
         diagramPlaceholder: "arduino-board"
       }
+    ],
+    levels: [
+      {
+        id: "3-level-1",
+        name: "Level 1: Arduino Introduction",
+        description: "What is Arduino and why use it?",
+        youtubeUrl: "https://www.youtube.com/watch?v=nL34zDTPkcs",
+        notesUrl: "/notes/arduino-level1.pdf",
+        duration: "12 min",
+        isCompleted: false
+      },
+      {
+        id: "3-level-2",
+        name: "Level 2: First Program - Blink LED",
+        description: "Write your first Arduino program",
+        youtubeUrl: "https://www.youtube.com/watch?v=fJWR7dBuc18",
+        notesUrl: "/notes/arduino-level2.pdf",
+        duration: "20 min",
+        isCompleted: false
+      }
     ]
   },
   {
@@ -71,6 +153,26 @@ const mockCourses: Course[] = [
         content: "A sensor is a device that detects and responds to some type of input from the physical environment.",
         diagramPlaceholder: "sensor-types"
       }
+    ],
+    levels: [
+      {
+        id: "4-level-1",
+        name: "Level 1: Sensor Types",
+        description: "Overview of common sensor types",
+        youtubeUrl: "https://www.youtube.com/watch?v=WKFxPWgj2Vc",
+        notesUrl: "/notes/sensors-level1.pdf",
+        duration: "22 min",
+        isCompleted: false
+      },
+      {
+        id: "4-level-2",
+        name: "Level 2: Temperature Sensors",
+        description: "Using DHT11 and LM35 sensors",
+        youtubeUrl: "https://www.youtube.com/watch?v=IpKRxe-JQmo",
+        notesUrl: "/notes/sensors-level2.pdf",
+        duration: "25 min",
+        isCompleted: false
+      }
     ]
   },
   {
@@ -80,7 +182,8 @@ const mockCourses: Course[] = [
     difficulty: "advanced",
     progress: 0,
     isLocked: true,
-    lessons: []
+    lessons: [],
+    levels: []
   },
   {
     id: "6",
@@ -89,22 +192,27 @@ const mockCourses: Course[] = [
     difficulty: "advanced",
     progress: 0,
     isLocked: true,
-    lessons: []
+    lessons: [],
+    levels: []
   }
 ];
 
 const mockComponents: ElectronicComponent[] = [
-  { id: "led", name: "LED", category: "base", icon: "led", description: "Light Emitting Diode" },
-  { id: "resistor", name: "Resistor", category: "base", icon: "resistor", description: "Limits current flow" },
-  { id: "button", name: "Button", category: "base", icon: "button", description: "Momentary push button" },
+  { id: "led", name: "LED", category: "base", icon: "led", description: "Light Emitting Diode - emits light when current flows through" },
+  { id: "resistor", name: "Resistor", category: "base", icon: "resistor", description: "Limits the flow of electric current" },
+  { id: "button", name: "Button", category: "base", icon: "button", description: "Momentary push button switch" },
   { id: "buzzer", name: "Buzzer", category: "base", icon: "buzzer", description: "Produces sound when powered" },
-  { id: "potentiometer", name: "Potentiometer", category: "base", icon: "potentiometer", description: "Variable resistor" },
-  { id: "5v", name: "5V Power", category: "power", icon: "power-5v", description: "5 Volt power supply" },
+  { id: "potentiometer", name: "Potentiometer", category: "base", icon: "potentiometer", description: "Variable resistor for analog input" },
+  { id: "ultrasonic", name: "Ultrasonic Sensor", category: "base", icon: "ultrasonic", description: "HC-SR04 ultrasonic distance sensor" },
+  { id: "ir-sensor", name: "IR Sensor", category: "base", icon: "ir-sensor", description: "Infrared obstacle detection sensor" },
+  { id: "dht11", name: "DHT11 Sensor", category: "base", icon: "dht11", description: "Temperature and humidity sensor" },
+  { id: "servo", name: "Servo Motor", category: "base", icon: "servo", description: "Rotational actuator with position control" },
+  { id: "5v", name: "5V Power", category: "power", icon: "power-5v", description: "5 Volt power supply connection" },
   { id: "gnd", name: "GND", category: "power", icon: "ground", description: "Ground connection" },
-  { id: "arduino-uno", name: "Arduino UNO", category: "boards", icon: "arduino", description: "Arduino UNO board" },
-  { id: "esp32", name: "ESP32", category: "boards", icon: "esp32", description: "ESP32 WiFi microcontroller" },
-  { id: "breadboard", name: "Breadboard", category: "structure", icon: "breadboard", description: "Solderless breadboard" },
-  { id: "jumper-wire", name: "Jumper Wire", category: "structure", icon: "wire", description: "Connecting wire" }
+  { id: "arduino-uno", name: "Arduino UNO", category: "boards", icon: "arduino", description: "Arduino UNO microcontroller board" },
+  { id: "esp32", name: "ESP32", category: "boards", icon: "esp32", description: "ESP32 WiFi & Bluetooth microcontroller" },
+  { id: "breadboard", name: "Breadboard", category: "structure", icon: "breadboard", description: "Solderless breadboard for prototyping" },
+  { id: "jumper-wire", name: "Jumper Wire", category: "structure", icon: "wire", description: "Connecting wire for circuits" }
 ];
 
 export interface IStorage {
@@ -112,9 +220,9 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
-  getCourses(): Promise<Course[]>;
-  getCourse(id: string): Promise<Course | undefined>;
-  updateCourseProgress(id: string, progress: number): Promise<Course | undefined>;
+  getCourses(): Promise<ExtendedCourse[]>;
+  getCourse(id: string): Promise<ExtendedCourse | undefined>;
+  updateCourseProgress(id: string, progress: number): Promise<ExtendedCourse | undefined>;
   
   getComponents(): Promise<ElectronicComponent[]>;
   getComponent(id: string): Promise<ElectronicComponent | undefined>;
@@ -122,7 +230,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
-  private courses: Map<string, Course>;
+  private courses: Map<string, ExtendedCourse>;
   private components: Map<string, ElectronicComponent>;
 
   constructor() {
@@ -130,7 +238,6 @@ export class MemStorage implements IStorage {
     this.courses = new Map();
     this.components = new Map();
     
-    // Initialize with mock data
     mockCourses.forEach(course => {
       this.courses.set(course.id, course);
     });
@@ -157,15 +264,15 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  async getCourses(): Promise<Course[]> {
+  async getCourses(): Promise<ExtendedCourse[]> {
     return Array.from(this.courses.values());
   }
 
-  async getCourse(id: string): Promise<Course | undefined> {
+  async getCourse(id: string): Promise<ExtendedCourse | undefined> {
     return this.courses.get(id);
   }
 
-  async updateCourseProgress(id: string, progress: number): Promise<Course | undefined> {
+  async updateCourseProgress(id: string, progress: number): Promise<ExtendedCourse | undefined> {
     const course = this.courses.get(id);
     if (course) {
       const updatedCourse = { ...course, progress };
