@@ -1,0 +1,497 @@
+🌱 E-GROOTS
+Learning-First Electronics & IoT Simulation Platform
+(Frontend-Only, Scalable MVP)
+🧠 START OF PROMPT
+
+(READ CAREFULLY — DO NOT SKIP ANY PART)
+
+You are a principal frontend engineer, UI/UX architect, and product designer specializing in clean, professional SaaS platforms and educational engineering tools.
+
+Your task is to build a frontend-only MVP for a platform named E-GROOTS.
+
+The design must be:
+
+Light themed
+
+Minimal
+
+Aesthetic
+
+Professional
+
+Calm and learning-focused
+
+This MVP must look production-ready, investor-ready, and hackathon-ready, even though it contains no backend yet.
+
+🏷️ PRODUCT IDENTITY
+
+App Name: E-GROOTS
+Tagline:
+
+Learn Electronics. Simulate Visually. Build Confidently.
+
+Product Vision
+
+E-GROOTS is a learning-first electronics & IoT education platform where users:
+
+📘 Learn electronics through structured courses
+
+🔌 Practice concepts using an interactive electronic simulator
+
+🌐 Later expand into IoT & no-code workflows
+
+The platform should feel like a modern digital electronics lab, not a gaming app and not a flashy futuristic UI.
+
+🚫 STRICT CONSTRAINTS (NON-NEGOTIABLE)
+
+❌ No backend
+
+❌ No API calls
+
+❌ No database
+
+❌ No authentication logic
+
+❌ No Wokwi
+
+❌ No PCB Design module
+
+❌ No API keys
+
+⚠️ Important:
+Even though this is frontend-only, the project structure MUST be scalable so backend, APIs, auth, DB, and AI can be added later without refactoring.
+
+🧱 REQUIRED TECH STACK (MANDATORY)
+
+Use ONLY:
+
+Next.js (App Router)
+
+React
+
+TypeScript
+
+Tailwind CSS
+
+GSAP → minimal animations only
+
+Three.js → very subtle depth only (optional, not heavy)
+
+Clean, modular folder structure
+
+🎨 GLOBAL THEME (VERY IMPORTANT)
+Visual Theme: Light, Aesthetic, Professional Electronics Lab
+
+Apply across the entire app:
+
+🤍 Light background (off-white / soft gray)
+
+🎨 Soft accent colors (blue, teal, green)
+
+🧠 Clean cards & panels (no glassmorphism)
+
+🧩 Subtle electronics-inspired illustrations
+
+🖥️ Looks like a real educational SaaS product
+
+Animation Style
+
+Minimal
+
+Calm
+
+Smooth
+
+Purposeful
+
+No glowing neon
+
+No heavy motion
+
+🧭 CORE USER FLOW
+
+Assume user is already logged in
+
+User lands on Learning Dashboard
+
+Dashboard shows Courses to Learn
+
+A left-side tool panel shows:
+
+Electronic Simulation
+
+IoT Simulation (Coming Soon)
+
+No-Code Editor (Coming Soon)
+
+User opens Electronic Simulation
+
+Other tools remain visible but disabled
+
+🏠 HEADER (GLOBAL)
+
+Present on dashboard & all pages.
+
+Header must include:
+
+E-GROOTS logo (simple icon + text)
+
+Search input (for courses – UI only)
+
+Profile avatar (static)
+
+Clicking opens profile dropdown (UI only)
+
+Header must be:
+
+Minimal
+
+Sticky
+
+Clean
+
+Professional
+
+🏠 MAIN PAGE — LEARNING DASHBOARD
+Route: /dashboard
+Purpose
+
+Primary landing page after login.
+Learning is the focus, not tools.
+
+DASHBOARD FEATURES
+1️⃣ Course Listing Section
+
+Display a grid of course cards.
+
+Each course card MUST include:
+
+Course title
+
+Short description
+
+Difficulty badge
+
+Progress bar (mock)
+
+“Start Learning” button
+
+Example Courses
+
+Basics of Electronics
+
+Digital Electronics Fundamentals
+
+Arduino for Beginners
+
+Sensors & Actuators
+
+IoT Basics (Locked / Coming Soon)
+
+UX Requirements
+
+Subtle GSAP hover fade / lift
+
+No 3D tilt here
+
+Clean typography
+
+Calm colors
+
+📚 COURSE EXPERIENCE (VISUAL ONLY)
+
+Clicking a course opens a lesson UI
+
+Lessons contain:
+
+Headings
+
+Text
+
+Simple diagram placeholders
+
+End of lesson CTA:
+
+“Practice this concept in Electronic Simulation”
+
+(No real navigation logic required)
+
+ℹ️ ABOUT US PAGE
+Route: /about
+
+Explain clearly:
+
+What E-GROOTS is
+
+Who it is for (students, beginners, engineers)
+
+What problems it solves
+
+Future vision (IoT, No-Code, AI)
+
+This page must be:
+
+Clean
+
+Informative
+
+Minimal
+
+Professional
+
+🧭 SIDE PANEL — TOOL NAVIGATION
+
+Left-side vertical panel.
+
+Tools
+
+🔌 Electronic Simulation (Active)
+
+🌐 IoT Simulation (Coming Soon)
+
+🧩 No-Code Editor (Coming Soon)
+
+Behavior
+
+Electronic Simulation → navigates
+
+Others → disabled with “Coming Soon”
+
+🔌 ELECTRONIC SIMULATION MODULE
+Route: /electronic-simulation
+
+This is the core practice tool.
+
+🧱 ELECTRONIC SIMULATION — LAYOUT
+3-Column Clean Lab Layout
+🔹 LEFT PANEL — Component Palette
+
+Scrollable
+
+Component cards with:
+
+Image / SVG icon (not blocks)
+
+Label
+
+Components (v1 – expanded)
+
+Base
+
+LED
+
+Resistor
+
+Button
+
+Buzzer
+
+Potentiometer
+
+Power
+
+5V
+
+GND
+
+Boards
+
+Arduino UNO
+
+ESP32
+
+Structure
+
+Breadboard
+
+Jumper Wires
+
+Clicking a component places its image on canvas.
+
+🔹 CENTER PANEL — Circuit Canvas
+
+This should feel like a real electronics workspace.
+
+Features
+
+Light grid background
+
+Breadboard placed on canvas
+
+Components placed on breadboard
+
+Manual wire connections
+
+User selects wire
+
+Click pin → click another pin
+
+Wires drawn as curved SVG lines
+
+Active wires change color (subtle)
+
+⚠️ No heavy animation here — usability first.
+
+🔹 RIGHT PANEL — Controls & Status
+Controls
+
+Run Simulation
+
+Stop Simulation
+
+Reset Circuit
+
+Status
+
+Simulation state
+
+LED ON / OFF
+
+Error messages (mock)
+
+Example error:
+
+“LED requires a resistor in series”
+
+🎬 ANIMATION RULES (IMPORTANT)
+Use GSAP ONLY for:
+
+Page fade transitions
+
+Panel slide-in
+
+Component placement fade-in
+
+Button hover micro-interactions
+
+Do NOT:
+
+Use flashy animations
+
+Use pulsing neon
+
+Use continuous motion
+
+🧠 MOCK SIMULATION LOGIC (FRONTEND ONLY)
+
+Use React state.
+
+Example:
+
+If LED + Resistor + Power + GND connected → LED ON
+
+Else → LED OFF + error
+
+No electronics math.
+
+🧩 REQUIRED REACT COMPONENTS
+
+Header
+
+Sidebar
+
+DashboardLayout
+
+CourseCard
+
+ComponentPalette
+
+CircuitCanvas
+
+Breadboard
+
+CircuitComponent
+
+Wire
+
+ControlPanel
+
+StatusPanel
+
+📂 REQUIRED PROJECT STRUCTURE (SCALABLE)
+/app
+ ├─ /dashboard
+ ├─ /electronic-simulation
+ ├─ /courses
+ ├─ /about
+ ├─ layout.tsx
+ └─ page.tsx
+
+/components
+ ├─ layout/
+ ├─ dashboard/
+ ├─ simulation/
+ └─ common/
+
+/lib
+ ├─ mock-data/
+ ├─ constants/
+ └─ utils/
+
+/styles
+ └─ globals.css
+
+
+Must support future:
+
+Backend
+
+APIs
+
+Auth
+
+Database
+
+AI
+
+🎯 UX GOALS
+
+Learning-first
+
+Beginner-friendly
+
+Calm & aesthetic
+
+Professional SaaS quality
+
+Scalable foundation
+
+🚫 DO NOT INCLUDE
+
+Backend logic
+
+API routes
+
+Database
+
+Authentication
+
+PCB Design
+
+Wokwi
+
+Real firmware execution
+
+🧠 FINAL INSTRUCTION (VERY IMPORTANT)
+
+You MUST:
+
+Complete all pages
+
+Complete all layouts
+
+Keep animations minimal
+
+Use images/icons for components
+
+Implement manual wiring UI
+
+Provide clean TypeScript code
+
+Ensure app runs visually without errors
+
+❗ Do NOT stop mid-way
+❗ Do NOT summarize
+❗ Do NOT skip sections
+
+🧠 END OF PROMPT
