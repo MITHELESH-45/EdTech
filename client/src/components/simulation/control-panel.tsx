@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2 } from "lucide-react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ interface ControlPanelProps {
   onStop: () => void;
   onReset: () => void;
   onToggleWireMode: () => void;
+  onToggleDebugPanel: () => void;
+  showDebugPanel: boolean;
   componentCount: number;
   wireCount: number;
 }
@@ -25,12 +27,13 @@ export function ControlPanel({
   onStop,
   onReset,
   onToggleWireMode,
+  onToggleDebugPanel,
+  showDebugPanel,
   componentCount,
   wireCount,
 }: ControlPanelProps) {
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col">
-      {/* Controls Section */}
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Controls</h2>
         <div className="space-y-2">
@@ -76,15 +79,25 @@ export function ControlPanel({
             <RotateCcw className="h-4 w-4" />
             Reset Circuit
           </Button>
+
+          <Separator className="my-3" />
+
+          <Button
+            onClick={onToggleDebugPanel}
+            variant={showDebugPanel ? "default" : "outline"}
+            className="w-full justify-start gap-2"
+            data-testid="button-toggle-debug"
+          >
+            <Bug className="h-4 w-4" />
+            {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
+          </Button>
         </div>
       </div>
 
-      {/* Status Section */}
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Status</h2>
         
         <div className="space-y-3">
-          {/* Simulation State */}
           <div className="flex items-center justify-between p-3 rounded-md bg-muted/50" data-testid="status-simulation-state">
             <span className="text-sm text-muted-foreground">State</span>
             <div className="flex items-center gap-2">
@@ -100,7 +113,6 @@ export function ControlPanel({
             </div>
           </div>
 
-          {/* LED State */}
           <div className="flex items-center justify-between p-3 rounded-md bg-muted/50" data-testid="status-led-state">
             <span className="text-sm text-muted-foreground">LED</span>
             <div className="flex items-center gap-2">
@@ -118,7 +130,6 @@ export function ControlPanel({
         </div>
       </div>
 
-      {/* Circuit Info */}
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Circuit Info</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -133,7 +144,6 @@ export function ControlPanel({
         </div>
       </div>
 
-      {/* Messages Section */}
       <div className="flex-1 p-4">
         <h2 className="font-semibold text-sm mb-3">Messages</h2>
         
@@ -160,12 +170,11 @@ export function ControlPanel({
         )}
       </div>
 
-      {/* Tips */}
       <div className="p-4 border-t border-border bg-muted/30">
         <h3 className="text-xs font-medium text-muted-foreground mb-2">Quick Tips</h3>
         <ul className="text-xs text-muted-foreground space-y-1">
           <li>Connect LED + Resistor + 5V + GND for a basic circuit</li>
-          <li>Use Wire Mode to connect components</li>
+          <li>Use Wire Mode to connect component terminals</li>
           <li>Click Run to test your circuit</li>
         </ul>
       </div>

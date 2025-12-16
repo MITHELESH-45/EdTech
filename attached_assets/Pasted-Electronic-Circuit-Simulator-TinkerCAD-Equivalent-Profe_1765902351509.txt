@@ -1,0 +1,293 @@
+Electronic Circuit Simulator – TinkerCAD-Equivalent Professional Rebuild (Frontend Only)
+ROLE
+
+You are a senior frontend engineer and electronics simulation architect who has deep experience with educational simulators like TinkerCAD Circuits and Wokwi.
+
+I already have an existing frontend-only electronic circuit simulator, but it has major functional, architectural, and visual flaws.
+
+Your task is to analyze, debug, refactor, and complete the simulator professionally, using TinkerCAD Circuits as the primary reference for component clarity, pin layout, and behavior — while producing original implementation and assets.
+
+⚠️ NON-NEGOTIABLE RULES
+
+First analyze the existing codebase completely
+
+Identify:
+
+Wiring inefficiencies
+
+Incorrect simulation logic
+
+Poor component rendering
+
+Fix issues without breaking what already works
+
+If an error appears:
+
+Re-analyze
+
+Fix
+
+Re-test
+
+Do NOT stop halfway
+
+Deliver a stable, scalable, production-quality frontend
+
+🎯 CORE OBJECTIVE
+
+Transform the project from:
+
+“Basic visual circuit builder”
+
+into:
+
+A TinkerCAD-equivalent educational circuit simulator (frontend-only)
+
+1️⃣ COMPONENT DESIGN — TINKERCAD-EQUIVALENT (MANDATORY)
+Reference Standard
+
+Use TinkerCAD Circuits as the functional and visual reference for:
+
+Component shape
+
+Pin placement
+
+Pin naming
+
+User clarity
+
+Educational readability
+
+⚠️ Do NOT copy proprietary assets directly.
+✅ Recreate original SVGs that are functionally and visually equivalent.
+
+Components must include (at minimum):
+
+Breadboard
+
+Arduino Uno
+
+ESP32
+
+LED
+
+Resistor
+
+Buzzer
+
+Push Button
+
+Potentiometer
+
+Servo Motor
+
+Ultrasonic Sensor
+
+IR Sensor
+
+DHT11
+
+Power Supply / Battery
+
+Ground rail
+
+Each component must have:
+
+Clearly visible pins
+
+Pin labels exactly as in real hardware
+
+Hover tooltips
+
+Clickable snap points
+
+Zoom-safe readability
+
+2️⃣ MICROCONTROLLERS — PROFESSIONAL GRADE
+
+Arduino & ESP32 must NOT be simple images.
+
+Visual Requirements:
+
+SVG-based board design
+
+Realistic pin layout (like TinkerCAD)
+
+Clearly visible:
+
+VCC
+
+GND
+
+GPIO
+
+PWM pins
+
+Logical Requirements:
+
+Each pin must have:
+
+Mode (INPUT / OUTPUT)
+
+Voltage / signal state
+
+Connection to electrical nets
+
+Pins must drive or read nets, not act as decorations.
+
+3️⃣ TERMINAL-BASED WIRING SYSTEM (CRITICAL)
+
+Wiring must work exactly like TinkerCAD:
+
+Wires connect ONLY pin → pin
+
+No body connections
+
+No free-space connections
+
+UX Flow:
+
+Click a pin → wire starts
+
+Valid pins highlight
+
+Wire snaps on target pin
+
+Invalid connections blocked
+
+4️⃣ ELECTRICAL SIMULATION ENGINE (SCALABLE)
+
+Build a graph-based simulation engine.
+
+Core entities:
+Component
+Terminal
+Wire
+Net
+Circuit
+
+Simulation flow:
+RUN →
+Build Nets →
+Group Nets into Circuits →
+Assign Power & Ground →
+Propagate Voltages →
+Evaluate Components →
+Update Visual State
+
+5️⃣ MULTIPLE CIRCUITS SUPPORT
+
+Users can create multiple independent circuits
+
+Each circuit must:
+
+Simulate independently
+
+Not interfere with others
+
+Circuit grouping must be based only on connectivity
+
+6️⃣ COMPONENT LOGIC — NO COMBINATIONS
+
+🚫 Do NOT write logic like:
+
+LED + Arduino
+
+LED + Sensor
+
+✅ Correct approach:
+
+One universal electrical engine
+
+Each component defines only its own electrical behavior
+
+component.evaluate(connectedNets)
+
+
+This must scale cleanly to 20+ components.
+
+7️⃣ BREADBOARD — REAL INTERNAL CONNECTIONS
+
+Breadboard must:
+
+Implement internal row connectivity
+
+Implement power rails
+
+Behave exactly like a real breadboard (TinkerCAD-style)
+
+Without this, the simulator is invalid.
+
+8️⃣ ERROR DETECTION & AUTO-VALIDATION
+
+Detect and handle:
+
+No ground
+
+Reverse polarity
+
+Open circuit
+
+Short circuit
+
+Display clear warnings and prevent invalid simulation states.
+
+9️⃣ DEBUG PANEL (MANDATORY)
+
+Provide a debug mode showing:
+
+Detected circuits
+
+Nets and voltages
+
+Signal states
+
+Component evaluation results
+
+This is required for correctness and future extension.
+
+⚙️ TECH CONSTRAINTS
+
+Frontend only (JS / TS / React)
+
+Canvas or SVG rendering
+
+No backend
+
+No external simulation APIs
+
+No API keys
+
+Clean, modular, commented code
+
+✅ FINAL DELIVERABLE EXPECTATION
+
+After completion:
+
+Components look and feel like TinkerCAD-quality equivalents
+
+Pins are clear, visible, and usable
+
+Wiring is smooth and intuitive
+
+Simulation logic is correct and scalable
+
+Multiple circuits work simultaneously
+
+Adding a new component requires minimal code
+
+Architecture is future-ready
+
+❗ FINAL DIRECTIVE
+
+This is a professional rebuild, not a cosmetic fix.
+
+If something fails:
+
+Re-check
+
+Correct
+
+Validate
+
+Deliver a working result
