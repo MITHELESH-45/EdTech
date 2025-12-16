@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { componentMetadata, getTerminalPosition, findNearestTerminal, type Terminal } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
+import type { SimulationResult } from "@/lib/simulation-engine";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -15,6 +16,7 @@ interface CircuitCanvasProps {
   selectedPlacedId: string | null;
   isRunning: boolean;
   ledState: boolean;
+  simulationResult: SimulationResult | null;
   onPlaceComponent: (component: ElectronicComponent, x: number, y: number) => void;
   onAddWire: (wire: Omit<ExtendedWire, "id">) => void;
   onSelectPlaced: (id: string | null) => void;
@@ -316,6 +318,7 @@ export function CircuitCanvas({
   selectedPlacedId,
   isRunning,
   ledState,
+  simulationResult,
   onPlaceComponent,
   onAddWire,
   onSelectPlaced,

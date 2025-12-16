@@ -1,12 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { ComponentPalette } from "@/components/simulation/component-palette";
 import { CircuitCanvas } from "@/components/simulation/circuit-canvas";
 import { ControlPanel } from "@/components/simulation/control-panel";
+import { DebugPanel } from "@/components/simulation/debug-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { validateCircuitConnections } from "@/lib/circuit-types";
+import { SimulationEngine, type SimulationResult } from "@/lib/simulation-engine";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
 
 interface ExtendedWire extends Wire {
@@ -43,11 +44,13 @@ export default function ElectronicSimulation() {
   const [placedComponents, setPlacedComponents] = useState<PlacedComponent[]>([]);
   const [wires, setWires] = useState<ExtendedWire[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [ledState, setLedState] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
   const [wireMode, setWireMode] = useState(false);
   const [wireStart, setWireStart] = useState<{ x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null>(null);
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+
+  const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
   const { data: components, isLoading } = useQuery<ElectronicComponent[]>({
     queryKey: ["/api/components"],
@@ -112,45 +115,79 @@ export default function ElectronicSimulation() {
     }
   }, [selectedPlacedId, toast]);
 
+  const runSimulation = useCallback(() => {
+    simulationEngine.loadCircuit(placedComponents, wires);
+    const result = simulationEngine.simulate();
+    setSimulationResult(result);
+    return result;
+  }, [simulationEngine, placedComponents, wires]);
+
   const handleRun = () => {
-    const { isValid, ledShouldGlow, error } = validateCircuitConnections(placedComponents, wires);
-
-    if (error) {
-      setErrorMessage(error);
-      setLedState(false);
-    } else {
-      setErrorMessage(null);
-      setLedState(ledShouldGlow);
-    }
-
+    const result = runSimulation();
     setIsRunning(true);
 
-    if (isValid && ledShouldGlow) {
+    if (result.errors.length > 0) {
+      const firstError = result.errors[0];
+      toast({
+        title: "Circuit Error",
+        description: firstError.message,
+        variant: "destructive",
+      });
+    } else if (result.isValid) {
       setWires((prev) =>
         prev.map((w) => ({ ...w, isActive: true }))
       );
+      toast({
+        title: "Simulation Started",
+        description: "Your circuit is now running.",
+      });
     }
   };
 
   const handleStop = () => {
     setIsRunning(false);
-    setLedState(false);
     setWires((prev) =>
       prev.map((w) => ({ ...w, isActive: false }))
     );
+    toast({
+      title: "Simulation Stopped",
+      description: "The simulation has been stopped.",
+    });
   };
 
   const handleReset = () => {
     setPlacedComponents([]);
     setWires([]);
     setIsRunning(false);
-    setLedState(false);
-    setErrorMessage(null);
+    setSimulationResult(null);
     setSelectedComponent(null);
     setWireMode(false);
     setWireStart(null);
     setSelectedPlacedId(null);
+    simulationEngine.reset();
+    toast({
+      title: "Circuit Reset",
+      description: "All components and wires have been cleared.",
+    });
   };
+
+  const ledState = useMemo(() => {
+    if (!simulationResult || !isRunning) return false;
+    for (const [, state] of simulationResult.componentStates) {
+      if (state.type === "led" && state.isActive) {
+        return true;
+      }
+    }
+    return false;
+  }, [simulationResult, isRunning]);
+
+  const errorMessage = useMemo(() => {
+    if (!simulationResult) return null;
+    if (simulationResult.errors.length > 0) {
+      return simulationResult.errors[0].message;
+    }
+    return null;
+  }, [simulationResult]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -176,6 +213,7 @@ export default function ElectronicSimulation() {
           selectedPlacedId={selectedPlacedId}
           isRunning={isRunning}
           ledState={ledState}
+          simulationResult={simulationResult}
           onPlaceComponent={handlePlaceComponent}
           onAddWire={handleAddWire}
           onSelectPlaced={handleSelectPlaced}
@@ -185,18 +223,31 @@ export default function ElectronicSimulation() {
           onWireStart={setWireStart}
         />
 
-        <ControlPanel
-          isRunning={isRunning}
-          ledState={ledState}
-          errorMessage={errorMessage}
-          wireMode={wireMode}
-          onRun={handleRun}
-          onStop={handleStop}
-          onReset={handleReset}
-          onToggleWireMode={handleToggleWireMode}
-          componentCount={placedComponents.length}
-          wireCount={wires.length}
-        />
+        <div className="flex flex-shrink-0">
+          <ControlPanel
+            isRunning={isRunning}
+            ledState={ledState}
+            errorMessage={errorMessage}
+            wireMode={wireMode}
+            onRun={handleRun}
+            onStop={handleStop}
+            onReset={handleReset}
+            onToggleWireMode={handleToggleWireMode}
+            onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
+            showDebugPanel={showDebugPanel}
+            componentCount={placedComponents.length}
+            wireCount={wires.length}
+          />
+
+          {showDebugPanel && (
+            <div className="w-72">
+              <DebugPanel
+                simulationResult={simulationResult}
+                isRunning={isRunning}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
