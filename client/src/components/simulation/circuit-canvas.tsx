@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { componentMetadata, getTerminalPosition, findNearestTerminal, type Terminal } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
 import type { SimulationResult } from "@/lib/simulation-engine";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -24,6 +26,8 @@ interface CircuitCanvasProps {
   wireMode: boolean;
   wireStart: { x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null;
   onWireStart: (point: { x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null) => void;
+  resistorValues: Record<string, number>;
+  onChangeResistorValue: (id: string, value: number) => void;
 }
 
 function TerminalMarker({
@@ -61,14 +65,14 @@ function TerminalMarker({
       <circle
         cx={x}
         cy={y}
-        r={isHovered ? 8 : 5}
+        r={isHovered ? 9 : 6}
         fill={getColor()}
         stroke={isHovered ? "#22c55e" : "white"}
-        strokeWidth={isHovered ? 3 : 1.5}
+        strokeWidth={isHovered ? 3 : 2}
         className={cn("transition-all duration-150", isWireMode && "cursor-crosshair")}
         data-testid={`terminal-${terminal.id}`}
       />
-      {isHovered && (
+      {(isHovered || isWireMode) && (
         <text
           x={x}
           y={y - 12}
@@ -326,6 +330,8 @@ export function CircuitCanvas({
   wireMode,
   wireStart,
   onWireStart,
+  resistorValues,
+  onChangeResistorValue,
 }: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -488,7 +494,8 @@ export function CircuitCanvas({
               isRunning={isRunning}
               ledState={ledState}
               isSelected={selectedPlacedId === placed.id}
-              showTerminals={wireMode || selectedPlacedId === placed.id}
+            // Always show terminals so that all pins/ports remain visible and easy to wire
+            showTerminals={true}
               hoveredTerminal={
                 hoveredTerminal?.componentId === placed.id ? hoveredTerminal.terminalId : null
               }
@@ -521,9 +528,34 @@ export function CircuitCanvas({
       )}
 
       {selectedPlacedId && (
-        <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg border border-border p-3 text-sm">
-          <p className="text-muted-foreground mb-1">Selected component</p>
-          <p className="font-medium">Press DELETE or ESC to remove</p>
+        <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg border border-border p-3 text-sm space-y-2">
+          <p className="text-muted-foreground">Selected component</p>
+          <p className="font-medium mb-1">Press DELETE or ESC to remove</p>
+          {(() => {
+            const selected = placedComponents.find((p) => p.id === selectedPlacedId);
+            if (selected?.componentId !== "resistor") return null;
+            const value = resistorValues[selectedPlacedId] ?? 220;
+            return (
+              <div className="space-y-1">
+                <Label htmlFor="resistor-value" className="text-xs">
+                  Resistor value (Ω)
+                </Label>
+                <Input
+                  id="resistor-value"
+                  type="number"
+                  min={1}
+                  max={1000000}
+                  step={10}
+                  value={value}
+                  onChange={(e) => {
+                    const next = Number(e.target.value) || 0;
+                    onChangeResistorValue(selectedPlacedId, Math.max(1, next));
+                  }}
+                  className="h-7 text-xs px-2"
+                />
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

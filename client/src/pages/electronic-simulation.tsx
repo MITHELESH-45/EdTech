@@ -49,6 +49,7 @@ export default function ElectronicSimulation() {
   const [wireStart, setWireStart] = useState<{ x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null>(null);
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [resistorValues, setResistorValues] = useState<Record<string, number>>({});
 
   const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
@@ -73,6 +74,13 @@ export default function ElectronicSimulation() {
         rotation: 0,
       };
       setPlacedComponents((prev) => [...prev, newPlaced]);
+
+      if (component.id === "resistor") {
+        setResistorValues((prev) => ({
+          ...prev,
+          [newPlaced.id]: 220,
+        }));
+      }
     },
     []
   );
@@ -107,6 +115,11 @@ export default function ElectronicSimulation() {
             w.endTerminal?.componentId !== selectedPlacedId
         )
       );
+      setResistorValues((prev) => {
+        const updated = { ...prev };
+        delete updated[selectedPlacedId];
+        return updated;
+      });
       setSelectedPlacedId(null);
       toast({
         title: "Component deleted",
@@ -115,25 +128,44 @@ export default function ElectronicSimulation() {
     }
   }, [selectedPlacedId, toast]);
 
+  const handleChangeResistorValue = useCallback((id: string, value: number) => {
+    setResistorValues((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  }, []);
+
   const runSimulation = useCallback(() => {
     simulationEngine.loadCircuit(placedComponents, wires);
+
+    // Sync any edited resistor values into the simulation state
+    Object.entries(resistorValues).forEach(([placedId, resistance]) => {
+      simulationEngine.setResistorResistance(placedId, resistance);
+    });
+
     const result = simulationEngine.simulate();
     setSimulationResult(result);
     return result;
-  }, [simulationEngine, placedComponents, wires]);
+  }, [simulationEngine, placedComponents, wires, resistorValues]);
 
   const handleRun = () => {
     const result = runSimulation();
-    setIsRunning(true);
+    const hasBlockingError = result.errors.some((e) => e.severity === "error");
 
-    if (result.errors.length > 0) {
+    if (hasBlockingError || !result.isValid) {
+      setIsRunning(false);
       const firstError = result.errors[0];
       toast({
         title: "Circuit Error",
-        description: firstError.message,
+        description: firstError?.message ?? "There is a problem with your circuit. Please fix the wiring and try again.",
         variant: "destructive",
       });
+      // Ensure wires are not shown as active when the circuit is invalid
+      setWires((prev) =>
+        prev.map((w) => ({ ...w, isActive: false }))
+      );
     } else if (result.isValid) {
+      setIsRunning(true);
       setWires((prev) =>
         prev.map((w) => ({ ...w, isActive: true }))
       );
@@ -221,6 +253,8 @@ export default function ElectronicSimulation() {
           wireMode={wireMode}
           wireStart={wireStart}
           onWireStart={setWireStart}
+          resistorValues={resistorValues}
+          onChangeResistorValue={handleChangeResistorValue}
         />
 
         <div className="flex flex-shrink-0">
