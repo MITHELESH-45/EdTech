@@ -227,7 +227,7 @@ export function findNearestTerminal(
   x: number,
   y: number,
   placedComponents: Array<{ id: string; componentId: string; x: number; y: number; rotation: number }>,
-  threshold: number = 20
+  threshold: number = 32
 ): { componentId: string; terminalId: string; x: number; y: number } | null {
   let nearest: { componentId: string; terminalId: string; x: number; y: number; distance: number } | null = null;
 

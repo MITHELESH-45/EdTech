@@ -110,6 +110,20 @@ export class SimulationEngine {
     this.circuits = [];
   }
 
+  /**
+   * Update the resistance value of a specific placed resistor component.
+   * This keeps the simulation state in sync with any UI controls for resistor value.
+   */
+  setResistorResistance(placedId: string, resistance: number): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "resistor") {
+      comp.state = {
+        ...comp.state,
+        resistance,
+      };
+    }
+  }
+
   loadCircuit(
     placedComponents: PlacedComponentData[],
     wires: WireData[]
@@ -435,6 +449,22 @@ export class SimulationEngine {
 
     switch (component.type) {
       case "led": {
+        // LED should only be considered if both anode and cathode are actually wired
+        const isAnodeConnected = this.wires.some(
+          (w) =>
+            (w.startComponentId === component.placedId && w.startTerminalId === "anode") ||
+            (w.endComponentId === component.placedId && w.endTerminalId === "anode")
+        );
+        const isCathodeConnected = this.wires.some(
+          (w) =>
+            (w.startComponentId === component.placedId && w.startTerminalId === "cathode") ||
+            (w.endComponentId === component.placedId && w.endTerminalId === "cathode")
+        );
+
+        if (!isAnodeConnected || !isCathodeConnected) {
+          break;
+        }
+
         const anodeNet = this.findNetForTerminal(component.placedId, "anode");
         const cathodeNet = this.findNetForTerminal(component.placedId, "cathode");
 
