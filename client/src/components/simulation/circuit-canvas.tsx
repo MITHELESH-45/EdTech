@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { componentMetadata, getTerminalPosition, findNearestTerminal, type Terminal } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
-import type { SimulationResult } from "@/lib/simulation-engine";
+import type { SimulationResult, ComponentState } from "@/lib/simulation-engine";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -17,7 +17,6 @@ interface CircuitCanvasProps {
   selectedComponent: ElectronicComponent | null;
   selectedPlacedId: string | null;
   isRunning: boolean;
-  ledState: boolean;
   simulationResult: SimulationResult | null;
   onPlaceComponent: (component: ElectronicComponent, x: number, y: number) => void;
   onAddWire: (wire: Omit<ExtendedWire, "id">) => void;
@@ -28,6 +27,10 @@ interface CircuitCanvasProps {
   onWireStart: (point: { x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null) => void;
   resistorValues: Record<string, number>;
   onChangeResistorValue: (id: string, value: number) => void;
+  onMovePlaced: (id: string, x: number, y: number) => void;
+  selectedWireId: string | null;
+  onSelectWire: (id: string | null) => void;
+  onDeleteSelectedWire: () => void;
 }
 
 function TerminalMarker({
@@ -92,26 +95,26 @@ function PlacedComponentVisual({
   placed,
   component,
   isRunning,
-  ledState,
   isSelected,
   showTerminals,
   hoveredTerminal,
   wireMode,
+  componentState,
 }: {
   placed: PlacedComponent;
   component: ElectronicComponent | undefined;
   isRunning: boolean;
-  ledState: boolean;
   isSelected: boolean;
   showTerminals: boolean;
   hoveredTerminal: string | null;
   wireMode: boolean;
+  componentState?: ComponentState;
 }) {
   if (!component) return null;
 
   const metadata = componentMetadata[component.id];
   const isLed = component.id === "led";
-  const ledOn = isLed && isRunning && ledState;
+  const ledOn = isLed && isRunning && !!componentState?.isActive;
 
   const terminals = metadata?.terminals || [];
 
@@ -332,26 +335,36 @@ export function CircuitCanvas({
   onWireStart,
   resistorValues,
   onChangeResistorValue,
+  onMovePlaced,
+  selectedWireId,
+  onSelectWire,
+  onDeleteSelectedWire,
 }: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredTerminal, setHoveredTerminal] = useState<{ componentId: string; terminalId: string } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === "Delete" || e.key === "Backspace" || e.key === "Escape") && selectedPlacedId) {
+      if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        onDeleteSelected();
-      }
-      if (e.key === "Escape") {
+        if (selectedPlacedId) {
+          onDeleteSelected();
+        } else if (selectedWireId) {
+          onDeleteSelectedWire();
+        }
+      } else if (e.key === "Escape") {
         onSelectPlaced(null);
+        onSelectWire(null);
         onWireStart(null);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPlacedId, onDeleteSelected, onSelectPlaced, onWireStart]);
+  }, [selectedPlacedId, selectedWireId, onDeleteSelected, onDeleteSelectedWire, onSelectPlaced, onSelectWire, onWireStart]);
 
   const getMousePosition = useCallback((e: React.MouseEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -392,13 +405,18 @@ export function CircuitCanvas({
       onPlaceComponent(selectedComponent, pos.x, pos.y);
     } else {
       onSelectPlaced(null);
+      onSelectWire(null);
     }
   };
 
-  const handleComponentClick = (e: React.MouseEvent, placedId: string) => {
+  const handleComponentMouseDown = (e: React.MouseEvent, placedId: string, x: number, y: number) => {
     e.stopPropagation();
     if (!wireMode && !selectedComponent) {
       onSelectPlaced(placedId);
+      onSelectWire(null);
+      const pos = getMousePosition(e);
+      setDraggingId(placedId);
+      setDragOffset({ x: pos.x - x, y: pos.y - y });
     }
   };
 
@@ -406,12 +424,25 @@ export function CircuitCanvas({
     const pos = getMousePosition(e);
     setMousePos(pos);
 
+    if (draggingId) {
+      const placed = placedComponents.find((p) => p.id === draggingId);
+      if (placed) {
+        const newX = pos.x - dragOffset.x;
+        const newY = pos.y - dragOffset.y;
+        onMovePlaced(draggingId, newX, newY);
+      }
+    }
+
     if (wireMode) {
       const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents);
       setHoveredTerminal(nearestTerminal ? { componentId: nearestTerminal.componentId, terminalId: nearestTerminal.terminalId } : null);
-    } else {
+    } else if (wireMode) {
       setHoveredTerminal(null);
     }
+  };
+
+  const handleMouseUp = () => {
+    setDraggingId(null);
   };
 
   const componentMap = new Map(
@@ -454,6 +485,7 @@ export function CircuitCanvas({
         className="w-full h-full relative z-10"
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         data-testid="circuit-canvas"
       >
         {wires.map((wire) => {
@@ -466,10 +498,21 @@ export function CircuitCanvas({
               key={wire.id}
               d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
               fill="none"
-              stroke={wire.isActive ? "#22c55e" : "#4b5563"}
+              stroke={
+                wire.id === selectedWireId
+                  ? "#f97316"
+                  : wire.isActive
+                  ? "#22c55e"
+                  : "#4b5563"
+              }
               strokeWidth="3"
               strokeLinecap="round"
-              className="transition-colors duration-300"
+              className="transition-colors duration-300 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectWire(wire.id);
+                onSelectPlaced(null);
+              }}
             />
           );
         })}
@@ -487,12 +530,21 @@ export function CircuitCanvas({
         )}
 
         {placedComponents.map((placed) => (
-          <g key={placed.id} onClick={(e) => handleComponentClick(e, placed.id)}>
+          <g
+            key={placed.id}
+            onMouseDown={(e) => handleComponentMouseDown(e, placed.id, placed.x, placed.y)}
+            // Prevent canvas click handler from immediately clearing the selection
+            onClick={(e) => e.stopPropagation()}
+          >
             <PlacedComponentVisual
               placed={placed}
               component={componentMap.get(placed.id) as ElectronicComponent | undefined}
               isRunning={isRunning}
-              ledState={ledState}
+              componentState={
+                simulationResult?.componentStates.get(placed.id) as
+                  | ComponentState
+                  | undefined
+              }
               isSelected={selectedPlacedId === placed.id}
             // Always show terminals so that all pins/ports remain visible and easy to wire
             showTerminals={true}

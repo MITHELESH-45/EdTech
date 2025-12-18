@@ -2,6 +2,7 @@ import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -16,6 +17,9 @@ interface ControlPanelProps {
   showDebugPanel: boolean;
   componentCount: number;
   wireCount: number;
+  selectedResistorId: string | null;
+  selectedResistorValue: number | null;
+  onChangeResistorValue: (id: string, value: number) => void;
 }
 
 export function ControlPanel({
@@ -31,6 +35,9 @@ export function ControlPanel({
   showDebugPanel,
   componentCount,
   wireCount,
+  selectedResistorId,
+  selectedResistorValue,
+  onChangeResistorValue,
 }: ControlPanelProps) {
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col">
@@ -130,7 +137,7 @@ export function ControlPanel({
         </div>
       </div>
 
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border space-y-3">
         <h2 className="font-semibold text-sm mb-3">Circuit Info</h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-md bg-muted/50 text-center">
@@ -141,6 +148,32 @@ export function ControlPanel({
             <div className="text-2xl font-bold text-foreground" data-testid="stat-wire-count">{wireCount}</div>
             <div className="text-xs text-muted-foreground">Wires</div>
           </div>
+        </div>
+
+        <div className="mt-2">
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            Resistor Value
+          </p>
+          {selectedResistorId && selectedResistorValue !== null ? (
+            <Input
+              type="number"
+              min={1}
+              max={1000000}
+              step={10}
+              value={selectedResistorValue}
+              onChange={(e) =>
+                onChangeResistorValue(
+                  selectedResistorId,
+                  Math.max(1, Number(e.target.value) || 0)
+                )
+              }
+              className="h-8 text-xs"
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Select a resistor on the canvas to edit its value.
+            </p>
+          )}
         </div>
       </div>
 

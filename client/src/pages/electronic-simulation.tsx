@@ -7,8 +7,15 @@ import { ControlPanel } from "@/components/simulation/control-panel";
 import { DebugPanel } from "@/components/simulation/debug-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { SimulationEngine, type SimulationResult } from "@/lib/simulation-engine";
+import {
+  SimulationEngine,
+  type SimulationResult,
+  type McuPinStateMap,
+  type PinLogicState,
+} from "@/lib/simulation-engine";
+import { componentMetadata, getTerminalPosition } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
+import { LogicPanel } from "@/components/simulation/logic-panel";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -50,6 +57,8 @@ export default function ElectronicSimulation() {
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [resistorValues, setResistorValues] = useState<Record<string, number>>({});
+  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+  const [mcuPinStates, setMcuPinStates] = useState<McuPinStateMap>({});
 
   const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
@@ -98,11 +107,15 @@ export default function ElectronicSimulation() {
     setSelectedComponent(null);
     setWireStart(null);
     setSelectedPlacedId(null);
+    setSelectedWireId(null);
   };
 
   const handleSelectPlaced = (id: string | null) => {
     setSelectedPlacedId(id);
     setSelectedComponent(null);
+    if (id) {
+      setSelectedWireId(null);
+    }
   };
 
   const handleDeleteSelected = useCallback(() => {
@@ -135,6 +148,72 @@ export default function ElectronicSimulation() {
     }));
   }, []);
 
+  const handleMovePlaced = useCallback((id: string, x: number, y: number) => {
+    setPlacedComponents((prev) => {
+      const current = prev.find((p) => p.id === id);
+      if (!current) return prev;
+
+      const updatedPlaced = prev.map((p) =>
+        p.id === id ? { ...p, x, y } : p
+      );
+
+      const metadata = componentMetadata[current.componentId];
+      if (!metadata) {
+        return updatedPlaced;
+      }
+
+      // Update wire endpoints connected to this moved component
+      setWires((prevWires) => {
+        return prevWires.map((w) => {
+          let startX = w.startX;
+          let startY = w.startY;
+          let endX = w.endX;
+          let endY = w.endY;
+
+          if (w.startTerminal?.componentId === id) {
+            const term = metadata.terminals.find(
+              (t) => t.id === w.startTerminal!.terminalId
+            );
+            if (term) {
+              const pos = getTerminalPosition(x, y, current.rotation, term);
+              startX = pos.x;
+              startY = pos.y;
+            }
+          }
+
+          if (w.endTerminal?.componentId === id) {
+            const term = metadata.terminals.find(
+              (t) => t.id === w.endTerminal!.terminalId
+            );
+            if (term) {
+              const pos = getTerminalPosition(x, y, current.rotation, term);
+              endX = pos.x;
+              endY = pos.y;
+            }
+          }
+
+          if (
+            startX !== w.startX ||
+            startY !== w.startY ||
+            endX !== w.endX ||
+            endY !== w.endY
+          ) {
+            return { ...w, startX, startY, endX, endY };
+          }
+          return w;
+        });
+      });
+
+      return updatedPlaced;
+    });
+  }, []);
+
+  const handleDeleteSelectedWire = useCallback(() => {
+    if (!selectedWireId) return;
+    setWires((prev) => prev.filter((w) => w.id !== selectedWireId));
+    setSelectedWireId(null);
+  }, [selectedWireId]);
+
   const runSimulation = useCallback(() => {
     simulationEngine.loadCircuit(placedComponents, wires);
 
@@ -143,7 +222,7 @@ export default function ElectronicSimulation() {
       simulationEngine.setResistorResistance(placedId, resistance);
     });
 
-    const result = simulationEngine.simulate();
+    const result = simulationEngine.simulate(mcuPinStates);
     setSimulationResult(result);
     return result;
   }, [simulationEngine, placedComponents, wires, resistorValues]);
@@ -151,14 +230,21 @@ export default function ElectronicSimulation() {
   const handleRun = () => {
     const result = runSimulation();
     const hasBlockingError = result.errors.some((e) => e.severity === "error");
+    const hasActiveComponent = Array.from(result.componentStates.values()).some(
+      (state) => state.isActive
+    );
 
-    if (hasBlockingError || !result.isValid) {
+    if (hasBlockingError || !result.isValid || !hasActiveComponent) {
       setIsRunning(false);
       const firstError = result.errors[0];
       toast({
-        title: "Circuit Error",
-        description: firstError?.message ?? "There is a problem with your circuit. Please fix the wiring and try again.",
-        variant: "destructive",
+        title: hasBlockingError || !result.isValid ? "Circuit Error" : "Circuit Incomplete",
+        description:
+          firstError?.message ??
+          (hasActiveComponent
+            ? "There is a problem with your circuit. Please fix the wiring and try again."
+            : "No components are actually powered or active. Check your wiring and try again."),
+        variant: hasBlockingError || !result.isValid ? "destructive" : "default",
       });
       // Ensure wires are not shown as active when the circuit is invalid
       setWires((prev) =>
@@ -203,15 +289,15 @@ export default function ElectronicSimulation() {
     });
   };
 
-  const ledState = useMemo(() => {
-    if (!simulationResult || !isRunning) return false;
+  const anyLedOn = useMemo(() => {
+    if (!simulationResult) return false;
     for (const [, state] of simulationResult.componentStates) {
       if (state.type === "led" && state.isActive) {
         return true;
       }
     }
     return false;
-  }, [simulationResult, isRunning]);
+  }, [simulationResult]);
 
   const errorMessage = useMemo(() => {
     if (!simulationResult) return null;
@@ -220,6 +306,39 @@ export default function ElectronicSimulation() {
     }
     return null;
   }, [simulationResult]);
+
+  const selectedResistorId = useMemo(() => {
+    if (!selectedPlacedId) return null;
+    const placed = placedComponents.find((p) => p.id === selectedPlacedId);
+    if (!placed || placed.componentId !== "resistor") return null;
+    return selectedPlacedId;
+  }, [selectedPlacedId, placedComponents]);
+
+  const selectedResistorValue = useMemo(() => {
+    if (!selectedResistorId) return null;
+    return resistorValues[selectedResistorId] ?? 220;
+  }, [selectedResistorId, resistorValues]);
+
+  const hasMcu = useMemo(
+    () =>
+      placedComponents.some(
+        (p) => p.componentId === "arduino-uno" || p.componentId === "esp32"
+      ),
+    [placedComponents]
+  );
+
+  const handleChangePinState = useCallback(
+    (placedId: string, pinId: string, state: PinLogicState) => {
+      setMcuPinStates((prev) => ({
+        ...prev,
+        [placedId]: {
+          ...(prev[placedId] ?? {}),
+          [pinId]: state,
+        },
+      }));
+    },
+    []
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -244,7 +363,6 @@ export default function ElectronicSimulation() {
           selectedComponent={selectedComponent}
           selectedPlacedId={selectedPlacedId}
           isRunning={isRunning}
-          ledState={ledState}
           simulationResult={simulationResult}
           onPlaceComponent={handlePlaceComponent}
           onAddWire={handleAddWire}
@@ -255,12 +373,16 @@ export default function ElectronicSimulation() {
           onWireStart={setWireStart}
           resistorValues={resistorValues}
           onChangeResistorValue={handleChangeResistorValue}
+          onMovePlaced={handleMovePlaced}
+          selectedWireId={selectedWireId}
+          onSelectWire={setSelectedWireId}
+          onDeleteSelectedWire={handleDeleteSelectedWire}
         />
 
         <div className="flex flex-shrink-0">
           <ControlPanel
             isRunning={isRunning}
-            ledState={ledState}
+            ledState={anyLedOn && isRunning}
             errorMessage={errorMessage}
             wireMode={wireMode}
             onRun={handleRun}
@@ -271,7 +393,20 @@ export default function ElectronicSimulation() {
             showDebugPanel={showDebugPanel}
             componentCount={placedComponents.length}
             wireCount={wires.length}
+            selectedResistorId={selectedResistorId}
+            selectedResistorValue={selectedResistorValue}
+            onChangeResistorValue={handleChangeResistorValue}
           />
+
+          {hasMcu && (
+            <div className="w-72">
+              <LogicPanel
+                placedComponents={placedComponents}
+                mcuPinStates={mcuPinStates}
+                onChangePinState={handleChangePinState}
+              />
+            </div>
+          )}
 
           {showDebugPanel && (
             <div className="w-72">
