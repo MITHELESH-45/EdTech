@@ -86,6 +86,11 @@ export interface NetState {
   isPower: boolean;
 }
 
+export type PinLogicState = "HIGH" | "LOW" | "INPUT";
+
+// Map of MCU placedId -> map of pinId -> logic level
+export type McuPinStateMap = Record<string, Record<string, PinLogicState>>;
+
 type PlacedComponentData = { id: string; componentId: string; x: number; y: number; rotation: number };
 type WireData = {
   id: string;
@@ -102,12 +107,14 @@ export class SimulationEngine {
   private wires: SimWire[] = [];
   private nets: Map<string, Net> = new Map();
   private circuits: Circuit[] = [];
+  private mcuPinStates: McuPinStateMap = {};
 
   reset(): void {
     this.components.clear();
     this.wires = [];
     this.nets.clear();
     this.circuits = [];
+    this.mcuPinStates = {};
   }
 
   /**
@@ -268,6 +275,20 @@ export class SimulationEngine {
               if (comp.type === "arduino-uno" && term.id === "gnd") {
                 isGround = true;
               }
+
+              // Treat MCU GPIO pins with configured logic-levels as additional
+              // power/ground sources in the circuit graph. This allows the
+              // logic panel to drive pins HIGH/LOW and participate in loops.
+              if (comp.type === "arduino-uno" || comp.type === "esp32") {
+                const boardStates = this.mcuPinStates[comp.placedId];
+                const pinState = boardStates?.[term.id];
+                if (pinState === "HIGH") {
+                  isPower = true;
+                  powerVoltage = comp.type === "arduino-uno" ? 5 : 3.3;
+                } else if (pinState === "LOW") {
+                  isGround = true;
+                }
+              }
             }
           }
 
@@ -418,7 +439,7 @@ export class SimulationEngine {
     }
   }
 
-  private findNetForTerminal(componentId: string, terminalId: string): string | null {
+  findNetForTerminal(componentId: string, terminalId: string): string | null {
     for (const [netId, net] of this.nets) {
       if (net.terminals.some((t) => t.componentId === componentId && t.terminalId === terminalId)) {
         return netId;
@@ -449,39 +470,14 @@ export class SimulationEngine {
 
     switch (component.type) {
       case "led": {
-        // LED should only be considered if both anode and cathode are actually wired
-        const isAnodeConnected = this.wires.some(
-          (w) =>
-            (w.startComponentId === component.placedId && w.startTerminalId === "anode") ||
-            (w.endComponentId === component.placedId && w.endTerminalId === "anode")
-        );
-        const isCathodeConnected = this.wires.some(
-          (w) =>
-            (w.startComponentId === component.placedId && w.startTerminalId === "cathode") ||
-            (w.endComponentId === component.placedId && w.endTerminalId === "cathode")
-        );
-
-        if (!isAnodeConnected || !isCathodeConnected) {
-          break;
-        }
-
-        const anodeNet = this.findNetForTerminal(component.placedId, "anode");
-        const cathodeNet = this.findNetForTerminal(component.placedId, "cathode");
-
-        if (anodeNet && cathodeNet) {
-          const anode = this.nets.get(anodeNet);
-          const cathode = this.nets.get(cathodeNet);
-
-          if (anode && cathode && !isNaN(anode.voltage) && !isNaN(cathode.voltage)) {
-            const voltageDrop = anode.voltage - cathode.voltage;
-            const ledThreshold = 1.8;
-
-            if (voltageDrop >= ledThreshold) {
-              baseState.isActive = true;
-              baseState.powered = true;
-              baseState.properties.glowing = true;
-              baseState.properties.brightness = Math.min(1, (voltageDrop - ledThreshold) / 3);
-            }
+        const ledAnalysis = this.analyzeLed(component);
+        if (ledAnalysis.powered && ledAnalysis.isOn) {
+          baseState.isActive = true;
+          baseState.powered = true;
+          baseState.properties.glowing = true;
+          baseState.properties.brightness = ledAnalysis.brightness;
+          if (ledAnalysis.current !== null) {
+            baseState.properties.current = ledAnalysis.current;
           }
         }
         break;
@@ -583,20 +579,6 @@ export class SimulationEngine {
         });
       }
 
-      const hasLed = circuit.components.some((c) => c.type === "led");
-      const hasResistor = circuit.components.some((c) => c.type === "resistor");
-
-      if (hasLed && !hasResistor && circuit.hasPower) {
-        errors.push({
-          type: "MISSING_RESISTOR",
-          message: "LED requires a resistor in series to limit current and prevent damage.",
-          affectedComponents: circuit.components
-            .filter((c) => c.type === "led")
-            .map((c) => c.placedId),
-          severity: "error",
-        });
-      }
-
       for (const net of circuit.nets) {
         if (net.isPower && net.isGround) {
           errors.push({
@@ -608,26 +590,11 @@ export class SimulationEngine {
         }
       }
 
+      // Per-LED rule-based validation (closed loop, series resistor, polarity, current)
       for (const component of circuit.components) {
         if (component.type === "led") {
-          const anodeNet = this.findNetForTerminal(component.placedId, "anode");
-          const cathodeNet = this.findNetForTerminal(component.placedId, "cathode");
-
-          if (anodeNet && cathodeNet) {
-            const anode = this.nets.get(anodeNet);
-            const cathode = this.nets.get(cathodeNet);
-
-            if (anode && cathode) {
-              if (anode.isGround && cathode.isPower) {
-                errors.push({
-                  type: "REVERSE_POLARITY",
-                  message: "LED is connected in reverse polarity. Swap anode (+) and cathode (-) connections.",
-                  affectedComponents: [component.placedId],
-                  severity: "error",
-                });
-              }
-            }
-          }
+          const ledResult = this.analyzeLed(component);
+          errors.push(...ledResult.errors);
         }
       }
     }
@@ -635,7 +602,9 @@ export class SimulationEngine {
     return errors;
   }
 
-  simulate(): SimulationResult {
+  simulate(mcuPinStates?: McuPinStateMap): SimulationResult {
+    this.mcuPinStates = mcuPinStates ?? {};
+
     this.buildNets();
     this.buildCircuits();
     this.propagateVoltages();
@@ -675,7 +644,394 @@ export class SimulationEngine {
   getComponents(): Map<string, SimComponent> {
     return this.components;
   }
+
+  /**
+   * Internal helper used by the rule engine to evaluate a single LED
+   * against the current circuit graph.
+   */
+  private analyzeLed(component: SimComponent): LedAnalysisResult {
+    return analyzeLedForEngine(this, component);
+  }
 }
+
+/**
+ * Small helper describing the analysis result for a single LED.
+ */
+interface LedAnalysisResult {
+  isOn: boolean;
+  powered: boolean;
+  brightness: number;
+  current: number | null;
+  errors: SimulationError[];
+}
+
+/**
+ * Per-color defaults for LED electrical characteristics.
+ */
+const LED_DEFAULTS: Record<
+  string,
+  {
+    forwardVoltage: number;
+    maxCurrent: number; // amps
+  }
+> = {
+  red: { forwardVoltage: 1.8, maxCurrent: 0.02 },
+  yellow: { forwardVoltage: 2.0, maxCurrent: 0.02 },
+  green: { forwardVoltage: 2.2, maxCurrent: 0.02 },
+};
+
+/**
+ * Analyze a single LED in the context of the current nets & circuits.
+ * This enforces:
+ * - Closed-loop requirement (power -> LED -> ground)
+ * - Presence of at least one series resistor
+ * - Correct polarity (anode at higher potential than cathode)
+ * - Current within safe limits based on Ohm's law
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _neverUsed() {
+  // This function exists only to keep TypeScript happy when tree-shaking
+  // in some bundlers; real logic is in SimulationEngine methods below.
+}
+
+// Extend SimulationEngine with LED analysis helpers
+// (placed here so we can keep the main class definition readable)
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace SimulationHelpers {
+  export function getLedDefaults(color: string | undefined) {
+    const lower = color?.toLowerCase() ?? "red";
+    return LED_DEFAULTS[lower] ?? LED_DEFAULTS.red;
+  }
+}
+
+// We attach the helper as a method on the prototype to keep the file single-class.
+function analyzeLedForEngine(
+  engine: SimulationEngine,
+  component: SimComponent
+): LedAnalysisResult {
+  const errors: SimulationError[] = [];
+
+  // Ensure LED terminals are actually wired
+  const isAnodeConnected = (engine as unknown as { wires: SimWire[] }).wires.some(
+    (w) =>
+      (w.startComponentId === component.placedId && w.startTerminalId === "anode") ||
+      (w.endComponentId === component.placedId && w.endTerminalId === "anode")
+  );
+  const isCathodeConnected = (engine as unknown as { wires: SimWire[] }).wires.some(
+    (w) =>
+      (w.startComponentId === component.placedId && w.startTerminalId === "cathode") ||
+      (w.endComponentId === component.placedId && w.endTerminalId === "cathode")
+  );
+
+  if (!isAnodeConnected || !isCathodeConnected) {
+    // LED is simply not in the circuit; don't flag an error, just treat as off.
+    return { isOn: false, powered: false, brightness: 0, current: null, errors };
+  }
+
+  const anodeNetId = (engine as unknown as SimulationEngine).findNetForTerminal(
+    component.placedId,
+    "anode"
+  );
+  const cathodeNetId = (engine as unknown as SimulationEngine).findNetForTerminal(
+    component.placedId,
+    "cathode"
+  );
+
+  if (!anodeNetId || !cathodeNetId) {
+    return {
+      isOn: false,
+      powered: false,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  // Locate the circuit that contains this LED
+  const circuit = (engine as unknown as SimulationEngine)
+    .getCircuits()
+    .find((c) => c.components.some((cmp) => cmp.placedId === component.placedId));
+
+  if (!circuit) {
+    return {
+      isOn: false,
+      powered: false,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  const powerNets = circuit.nets.filter((n) => n.isPower);
+  const groundNets = circuit.nets.filter((n) => n.isGround);
+
+  if (powerNets.length === 0 || groundNets.length === 0) {
+    errors.push({
+      type: "OPEN_CIRCUIT",
+      message:
+        "No closed loop detected for LED. Ensure there is both a power source and ground in the circuit.",
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+    return {
+      isOn: false,
+      powered: false,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  // Build a simple net graph where edges are 2‑terminal components (resistor, LED, button, etc.)
+  type Edge = {
+    from: string;
+    to: string;
+    component: SimComponent;
+  };
+
+  const adjacency = new Map<string, Edge[]>();
+  const addEdge = (from: string, to: string, comp: SimComponent) => {
+    if (!adjacency.has(from)) adjacency.set(from, []);
+    adjacency.get(from)!.push({ from, to, component: comp });
+  };
+
+  for (const comp of circuit.components) {
+    // Only consider simple 2‑terminal components when building the series graph
+    if (comp.terminals.length !== 2) continue;
+    const [t1, t2] = comp.terminals;
+    const n1 = (engine as unknown as SimulationEngine).findNetForTerminal(
+      comp.placedId,
+      t1.id
+    );
+    const n2 = (engine as unknown as SimulationEngine).findNetForTerminal(
+      comp.placedId,
+      t2.id
+    );
+    if (!n1 || !n2 || n1 === n2) continue;
+    addEdge(n1, n2, comp);
+    addEdge(n2, n1, comp);
+  }
+
+  // Depth‑first search from each power net to each ground net trying to find
+  // a path that passes through this LED and at least one resistor.
+  interface PathState {
+    netId: string;
+    path: Edge[];
+  }
+
+  let bestPath: Edge[] | null = null;
+  let pathPowerNet: Net | null = null;
+  let pathGroundNet: Net | null = null;
+
+  for (const p of powerNets) {
+    for (const g of groundNets) {
+      const stack: PathState[] = [{ netId: p.id, path: [] }];
+      const visited = new Set<string>();
+
+      while (stack.length > 0) {
+        const { netId, path } = stack.pop()!;
+        if (visited.has(netId)) continue;
+        visited.add(netId);
+
+        if (netId === g.id) {
+          // Reached ground; see if this path goes through the LED
+          const usesLed = path.some((e) => e.component.placedId === component.placedId);
+          if (!usesLed) continue;
+
+          bestPath = path;
+          pathPowerNet = p;
+          pathGroundNet = g;
+          break;
+        }
+
+        const edges = adjacency.get(netId) ?? [];
+        for (const edge of edges) {
+          if (!visited.has(edge.to)) {
+            stack.push({ netId: edge.to, path: [...path, edge] });
+          }
+        }
+      }
+
+      if (bestPath) break;
+    }
+    if (bestPath) break;
+  }
+
+  if (!bestPath || !pathPowerNet || !pathGroundNet) {
+    // LED is wired but not actually part of a closed loop from power to ground.
+    errors.push({
+      type: "OPEN_CIRCUIT",
+      message:
+        "No closed loop detected through this LED. Complete the path from power through a resistor and LED to ground.",
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+    return {
+      isOn: false,
+      powered: false,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  // Verify that the path passes the LED with correct polarity and at least one resistor.
+  const ledEdgeIndex = bestPath.findIndex((e) => e.component.placedId === component.placedId);
+  if (ledEdgeIndex === -1) {
+    // Should not happen given earlier check, but guard anyway.
+    return {
+      isOn: false,
+      powered: false,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  const ledEdge = bestPath[ledEdgeIndex];
+  const pathHasResistor = bestPath.some((e) => e.component.type === "resistor");
+
+  if (!pathHasResistor) {
+    errors.push({
+      type: "MISSING_RESISTOR",
+      message:
+        "LED is missing a series resistor in its loop. Add a resistor in series to limit current.",
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+  }
+
+  // Determine which side of the edge corresponds to anode/cathode.
+  const ledAnodeNetId = anodeNetId;
+  const ledCathodeNetId = cathodeNetId;
+
+  const traversesAnodeToCathode =
+    ledEdge.from === ledAnodeNetId && ledEdge.to === ledCathodeNetId;
+  const traversesCathodeToAnode =
+    ledEdge.from === ledCathodeNetId && ledEdge.to === ledAnodeNetId;
+
+  if (!traversesAnodeToCathode && !traversesCathodeToAnode) {
+    // The path is strange; treat as open circuit.
+    errors.push({
+      type: "OPEN_CIRCUIT",
+      message:
+        "LED is wired but not oriented in a valid path between power and ground. Check your wiring.",
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+    return {
+      isOn: false,
+      powered: false,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  if (traversesCathodeToAnode) {
+    errors.push({
+      type: "REVERSE_POLARITY",
+      message:
+        "Wrong LED polarity: anode is at lower potential than cathode in the detected loop. Swap the LED leads.",
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+    return {
+      isOn: false,
+      powered: true,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  // Compute total series resistance in the path.
+  let totalR = 0;
+  for (const edge of bestPath) {
+    if (edge.component.type === "resistor") {
+      const resistance =
+        (edge.component.state.resistance as number | undefined) ?? 220;
+      totalR += resistance;
+    }
+  }
+
+  if (totalR <= 0) {
+    // No meaningful current limiting; treat as overcurrent risk.
+    errors.push({
+      type: "OVERCURRENT",
+      message:
+        "No resistance detected in LED loop. Add a resistor in series to limit current.",
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+    return {
+      isOn: false,
+      powered: true,
+      brightness: 0,
+      current: null,
+      errors,
+    };
+  }
+
+  // Apply basic Ohm's law: I = (Vsupply - Vf) / R
+  const { forwardVoltage, maxCurrent } = SimulationHelpers.getLedDefaults(
+    (component.state as { color?: string }).color
+  );
+
+  const supplyVoltage = pathPowerNet.powerVoltage;
+  const availableVoltage = supplyVoltage - forwardVoltage;
+
+  if (availableVoltage <= 0) {
+    // Not enough voltage to forward-bias the LED.
+    return {
+      isOn: false,
+      powered: true,
+      brightness: 0,
+      current: 0,
+      errors,
+    };
+  }
+
+  const current = availableVoltage / totalR; // amps
+
+  if (current <= 0) {
+    return {
+      isOn: false,
+      powered: true,
+      brightness: 0,
+      current,
+      errors,
+    };
+  }
+
+  if (current > maxCurrent) {
+    errors.push({
+      type: "OVERCURRENT",
+      message: `Current exceeds safe limit for LED. Calculated current is ${(current * 1000).toFixed(
+        1
+      )} mA (max ${(maxCurrent * 1000).toFixed(0)} mA). Increase the resistor value.`,
+      affectedComponents: [component.placedId],
+      severity: "error",
+    });
+    return {
+      isOn: false,
+      powered: true,
+      brightness: 0,
+      current,
+      errors,
+    };
+  }
+
+  const brightness = Math.min(1, current / maxCurrent);
+
+  return {
+    isOn: true,
+    powered: true,
+    brightness,
+    current,
+    errors,
+  };
+};
 
 interface TerminalDefinition {
   id: string;
