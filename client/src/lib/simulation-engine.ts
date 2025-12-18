@@ -392,6 +392,29 @@ export class SimulationEngine {
     }
   }
 
+  /**
+   * Detect a direct short circuit between power and ground that has no impedance
+   * (i.e. power and ground are merged into the same net through wires / zero-ohm connections).
+   *
+   * This must be checked immediately after nets are built and MUST block simulation.
+   */
+  private detectShortCircuit(): SimulationError | null {
+    for (const net of this.nets.values()) {
+      if (net.isPower && net.isGround) {
+        const affectedComponents = Array.from(
+          new Set(net.terminals.map((t) => t.componentId))
+        );
+        return {
+          type: "SHORT_CIRCUIT",
+          message: "Direct short detected between power and ground.",
+          affectedComponents,
+          severity: "error",
+        };
+      }
+    }
+    return null;
+  }
+
   propagateVoltages(): void {
     for (const net of this.nets.values()) {
       if (net.isPower) {
@@ -607,6 +630,43 @@ export class SimulationEngine {
 
     this.buildNets();
     this.buildCircuits();
+
+    // CRITICAL SAFETY: short-circuit detection must occur before voltage propagation
+    // or any component evaluation. If a short is detected, simulation is blocked completely.
+    const shortCircuit = this.detectShortCircuit();
+    if (shortCircuit) {
+      const componentStates = new Map<string, ComponentState>();
+      for (const component of this.components.values()) {
+        componentStates.set(component.placedId, {
+          componentId: component.placedId,
+          type: component.type,
+          isActive: false,
+          powered: false,
+          properties: { ...component.state },
+        });
+      }
+
+      const netStates = new Map<string, NetState>();
+      for (const [netId, net] of this.nets) {
+        netStates.set(netId, {
+          netId,
+          voltage: net.voltage,
+          current: 0,
+          isGround: net.isGround,
+          isPower: net.isPower,
+        });
+      }
+
+      return {
+        isValid: false,
+        circuits: this.circuits,
+        errors: [shortCircuit],
+        warnings: [],
+        componentStates,
+        netStates,
+      };
+    }
+
     this.propagateVoltages();
 
     const errors = this.detectErrors();
