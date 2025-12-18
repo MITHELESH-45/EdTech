@@ -229,28 +229,43 @@ export default function ElectronicSimulation() {
 
   const handleRun = () => {
     const result = runSimulation();
-    const hasBlockingError = result.errors.some((e) => e.severity === "error");
     const hasActiveComponent = Array.from(result.componentStates.values()).some(
       (state) => state.isActive
     );
+    const shortCircuit = result.errors.find((e) => e.type === "SHORT_CIRCUIT");
 
-    if (hasBlockingError || !result.isValid || !hasActiveComponent) {
+    // SHORT_CIRCUIT is a hard safety block: do not allow simulation to run at all.
+    if (shortCircuit) {
       setIsRunning(false);
-      const firstError = result.errors[0];
       toast({
-        title: hasBlockingError || !result.isValid ? "Circuit Error" : "Circuit Incomplete",
-        description:
-          firstError?.message ??
-          (hasActiveComponent
-            ? "There is a problem with your circuit. Please fix the wiring and try again."
-            : "No components are actually powered or active. Check your wiring and try again."),
-        variant: hasBlockingError || !result.isValid ? "destructive" : "default",
+        title: "Circuit Error",
+        description: shortCircuit.message,
+        variant: "destructive",
       });
-      // Ensure wires are not shown as active when the circuit is invalid
       setWires((prev) =>
         prev.map((w) => ({ ...w, isActive: false }))
       );
-    } else if (result.isValid) {
+      return;
+    }
+
+    // If nothing is actually active/powered, don't run (even if we have errors/warnings).
+    if (!hasActiveComponent) {
+      setIsRunning(false);
+      const firstError = result.errors[0];
+      toast({
+        title: "Circuit Incomplete",
+        description:
+          firstError?.message ??
+          "No components are actually powered or active. Check your wiring and try again.",
+        variant: result.errors.some((e) => e.severity === "error") ? "destructive" : "default",
+      });
+      setWires((prev) => prev.map((w) => ({ ...w, isActive: false })));
+      return;
+    }
+
+    // Allow running even if there are other component-specific errors; valid sub-loops should still operate.
+    // Visuals must depend on per-component state, not global validity.
+    {
       setIsRunning(true);
       setWires((prev) =>
         prev.map((w) => ({ ...w, isActive: true }))

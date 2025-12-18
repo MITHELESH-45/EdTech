@@ -114,7 +114,15 @@ function PlacedComponentVisual({
 
   const metadata = componentMetadata[component.id];
   const isLed = component.id === "led";
-  const ledOn = isLed && isRunning && !!componentState?.isActive;
+  const ledOn =
+    isRunning &&
+    componentState?.type === "led" &&
+    componentState.isActive === true;
+  const ledBrightness =
+    (typeof componentState?.properties?.brightness === "number"
+      ? (componentState.properties.brightness as number)
+      : 0) ?? 0;
+  const ledGlowing = componentState?.properties?.glowing === true;
 
   const terminals = metadata?.terminals || [];
 
@@ -148,10 +156,15 @@ function PlacedComponentVisual({
               "transition-all duration-300",
               ledOn ? "fill-red-500" : "fill-gray-300"
             )}
+            style={
+              ledOn
+                ? { opacity: Math.min(1, Math.max(0.25, 0.25 + ledBrightness * 0.75)) }
+                : undefined
+            }
             stroke={ledOn ? "#ef4444" : "#9ca3af"}
             strokeWidth="2"
           />
-          {ledOn && (
+          {(ledOn || ledGlowing) && (
             <circle
               cx="0"
               cy="0"
@@ -159,7 +172,7 @@ function PlacedComponentVisual({
               fill="none"
               stroke="#ef4444"
               strokeWidth="1"
-              opacity="0.3"
+              opacity={ledOn ? 0.25 + Math.min(0.5, ledBrightness * 0.5) : 0.15}
             />
           )}
           <line x1="-8" y1="16" x2="-8" y2="28" stroke="#dc2626" strokeWidth="2" />
