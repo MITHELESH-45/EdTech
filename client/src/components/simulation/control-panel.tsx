@@ -101,36 +101,43 @@ export function ControlPanel({
         </div>
       </div>
 
-      <div className="p-4 border-b border-border">
+      {/* Status Panel - Color coded */}
+      <div className={`rounded-lg border p-4 ${
+        isRunning && !errorMessage
+          ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+          : errorMessage
+          ? "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+          : "bg-card text-card-foreground"
+      }`}>
         <h2 className="font-semibold text-sm mb-3">Status</h2>
         
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-md bg-muted/50" data-testid="status-simulation-state">
-            <span className="text-sm text-muted-foreground">State</span>
+          <div className="flex items-center justify-between p-3 rounded-md bg-white/50 dark:bg-black/20" data-testid="status-simulation-state">
+            <span className="text-sm opacity-80">State</span>
             <div className="flex items-center gap-2">
               <div
                 className={cn(
                   "w-2 h-2 rounded-full",
-                  isRunning ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                  isRunning && !errorMessage ? "bg-green-500 animate-pulse" : errorMessage ? "bg-red-500" : "bg-gray-400"
                 )}
               />
               <span className="text-sm font-medium" data-testid="text-simulation-state">
-                {isRunning ? "Running" : "Stopped"}
+                {errorMessage ? "Error" : isRunning ? "Running" : "Stopped"}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-md bg-muted/50" data-testid="status-led-state">
-            <span className="text-sm text-muted-foreground">LED</span>
+          <div className="flex items-center justify-between p-3 rounded-md bg-white/50 dark:bg-black/20" data-testid="status-led-state">
+            <span className="text-sm opacity-80">LED</span>
             <div className="flex items-center gap-2">
               <Zap
                 className={cn(
                   "h-4 w-4 transition-colors",
-                  ledState && isRunning ? "text-yellow-500" : "text-gray-400"
+                  ledState && isRunning && !errorMessage ? "text-yellow-500" : "text-gray-400"
                 )}
               />
               <span className="text-sm font-medium" data-testid="text-led-state">
-                {ledState && isRunning ? "ON" : "OFF"}
+                {ledState && isRunning && !errorMessage ? "ON" : "OFF"}
               </span>
             </div>
           </div>
