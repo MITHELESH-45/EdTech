@@ -2,9 +2,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { componentMetadata, getTerminalPosition, findNearestTerminal, type Terminal } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
-import type { SimulationResult, ComponentState } from "@/lib/simulation-engine";
+import type { SimulationResult, ComponentState, SimulationError } from "@/lib/simulation-engine";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LedVisual } from "./LedVisual";
+import { AlertTriangle } from "lucide-react"; // Import AlertTriangle
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -75,12 +77,13 @@ function TerminalMarker({
         className={cn("transition-all duration-150", isWireMode && "cursor-crosshair")}
         data-testid={`terminal-${terminal.id}`}
       />
-      {(isHovered || isWireMode) && (
+      <title>{terminal.name}</title>
+      {isHovered && (
         <text
           x={x}
           y={y - 12}
           textAnchor="middle"
-          fontSize="9"
+          fontSize="10"
           fill="hsl(var(--foreground))"
           className="pointer-events-none"
         >
@@ -100,6 +103,7 @@ function PlacedComponentVisual({
   hoveredTerminal,
   wireMode,
   componentState,
+  errors,
 }: {
   placed: PlacedComponent;
   component: ElectronicComponent | undefined;
@@ -109,11 +113,16 @@ function PlacedComponentVisual({
   hoveredTerminal: string | null;
   wireMode: boolean;
   componentState?: ComponentState;
+  errors?: SimulationError[];
 }) {
   if (!component) return null;
 
   const metadata = componentMetadata[component.id];
-  const isLed = component.id === "led";
+  
+  // Find errors affecting this component
+  const componentError = errors?.find(e => e.affectedComponents.includes(placed.id));
+  const errorColor = componentError?.type === "SHORT_CIRCUIT" ? "#ef4444" : "#f59e0b"; // Red or Amber
+
   const ledOn =
     isRunning &&
     componentState?.type === "led" &&
@@ -122,7 +131,6 @@ function PlacedComponentVisual({
     (typeof componentState?.properties?.brightness === "number"
       ? (componentState.properties.brightness as number)
       : 0) ?? 0;
-  const ledGlowing = componentState?.properties?.glowing === true;
 
   const terminals = metadata?.terminals || [];
 
@@ -148,33 +156,16 @@ function PlacedComponentVisual({
 
       {component.id === "led" && (
         <>
-          <circle
-            cx="0"
-            cy="0"
-            r="16"
-            className={cn(
-              "transition-all duration-300",
-              ledOn ? "fill-red-500" : "fill-gray-300"
-            )}
-            style={
-              ledOn
-                ? { opacity: Math.min(1, Math.max(0.25, 0.25 + ledBrightness * 0.75)) }
-                : undefined
+          <LedVisual
+            on={ledOn}
+            brightness={ledBrightness}
+            color={
+              (componentState?.properties?.color as
+                | "red"
+                | "yellow"
+                | "green") ?? "red"
             }
-            stroke={ledOn ? "#ef4444" : "#9ca3af"}
-            strokeWidth="2"
           />
-          {(ledOn || ledGlowing) && (
-            <circle
-              cx="0"
-              cy="0"
-              r="24"
-              fill="none"
-              stroke="#ef4444"
-              strokeWidth="1"
-              opacity={ledOn ? 0.25 + Math.min(0.5, ledBrightness * 0.5) : 0.15}
-            />
-          )}
           <line x1="-8" y1="16" x2="-8" y2="28" stroke="#dc2626" strokeWidth="2" />
           <line x1="8" y1="16" x2="8" y2="28" stroke="#4b5563" strokeWidth="2" />
           <text x="-8" y="36" textAnchor="middle" fontSize="7" fill="#dc2626">+</text>
@@ -327,6 +318,25 @@ function PlacedComponentVisual({
           />
         );
       })}
+
+      {/* Error Indicator Overlay */}
+      {componentError && (
+        <g transform="translate(10, -10)" className="error-indicator">
+          <circle r="8" fill={errorColor} stroke="white" strokeWidth="1.5" />
+          <text
+            x="0"
+            y="3"
+            textAnchor="middle"
+            fill="white"
+            fontSize="10"
+            fontWeight="bold"
+            pointerEvents="none"
+          >
+            !
+          </text>
+          <title>{`${componentError.message} (${componentError.type})`}</title>
+        </g>
+      )}
     </g>
   );
 }
@@ -337,7 +347,6 @@ export function CircuitCanvas({
   selectedComponent,
   selectedPlacedId,
   isRunning,
-  ledState,
   simulationResult,
   onPlaceComponent,
   onAddWire,
@@ -501,6 +510,22 @@ export function CircuitCanvas({
         onMouseUp={handleMouseUp}
         data-testid="circuit-canvas"
       >
+        <defs>
+          <filter id="led-glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="wire-glow" x="-50%" y="-50%" width="200%" height="200%">
+             <feGaussianBlur stdDeviation="2" result="blur" />
+             <feMerge>
+               <feMergeNode in="blur" />
+               <feMergeNode in="SourceGraphic" />
+             </feMerge>
+          </filter>
+        </defs>
         {wires.map((wire) => {
           const midX = (wire.startX + wire.endX) / 2;
           const midY = (wire.startY + wire.endY) / 2;
@@ -515,12 +540,14 @@ export function CircuitCanvas({
                 wire.id === selectedWireId
                   ? "#f97316"
                   : wire.isActive
-                  ? "#22c55e"
-                  : "#4b5563"
+                  ? "#4ade80" // Slightly brighter green for active
+                  : "#4b5563" // Neutral gray for inactive
               }
-              strokeWidth="3"
+              strokeWidth={wire.isActive ? "4" : "3"} // Slightly thicker if active
               strokeLinecap="round"
-              className="transition-colors duration-300 cursor-pointer"
+              filter={wire.isActive ? "url(#wire-glow)" : undefined} // Add glow if active
+              opacity={wire.isActive ? 1 : 0.8} // Adjust opacity
+              className="transition-all duration-300 cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectWire(wire.id);
@@ -558,6 +585,7 @@ export function CircuitCanvas({
                   | ComponentState
                   | undefined
               }
+              errors={simulationResult?.errors}
               isSelected={selectedPlacedId === placed.id}
             // Always show terminals so that all pins/ports remain visible and easy to wire
             showTerminals={true}

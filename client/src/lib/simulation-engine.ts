@@ -66,6 +66,7 @@ export interface SimulationError {
   message: string;
   affectedComponents: string[];
   severity: "error" | "warning";
+  clusterId?: string;
 }
 
 export type SimulationWarning = SimulationError;
@@ -398,25 +399,26 @@ export class SimulationEngine {
    *
    * This must be checked immediately after nets are built and MUST block simulation.
    */
-  private detectShortCircuit(): SimulationError | null {
-    for (const net of this.nets.values()) {
+  private detectShortCircuit(circuit: Circuit): SimulationError | null {
+    for (const net of circuit.nets) {
       if (net.isPower && net.isGround) {
         const affectedComponents = Array.from(
           new Set(net.terminals.map((t) => t.componentId))
         );
         return {
           type: "SHORT_CIRCUIT",
-          message: "Direct short detected between power and ground.",
+          message: "Short circuit in this circuit cluster! Power and ground are directly connected.",
           affectedComponents,
           severity: "error",
+          clusterId: circuit.id,
         };
       }
     }
     return null;
   }
 
-  propagateVoltages(): void {
-    for (const net of this.nets.values()) {
+  propagateVoltages(circuit: Circuit): void {
+    for (const net of circuit.nets) {
       if (net.isPower) {
         net.voltage = net.powerVoltage;
       } else if (net.isGround) {
@@ -432,7 +434,7 @@ export class SimulationEngine {
       changed = false;
       iterations++;
 
-      for (const net of this.nets.values()) {
+      for (const net of circuit.nets) {
         if (!isNaN(net.voltage)) continue;
 
         for (const term of net.terminals) {
@@ -471,10 +473,10 @@ export class SimulationEngine {
     return null;
   }
 
-  evaluateComponents(): Map<string, ComponentState> {
+  evaluateComponents(circuit: Circuit): Map<string, ComponentState> {
     const states = new Map<string, ComponentState>();
 
-    for (const component of this.components.values()) {
+    for (const component of circuit.components) {
       const state = this.evaluateComponent(component);
       states.set(component.placedId, state);
     }
@@ -572,53 +574,56 @@ export class SimulationEngine {
     return baseState;
   }
 
-  detectErrors(): SimulationError[] {
+  detectCircuitErrors(circuit: Circuit): SimulationError[] {
     const errors: SimulationError[] = [];
 
-    for (const circuit of this.circuits) {
-      if (circuit.components.length === 0) continue;
+    if (circuit.components.length === 0) return errors;
 
-      const hasActiveComponents = circuit.components.some(
-        (c) => !["5v", "gnd", "breadboard"].includes(c.type)
-      );
+    const hasActiveComponents = circuit.components.some(
+      (c) => !["5v", "gnd", "breadboard"].includes(c.type)
+    );
 
-      if (!hasActiveComponents) continue;
+    if (!hasActiveComponents) return errors;
 
-      if (!circuit.hasGround) {
+    if (!circuit.hasGround) {
+      errors.push({
+        type: "NO_GROUND",
+        message: "Circuit is missing a ground connection. Add a GND component.",
+        affectedComponents: circuit.components.map((c) => c.placedId),
+        severity: "error",
+        clusterId: circuit.id,
+      });
+    }
+
+    if (!circuit.hasPower) {
+      errors.push({
+        type: "NO_POWER",
+        message: "Circuit is missing a power source. Add a 5V or use Arduino/ESP32 power pins.",
+        affectedComponents: circuit.components.map((c) => c.placedId),
+        severity: "error",
+        clusterId: circuit.id,
+      });
+    }
+
+    for (const net of circuit.nets) {
+      if (net.isPower && net.isGround) {
         errors.push({
-          type: "NO_GROUND",
-          message: "Circuit is missing a ground connection. Add a GND component.",
-          affectedComponents: circuit.components.map((c) => c.placedId),
+          type: "SHORT_CIRCUIT",
+          message: "Short circuit in this circuit cluster! Power and ground are directly connected.",
+          affectedComponents: net.terminals.map((t) => t.componentId),
           severity: "error",
+          clusterId: circuit.id,
         });
       }
+    }
 
-      if (!circuit.hasPower) {
-        errors.push({
-          type: "NO_POWER",
-          message: "Circuit is missing a power source. Add a 5V or use Arduino/ESP32 power pins.",
-          affectedComponents: circuit.components.map((c) => c.placedId),
-          severity: "error",
-        });
-      }
-
-      for (const net of circuit.nets) {
-        if (net.isPower && net.isGround) {
-          errors.push({
-            type: "SHORT_CIRCUIT",
-            message: "Short circuit detected! Power and ground are directly connected.",
-            affectedComponents: net.terminals.map((t) => t.componentId),
-            severity: "error",
-          });
-        }
-      }
-
-      // Per-LED rule-based validation (closed loop, series resistor, polarity, current)
-      for (const component of circuit.components) {
-        if (component.type === "led") {
-          const ledResult = this.analyzeLed(component);
-          errors.push(...ledResult.errors);
-        }
+    // Per-LED rule-based validation (closed loop, series resistor, polarity, current)
+    for (const component of circuit.components) {
+      if (component.type === "led") {
+        const ledResult = this.analyzeLed(component);
+        // Add clusterId to led errors
+        const ledErrors = ledResult.errors.map(e => ({ ...e, clusterId: circuit.id }));
+        errors.push(...ledErrors);
       }
     }
 
@@ -631,62 +636,77 @@ export class SimulationEngine {
     this.buildNets();
     this.buildCircuits();
 
-    // CRITICAL SAFETY: short-circuit detection must occur before voltage propagation
-    // or any component evaluation. If a short is detected, simulation is blocked completely.
-    const shortCircuit = this.detectShortCircuit();
-    if (shortCircuit) {
-      const componentStates = new Map<string, ComponentState>();
-      for (const component of this.components.values()) {
-        componentStates.set(component.placedId, {
-          componentId: component.placedId,
-          type: component.type,
-          isActive: false,
-          powered: false,
-          properties: { ...component.state },
-        });
+    const componentStates = new Map<string, ComponentState>();
+    const netStates = new Map<string, NetState>();
+    const errors: SimulationError[] = [];
+    const warnings: SimulationWarning[] = [];
+
+    for (const circuit of this.circuits) {
+      // 1. Detect Short Circuit
+      const shortCircuit = this.detectShortCircuit(circuit);
+      if (shortCircuit) {
+        errors.push(shortCircuit);
+        
+        // Set inactive states for this cluster
+        for (const component of circuit.components) {
+          componentStates.set(component.placedId, {
+            componentId: component.placedId,
+            type: component.type,
+            isActive: false,
+            powered: false,
+            properties: { ...component.state },
+          });
+        }
+        
+        // Set net states for this cluster
+        for (const net of circuit.nets) {
+          netStates.set(net.id, {
+            netId: net.id,
+            voltage: net.voltage,
+            current: 0,
+            isGround: net.isGround,
+            isPower: net.isPower,
+          });
+        }
+        continue;
       }
 
-      const netStates = new Map<string, NetState>();
-      for (const [netId, net] of this.nets) {
-        netStates.set(netId, {
-          netId,
+      // 2. Propagate Voltages
+      this.propagateVoltages(circuit);
+
+      // 3. Detect Errors
+      const circuitErrors = this.detectCircuitErrors(circuit);
+      errors.push(...circuitErrors);
+      
+      const circuitWarnings = circuitErrors.filter((e) => e.severity === "warning");
+      // Note: detectCircuitErrors returns both errors and warnings? 
+      // Actually detectCircuitErrors logic only pushes severity "error" in my previous edit?
+      // Wait, let's check. detectCircuitErrors logic:
+      // severity: "error" for everything I added.
+      // analyzeLed might return warnings.
+      // I should filter them properly if needed, but for now push all to errors list and filter later.
+      // Wait, analyzeLed returns { errors: [] } which are SimulationError. SimulationError has severity.
+      
+      // 4. Evaluate Components
+      const circuitComponentStates = this.evaluateComponents(circuit);
+      circuitComponentStates.forEach((state, id) => componentStates.set(id, state));
+
+      // 5. Net States
+      for (const net of circuit.nets) {
+        netStates.set(net.id, {
+          netId: net.id,
           voltage: net.voltage,
           current: 0,
           isGround: net.isGround,
           isPower: net.isPower,
         });
       }
-
-      return {
-        isValid: false,
-        circuits: this.circuits,
-        errors: [shortCircuit],
-        warnings: [],
-        componentStates,
-        netStates,
-      };
-    }
-
-    this.propagateVoltages();
-
-    const errors = this.detectErrors();
-    const componentStates = this.evaluateComponents();
-
-    const netStates = new Map<string, NetState>();
-    for (const [netId, net] of this.nets) {
-      netStates.set(netId, {
-        netId,
-        voltage: net.voltage,
-        current: 0,
-        isGround: net.isGround,
-        isPower: net.isPower,
-      });
     }
 
     return {
       isValid: errors.filter((e) => e.severity === "error").length === 0,
       circuits: this.circuits,
-      errors,
+      errors: errors.filter((e) => e.severity === "error"),
       warnings: errors.filter((e) => e.severity === "warning"),
       componentStates,
       netStates,
