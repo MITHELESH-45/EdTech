@@ -51,8 +51,7 @@ export function LogicPanel({
 
             const pins = meta.terminals.filter(
               (t) =>
-                t.type === "gpio" ||
-                (t.type === "signal" && !["5v", "3v3", "gnd", "gnd2", "vin"].includes(t.id))
+                t.type === "signal" && !["5v", "3v3", "gnd", "gnd2", "vin"].includes(t.id)
             );
 
             const statesForBoard = mcuPinStates[placed.id] ?? {};
@@ -98,7 +97,7 @@ export function LogicPanel({
                                   key={state}
                                   type="button"
                                   variant="ghost"
-                                  size="xs"
+                                  size="sm"
                                   className={cn(
                                     "h-6 px-2 text-[10px] rounded-none border-l border-border first:border-l-0",
                                     currentState === state &&

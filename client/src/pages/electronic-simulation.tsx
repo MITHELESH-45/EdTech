@@ -153,14 +153,8 @@ export default function ElectronicSimulation() {
       const current = prev.find((p) => p.id === id);
       if (!current) return prev;
 
-      const updatedPlaced = prev.map((p) =>
-        p.id === id ? { ...p, x, y } : p
-      );
-
       const metadata = componentMetadata[current.componentId];
-      if (!metadata) {
-        return updatedPlaced;
-      }
+      if (!metadata) return prev; // Should not happen but safety check
 
       // Update wire endpoints connected to this moved component
       setWires((prevWires) => {
@@ -169,7 +163,9 @@ export default function ElectronicSimulation() {
           let startY = w.startY;
           let endX = w.endX;
           let endY = w.endY;
+          let modified = false;
 
+          // Update START terminal if connected
           if (w.startTerminal?.componentId === id) {
             const term = metadata.terminals.find(
               (t) => t.id === w.startTerminal!.terminalId
@@ -178,9 +174,11 @@ export default function ElectronicSimulation() {
               const pos = getTerminalPosition(x, y, current.rotation, term);
               startX = pos.x;
               startY = pos.y;
+              modified = true;
             }
           }
 
+          // Update END terminal if connected
           if (w.endTerminal?.componentId === id) {
             const term = metadata.terminals.find(
               (t) => t.id === w.endTerminal!.terminalId
@@ -189,22 +187,21 @@ export default function ElectronicSimulation() {
               const pos = getTerminalPosition(x, y, current.rotation, term);
               endX = pos.x;
               endY = pos.y;
+              modified = true;
             }
           }
 
-          if (
-            startX !== w.startX ||
-            startY !== w.startY ||
-            endX !== w.endX ||
-            endY !== w.endY
-          ) {
+          if (modified) {
             return { ...w, startX, startY, endX, endY };
           }
           return w;
         });
       });
 
-      return updatedPlaced;
+      // Update component itself
+      return prev.map((p) =>
+        p.id === id ? { ...p, x, y } : p
+      );
     });
   }, []);
 
@@ -229,47 +226,60 @@ export default function ElectronicSimulation() {
 
   const handleRun = () => {
     const result = runSimulation();
+    
     const hasActiveComponent = Array.from(result.componentStates.values()).some(
       (state) => state.isActive
     );
-    const shortCircuit = result.errors.find((e) => e.type === "SHORT_CIRCUIT");
 
-    // SHORT_CIRCUIT is a hard safety block: do not allow simulation to run at all.
-    if (shortCircuit) {
+    // If nothing is actually active/powered, don't run.
+    if (!hasActiveComponent) {
       setIsRunning(false);
-      toast({
-        title: "Circuit Error",
-        description: shortCircuit.message,
-        variant: "destructive",
-      });
-      setWires((prev) =>
-        prev.map((w) => ({ ...w, isActive: false }))
-      );
+      // If there are errors, show the first one
+      if (result.errors.length > 0) {
+        toast({
+          title: "Circuit Error",
+          description: result.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Circuit Incomplete",
+          description: "No components are actually powered or active. Check your wiring and try again.",
+          variant: "default",
+        });
+      }
+      setWires((prev) => prev.map((w) => ({ ...w, isActive: false })));
       return;
     }
 
-    // If nothing is actually active/powered, don't run (even if we have errors/warnings).
-    if (!hasActiveComponent) {
+    // Check if all circuits have errors
+    const clustersWithErrors = new Set(result.errors.map(e => e.clusterId).filter(Boolean));
+    const totalClusters = result.circuits.length;
+    const allFailed = totalClusters > 0 && clustersWithErrors.size === totalClusters;
+
+    if (allFailed) {
       setIsRunning(false);
-      const firstError = result.errors[0];
       toast({
-        title: "Circuit Incomplete",
-        description:
-          firstError?.message ??
-          "No components are actually powered or active. Check your wiring and try again.",
-        variant: result.errors.some((e) => e.severity === "error") ? "destructive" : "default",
+        title: "Circuit Error",
+        description: result.errors[0].message,
+        variant: "destructive",
       });
       setWires((prev) => prev.map((w) => ({ ...w, isActive: false })));
       return;
     }
 
-    // Allow running even if there are other component-specific errors; valid sub-loops should still operate.
-    // Visuals must depend on per-component state, not global validity.
-    {
-      setIsRunning(true);
-      setWires((prev) =>
-        prev.map((w) => ({ ...w, isActive: true }))
-      );
+    setIsRunning(true);
+    setWires((prev) =>
+      prev.map((w) => ({ ...w, isActive: true }))
+    );
+    
+    if (result.errors.length > 0) {
+       toast({
+        title: "Simulation Started (Partial)",
+        description: "Some clusters have errors, but valid circuits are running.",
+        variant: "default", // Or warning?
+      });
+    } else {
       toast({
         title: "Simulation Started",
         description: "Your circuit is now running.",
@@ -304,23 +314,49 @@ export default function ElectronicSimulation() {
     });
   };
 
-  const anyLedOn = useMemo(() => {
-    if (!simulationResult) return false;
+  const contextClusterId = useMemo(() => {
+    if (!selectedPlacedId || !simulationResult) return null;
+    const cluster = simulationResult.circuits.find((c) =>
+      c.components.some((comp) => comp.placedId === selectedPlacedId)
+    );
+    return cluster ? cluster.id : null;
+  }, [selectedPlacedId, simulationResult]);
+
+  const ledActive = useMemo(() => {
+    if (!simulationResult || !isRunning) return false;
+    
+    if (contextClusterId) {
+       const hasError = simulationResult.errors.some(e => e.clusterId === contextClusterId);
+       if (hasError) return false;
+
+       const cluster = simulationResult.circuits.find(c => c.id === contextClusterId);
+       if (!cluster) return false;
+       
+       return cluster.components.some(c => {
+           const state = simulationResult.componentStates.get(c.placedId);
+           return state && state.type === "led" && state.isActive;
+       });
+    }
+
     for (const [, state] of simulationResult.componentStates) {
       if (state.type === "led" && state.isActive) {
         return true;
       }
     }
     return false;
-  }, [simulationResult]);
+  }, [simulationResult, isRunning, contextClusterId]);
 
   const errorMessage = useMemo(() => {
     if (!simulationResult) return null;
-    if (simulationResult.errors.length > 0) {
+    if (contextClusterId) {
+      const err = simulationResult.errors.find((e) => e.clusterId === contextClusterId);
+      return err ? err.message : null;
+    }
+    if (!isRunning && simulationResult.errors.length > 0) {
       return simulationResult.errors[0].message;
     }
     return null;
-  }, [simulationResult]);
+  }, [simulationResult, contextClusterId, isRunning]);
 
   const selectedResistorId = useMemo(() => {
     if (!selectedPlacedId) return null;
@@ -397,7 +433,7 @@ export default function ElectronicSimulation() {
         <div className="flex flex-shrink-0">
           <ControlPanel
             isRunning={isRunning}
-            ledState={anyLedOn && isRunning}
+            ledState={ledActive}
             errorMessage={errorMessage}
             wireMode={wireMode}
             onRun={handleRun}
