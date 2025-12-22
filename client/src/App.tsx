@@ -4,11 +4,13 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import ElectronicSimulation from "@/pages/electronic-simulation";
+import IoTSimulatorPage from "@/pages/iot-simulator";
 import CourseDetail from "@/pages/course-detail";
 import About from "@/pages/about";
 import Login from "@/pages/login";
@@ -91,6 +93,9 @@ function Router() {
       <Route path="/electronic-simulation">
         <ProtectedRoute component={ElectronicSimulation} />
       </Route>
+      <Route path="/iot-simulation">
+        <ProtectedRoute component={IoTSimulatorPage} />
+      </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />
       </Route>
@@ -109,12 +114,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
