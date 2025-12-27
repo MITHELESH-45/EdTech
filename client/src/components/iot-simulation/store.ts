@@ -2,7 +2,8 @@ import { create } from 'zustand';
 
 export type SensorType = 
   | 'Temperature' 
-  | 'Humidity' 
+  | 'Humidity Sensor'
+  | 'Ultrasonic Sensor' 
   | 'Gas' 
   | 'Light' 
   | 'Pressure' 
@@ -32,6 +33,7 @@ interface SensorStore {
   selectSensor: (id: string) => void;
   updateSensorValues: () => void;
   updateTemperatureFromMQTT: (temperature: number) => void;
+  updateUltrasonicDistanceFromMQTT: (distance: number) => void;
   toggleSimulation: () => void;
 }
 
@@ -50,7 +52,7 @@ const INITIAL_SENSORS: SensorData[] = [
   },
   {
     id: 's2',
-    type: 'Humidity',
+    type: 'Humidity Sensor',
     name: 'Humidity Sensor',
     value: 45,
     unit: '%',
@@ -151,6 +153,10 @@ export const useSensorStore = create<SensorStore>((set) => ({
       if (sensor.type === 'Temperature') {
         return sensor;
       }
+      // Skip Ultrasonic Distance sensor (Proximity type with unit 'cm') - it's updated via MQTT
+      if (sensor.type === 'Proximity' && sensor.unit === 'cm') {
+        return sensor;
+      }
 
       let change = (Math.random() - 0.5) * 2; // Random change
       
@@ -199,6 +205,36 @@ export const useSensorStore = create<SensorStore>((set) => ({
       if (sensor.type === 'Temperature') {
         // Clamp temperature value
         const clampedValue = Math.max(sensor.min, Math.min(sensor.max, temperature));
+        
+        // Determine status
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        const range = sensor.max - sensor.min;
+        const percent = (clampedValue - sensor.min) / range;
+        
+        if (percent < 0.1 || percent > 0.9) status = 'critical';
+        else if (percent < 0.2 || percent > 0.8) status = 'warning';
+
+        return {
+          ...sensor,
+          value: Number(clampedValue.toFixed(1)),
+          status,
+          history: [...sensor.history, { time: now, value: clampedValue }].slice(-20)
+        };
+      }
+      return sensor;
+    });
+
+    return { sensors: newSensors };
+  }),
+
+  updateUltrasonicDistanceFromMQTT: (distance: number) => set((state) => {
+    const now = new Date().toLocaleTimeString();
+    
+    const newSensors = state.sensors.map(sensor => {
+      // Update only the Ultrasonic Distance sensor (Proximity type with unit 'cm')
+      if (sensor.type === 'Proximity' && sensor.unit === 'cm') {
+        // Clamp distance value
+        const clampedValue = Math.max(sensor.min, Math.min(sensor.max, distance));
         
         // Determine status
         let status: 'normal' | 'warning' | 'critical' = 'normal';
