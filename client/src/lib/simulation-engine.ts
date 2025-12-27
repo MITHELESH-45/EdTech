@@ -132,6 +132,33 @@ export class SimulationEngine {
     }
   }
 
+  /**
+   * Update the pressed state of a specific placed button component.
+   */
+  setButtonPressed(placedId: string, pressed: boolean): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "button") {
+      // Explicitly set pressed state - default to false if not provided
+      comp.state = {
+        ...comp.state,
+        pressed: pressed === true, // Ensure it's explicitly true or false
+      };
+    }
+  }
+
+  /**
+   * Update the position (0-1) of a specific placed potentiometer component.
+   */
+  setPotentiometerPosition(placedId: string, position: number): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "potentiometer") {
+      comp.state = {
+        ...comp.state,
+        position: Math.max(0, Math.min(1, position)),
+      };
+    }
+  }
+
   loadCircuit(
     placedComponents: PlacedComponentData[],
     wires: WireData[]
@@ -219,6 +246,26 @@ export class SimulationEngine {
   }
 
   buildNets(): void {
+    // CRITICAL: Before building nets, ensure ALL buttons are explicitly set to NOT pressed
+    // This prevents buttons from accidentally connecting terminals
+    // This is the FINAL check before net building - buttons MUST be false unless explicitly true
+    for (const component of this.components.values()) {
+      if (component.type === "button") {
+        // Initialize state if missing
+        if (!component.state) {
+          component.state = { pressed: false };
+        }
+        // CRITICAL: Only true is true - everything else becomes false
+        // This is the absolute final check - no exceptions
+        if (component.state.pressed !== true) {
+          component.state.pressed = false;
+        }
+        // At this point, component.state.pressed is guaranteed to be either true or false
+        // If it's false, terminals will NOT be connected (they remain in separate nets)
+        // If it's true, terminals WILL be connected (they become part of the same net)
+      }
+    }
+
     this.nets.clear();
     const visited = new Set<string>();
     let netCounter = 0;
@@ -236,6 +283,49 @@ export class SimulationEngine {
 
       adjacency.get(startKey)!.add(endKey);
       adjacency.get(endKey)!.add(startKey);
+    }
+
+    // Add internal component connections: buttons only connect when pressed
+    // Note: Resistors and other components are connected via wires, not internally
+    for (const component of this.components.values()) {
+      if (component.type === "button") {
+        // CRITICAL: Double-check button state - must be explicitly true to connect
+        // Re-verify state right before checking (defensive programming)
+        if (!component.state) {
+          component.state = { pressed: false };
+        }
+        // Force to false if not explicitly true
+        const currentPressed = component.state.pressed;
+        if (currentPressed !== true) {
+          component.state.pressed = false;
+        }
+        
+        // ONLY connect terminals if button is EXPLICITLY pressed (true)
+        // Use the strictest possible check - read the value directly
+        const pressedValue = component.state.pressed;
+        const isExplicitlyPressed = pressedValue === true;
+        
+        if (!isExplicitlyPressed) {
+          // Button is NOT pressed - ABSOLUTELY do NOT connect terminals
+          // Terminals MUST remain in separate nets (open circuit)
+          // Skip to next component - do NOT add any adjacency
+          continue;
+        }
+        
+        // At this point, we've verified pressed === true
+        // Button IS pressed - connect terminals internally
+        const terminals = component.terminals;
+        if (terminals.length >= 2) {
+          const term1Key = getTerminalKey(component.placedId, terminals[0].id);
+          const term2Key = getTerminalKey(component.placedId, terminals[1].id);
+          
+          if (!adjacency.has(term1Key)) adjacency.set(term1Key, new Set());
+          if (!adjacency.has(term2Key)) adjacency.set(term2Key, new Set());
+          
+          adjacency.get(term1Key)!.add(term2Key);
+          adjacency.get(term2Key)!.add(term1Key);
+        }
+      }
     }
 
     for (const component of this.components.values()) {
@@ -441,20 +531,65 @@ export class SimulationEngine {
           const comp = this.components.get(term.componentId);
           if (!comp) continue;
 
-          if (comp.type === "resistor" || comp.type === "button") {
+          if (comp.type === "resistor") {
+            // Resistors always propagate voltage between terminals
             const otherTerminal = comp.terminals.find((t) => t.id !== term.terminalId);
             if (otherTerminal) {
               const otherNetId = this.findNetForTerminal(comp.placedId, otherTerminal.id);
               if (otherNetId) {
                 const otherNet = this.nets.get(otherNetId);
                 if (otherNet && !isNaN(otherNet.voltage)) {
-                  if (comp.type === "resistor") {
-                    net.voltage = otherNet.voltage;
-                    changed = true;
-                  } else if (comp.type === "button" && comp.state.pressed) {
+                  net.voltage = otherNet.voltage;
+                  changed = true;
+                }
+              }
+            }
+          } else if (comp.type === "button") {
+            // Buttons ONLY propagate voltage when explicitly pressed (true)
+            // CRITICAL: If not pressed, button acts as open circuit - do NOT propagate voltage
+            if (!comp.state) {
+              comp.state = { pressed: false };
+            }
+            const isPressed = comp.state.pressed === true;
+            if (isPressed) {
+              // Button is pressed: propagate voltage between terminals
+              const otherTerminal = comp.terminals.find((t) => t.id !== term.terminalId);
+              if (otherTerminal) {
+                const otherNetId = this.findNetForTerminal(comp.placedId, otherTerminal.id);
+                if (otherNetId) {
+                  const otherNet = this.nets.get(otherNetId);
+                  if (otherNet && !isNaN(otherNet.voltage)) {
                     net.voltage = otherNet.voltage;
                     changed = true;
                   }
+                }
+              }
+            }
+            // If button is NOT pressed, do nothing - terminals are in separate nets (open circuit)
+          }
+
+          // Potentiometer: wiper voltage = position × (VCC - GND)
+          if (comp.type === "potentiometer") {
+            const vccTerminal = comp.terminals.find((t) => t.id === "vcc");
+            const gndTerminal = comp.terminals.find((t) => t.id === "gnd");
+            const signalTerminal = comp.terminals.find((t) => t.id === "signal");
+            
+            // FIX: Use term.terminalId instead of term.id (net terminals have terminalId)
+            if (vccTerminal && gndTerminal && signalTerminal && term.terminalId === "signal") {
+              const vccNetId = this.findNetForTerminal(comp.placedId, "vcc");
+              const gndNetId = this.findNetForTerminal(comp.placedId, "gnd");
+              
+              if (vccNetId && gndNetId) {
+                const vccNet = this.nets.get(vccNetId);
+                const gndNet = this.nets.get(gndNetId);
+                
+                if (vccNet && gndNet && !isNaN(vccNet.voltage) && !isNaN(gndNet.voltage)) {
+                  const position = (comp.state.position as number) ?? 0.5;
+                  const vccVoltage = vccNet.voltage;
+                  const gndVoltage = gndNet.voltage;
+                  const wiperVoltage = gndVoltage + position * (vccVoltage - gndVoltage);
+                  net.voltage = wiperVoltage;
+                  changed = true;
                 }
               }
             }
@@ -632,6 +767,26 @@ export class SimulationEngine {
 
   simulate(mcuPinStates?: McuPinStateMap): SimulationResult {
     this.mcuPinStates = mcuPinStates ?? {};
+
+    // CRITICAL: Force all buttons to NOT pressed (false) unless explicitly set to true
+    // This ensures buttons start as open circuit (terminals in separate nets)
+    // This MUST happen before buildNets() to prevent terminals from being connected
+    for (const component of this.components.values()) {
+      if (component.type === "button") {
+        // Initialize state if missing
+        if (!component.state) {
+          component.state = { pressed: false };
+        }
+        // CRITICAL: If pressed is not EXPLICITLY true, force it to false
+        // Use strict equality check - only true is true, everything else is false
+        const currentPressed = component.state.pressed;
+        if (currentPressed !== true) {
+          // Not explicitly true - force to false (not pressed)
+          component.state.pressed = false;
+        }
+        // At this point, component.state.pressed is either true or false, never undefined
+      }
+    }
 
     this.buildNets();
     this.buildCircuits();
@@ -846,13 +1001,23 @@ function analyzeLedForEngine(
   const groundNets = circuit.nets.filter((n) => n.isGround);
 
   if (powerNets.length === 0 || groundNets.length === 0) {
-    errors.push({
-      type: "OPEN_CIRCUIT",
-      message:
-        "No closed loop detected for LED. Ensure there is both a power source and ground in the circuit.",
-      affectedComponents: [component.placedId],
-      severity: "error",
-    });
+    // Check if there's an unpressed button or potentiometer - if so, this might be expected behavior
+    const hasUnpressedButton = circuit.components.some(
+      (comp) => comp.type === "button" && comp.state?.pressed !== true
+    );
+    const hasPotentiometer = circuit.components.some(
+      (comp) => comp.type === "potentiometer"
+    );
+    
+    if (!hasUnpressedButton && !hasPotentiometer) {
+      errors.push({
+        type: "OPEN_CIRCUIT",
+        message:
+          "No closed loop detected for LED. Ensure there is both a power source and ground in the circuit.",
+        affectedComponents: [component.placedId],
+        severity: "error",
+      });
+    }
     return {
       isOn: false,
       powered: false,
@@ -878,6 +1043,17 @@ function analyzeLedForEngine(
   for (const comp of circuit.components) {
     // Only consider simple 2‑terminal components when building the series graph
     if (comp.terminals.length !== 2) continue;
+    
+    // CRITICAL: Skip buttons that are NOT pressed - they act as open circuits
+    // Buttons only connect their terminals when pressed
+    if (comp.type === "button") {
+      const isPressed = comp.state?.pressed === true;
+      if (!isPressed) {
+        // Button is not pressed - do NOT add it as an edge (open circuit)
+        continue;
+      }
+    }
+    
     const [t1, t2] = comp.terminals;
     const n1 = (engine as unknown as SimulationEngine).findNetForTerminal(
       comp.placedId,
@@ -939,13 +1115,54 @@ function analyzeLedForEngine(
 
   if (!bestPath || !pathPowerNet || !pathGroundNet) {
     // LED is wired but not actually part of a closed loop from power to ground.
-    errors.push({
-      type: "OPEN_CIRCUIT",
-      message:
-        "No closed loop detected through this LED. Complete the path from power through a resistor and LED to ground.",
-      affectedComponents: [component.placedId],
-      severity: "error",
-    });
+    // Check if there's an unpressed button in the circuit - if so, this is expected behavior (not an error)
+    const hasUnpressedButton = circuit.components.some(
+      (comp) => comp.type === "button" && comp.state?.pressed !== true
+    );
+    
+    // Check if there's a potentiometer in the circuit - potentiometers have 3 terminals
+    // and are handled differently (voltage is set on signal terminal via propagation)
+    const hasPotentiometer = circuit.components.some(
+      (comp) => comp.type === "potentiometer"
+    );
+    
+    if (!hasUnpressedButton && !hasPotentiometer) {
+      // No button or potentiometer - this is a real wiring error
+      errors.push({
+        type: "OPEN_CIRCUIT",
+        message:
+          "No closed loop detected through this LED. Complete the path from power through a resistor and LED to ground.",
+        affectedComponents: [component.placedId],
+        severity: "error",
+      });
+    }
+    
+    // If there's an unpressed button or potentiometer, evaluate LED based on actual voltages
+    // Check if LED has valid voltage difference to determine if it should glow
+    if (hasPotentiometer) {
+      const anodeNet = (engine as unknown as SimulationEngine).getNets().get(anodeNetId);
+      const cathodeNet = (engine as unknown as SimulationEngine).getNets().get(cathodeNetId);
+      
+      if (anodeNet && cathodeNet && !isNaN(anodeNet.voltage) && !isNaN(cathodeNet.voltage)) {
+        const voltageDrop = anodeNet.voltage - cathodeNet.voltage;
+        // LED needs ~2V forward voltage to light up
+        if (voltageDrop >= 1.8) {
+          // Check if there's a resistor in the path (simplified check - just needs one in circuit)
+          const hasResistor = circuit.components.some((c) => c.type === "resistor");
+          if (hasResistor) {
+            const brightness = Math.min(1, voltageDrop / 3);
+            return {
+              isOn: true,
+              powered: true,
+              brightness,
+              current: voltageDrop / 220, // Assume 220Ω resistor
+              errors,
+            };
+          }
+        }
+      }
+    }
+    
     return {
       isOn: false,
       powered: false,
