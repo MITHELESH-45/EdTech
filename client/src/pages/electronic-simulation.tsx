@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { ComponentPalette } from "@/components/simulation/component-palette";
@@ -16,6 +16,7 @@ import {
 import { componentMetadata, getTerminalPosition } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
 import { LogicPanel } from "@/components/simulation/logic-panel";
+import { SerialMonitor } from "@/components/simulation/serial-monitor";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -59,6 +60,13 @@ export default function ElectronicSimulation() {
   const [resistorValues, setResistorValues] = useState<Record<string, number>>({});
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
   const [mcuPinStates, setMcuPinStates] = useState<McuPinStateMap>({});
+  
+  // Component control states (button pressed, potentiometer position)
+  type ComponentControlState = {
+    buttonPressed?: boolean;
+    potPosition?: number; // 0-1
+  };
+  const [controlStates, setControlStates] = useState<Record<string, ComponentControlState>>({});
 
   const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
@@ -88,6 +96,18 @@ export default function ElectronicSimulation() {
         setResistorValues((prev) => ({
           ...prev,
           [newPlaced.id]: 220,
+        }));
+      }
+      if (component.id === "button") {
+        setControlStates((prev) => ({
+          ...prev,
+          [newPlaced.id]: { buttonPressed: false },
+        }));
+      }
+      if (component.id === "potentiometer") {
+        setControlStates((prev) => ({
+          ...prev,
+          [newPlaced.id]: { potPosition: 0.5 },
         }));
       }
     },
@@ -129,6 +149,11 @@ export default function ElectronicSimulation() {
         )
       );
       setResistorValues((prev) => {
+        const updated = { ...prev };
+        delete updated[selectedPlacedId];
+        return updated;
+      });
+      setControlStates((prev) => {
         const updated = { ...prev };
         delete updated[selectedPlacedId];
         return updated;
@@ -219,20 +244,55 @@ export default function ElectronicSimulation() {
       simulationEngine.setResistorResistance(placedId, resistance);
     });
 
+    // Sync control states (button pressed, potentiometer position) into simulation
+    // CRITICAL: Ensure ALL buttons are explicitly set to NOT pressed (false) before simulation
+    // This prevents buttons from accidentally connecting terminals
+    placedComponents.forEach((placed) => {
+      if (placed.componentId === "button") {
+        // Explicitly default to false if not in controlStates
+        // This ensures buttons start as open circuit (not pressed)
+        const buttonState = controlStates[placed.id]?.buttonPressed ?? false;
+        // Force to false if not explicitly true
+        const finalState = buttonState === true ? true : false;
+        simulationEngine.setButtonPressed(placed.id, finalState);
+      }
+      if (placed.componentId === "potentiometer") {
+        const potState = controlStates[placed.id]?.potPosition ?? 0.5;
+        simulationEngine.setPotentiometerPosition(placed.id, potState);
+      }
+    });
+
     const result = simulationEngine.simulate(mcuPinStates);
     setSimulationResult(result);
     return result;
-  }, [simulationEngine, placedComponents, wires, resistorValues]);
+  }, [simulationEngine, placedComponents, wires, resistorValues, controlStates]);
 
   const handleRun = () => {
     const result = runSimulation();
+    
+    // Check for SHORT_CIRCUIT first - this must block simulation completely
+    const shortCircuitError = result.errors.find(e => e.type === "SHORT_CIRCUIT");
+    if (shortCircuitError) {
+      setIsRunning(false);
+      toast({
+        title: "Short Circuit Detected",
+        description: shortCircuitError.message,
+        variant: "destructive",
+      });
+      setWires((prev) => prev.map((w) => ({ ...w, isActive: false })));
+      return;
+    }
     
     const hasActiveComponent = Array.from(result.componentStates.values()).some(
       (state) => state.isActive
     );
 
-    // If nothing is actually active/powered, don't run.
-    if (!hasActiveComponent) {
+    // Check if there's a button in the circuit (simulation should run even if nothing is active yet)
+    const hasButton = placedComponents.some((p) => p.componentId === "button");
+
+    // If nothing is actually active/powered and there's no button, don't run.
+    // If there's a button, allow the simulation to run so the user can press it.
+    if (!hasActiveComponent && !hasButton) {
       setIsRunning(false);
       // If there are errors, show the first one
       if (result.errors.length > 0) {
@@ -370,6 +430,18 @@ export default function ElectronicSimulation() {
     return resistorValues[selectedResistorId] ?? 220;
   }, [selectedResistorId, resistorValues]);
 
+  const selectedPotentiometerId = useMemo(() => {
+    if (!selectedPlacedId) return null;
+    const placed = placedComponents.find((p) => p.id === selectedPlacedId);
+    if (!placed || placed.componentId !== "potentiometer") return null;
+    return selectedPlacedId;
+  }, [selectedPlacedId, placedComponents]);
+
+  const selectedPotentiometerValue = useMemo(() => {
+    if (!selectedPotentiometerId) return null;
+    return controlStates[selectedPotentiometerId]?.potPosition ?? 0.5;
+  }, [selectedPotentiometerId, controlStates]);
+
   const hasMcu = useMemo(
     () =>
       placedComponents.some(
@@ -390,6 +462,34 @@ export default function ElectronicSimulation() {
     },
     []
   );
+
+  const handleButtonPress = useCallback((placedId: string, pressed: boolean) => {
+    setControlStates((prev) => ({
+      ...prev,
+      [placedId]: {
+        ...(prev[placedId] ?? {}),
+        buttonPressed: pressed,
+      },
+    }));
+  }, []);
+
+  const handlePotentiometerChange = useCallback((placedId: string, position: number) => {
+    setControlStates((prev) => ({
+      ...prev,
+      [placedId]: {
+        ...(prev[placedId] ?? {}),
+        potPosition: position,
+      },
+    }));
+  }, []);
+
+  // Auto-update simulation when control states change and simulation is running
+  useEffect(() => {
+    if (isRunning && simulationResult) {
+      const result = runSimulation();
+      setSimulationResult(result);
+    }
+  }, [controlStates, isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -428,6 +528,9 @@ export default function ElectronicSimulation() {
           selectedWireId={selectedWireId}
           onSelectWire={setSelectedWireId}
           onDeleteSelectedWire={handleDeleteSelectedWire}
+          controlStates={controlStates}
+          onButtonPress={handleButtonPress}
+          onPotentiometerChange={handlePotentiometerChange}
         />
 
         <div className="flex flex-shrink-0">
@@ -447,16 +550,28 @@ export default function ElectronicSimulation() {
             selectedResistorId={selectedResistorId}
             selectedResistorValue={selectedResistorValue}
             onChangeResistorValue={handleChangeResistorValue}
+            selectedPotentiometerId={selectedPotentiometerId}
+            potentiometerValue={selectedPotentiometerValue}
+            onChangePotentiometerValue={handlePotentiometerChange}
           />
 
           {hasMcu && (
-            <div className="w-72">
-              <LogicPanel
-                placedComponents={placedComponents}
-                mcuPinStates={mcuPinStates}
-                onChangePinState={handleChangePinState}
-              />
-            </div>
+            <>
+              <div className="w-72">
+                <LogicPanel
+                  placedComponents={placedComponents}
+                  mcuPinStates={mcuPinStates}
+                  onChangePinState={handleChangePinState}
+                />
+              </div>
+              <div className="w-72">
+                <SerialMonitor
+                  placedComponents={placedComponents}
+                  mcuPinStates={mcuPinStates}
+                  simulationResult={simulationResult}
+                />
+              </div>
+            </>
           )}
 
           {showDebugPanel && (

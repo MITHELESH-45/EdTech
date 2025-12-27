@@ -9,37 +9,60 @@ export interface LedVisualProps {
 const LED_COLORS = {
   red: {
     body: "#7a1f1f",
-    glow: "rgb(255, 60, 60)",
+    glow: { r: 255, g: 60, b: 60 },
   },
   yellow: {
     body: "#7a6a1f",
-    glow: "rgb(255, 215, 0)",
+    glow: { r: 255, g: 215, b: 0 },
   },
   green: {
     body: "#1f7a3a",
-    glow: "rgb(60, 255, 140)",
+    glow: { r: 60, g: 255, b: 140 },
   },
 };
 
 export function LedVisual({ on, brightness, color }: LedVisualProps) {
   const clampedBrightness = Math.max(0, Math.min(1, brightness));
   const colorDef = LED_COLORS[color] || LED_COLORS.red;
+  
+  // Calculate glow alpha: brightness * 0.6, clamped to max 0.6
+  const glowAlpha = Math.min(clampedBrightness * 0.6, 0.6);
+  
+  // Construct rgba color for glow
+  const glowColor = `rgba(${colorDef.glow.r}, ${colorDef.glow.g}, ${colorDef.glow.b}, ${glowAlpha})`;
+  
+  // Body opacity: full when ON, dimmed when OFF (max 0.6)
+  const bodyOpacity = on ? 1 : 0.6;
+  
+  // Glow radius scales with brightness
+  const glowRadius = 16 + clampedBrightness * 8;
 
   return (
-    <g transform="translate(0, 6)">
+    <g transform="translate(0, 0)">
+      {/* Glow layer - only when ON */}
       {on && (
         <circle
-          r={12 + clampedBrightness * 8}
-          fill={colorDef.glow}
-          opacity={clampedBrightness * 0.6}
+          cx="0"
+          cy="0"
+          r={glowRadius}
+          fill={glowColor}
           filter="url(#led-glow)"
+          style={{
+            transition: "opacity 0.3s ease",
+          }}
         />
       )}
-
+      
+      {/* LED body */}
       <circle
-        r={10}
+        cx="0"
+        cy="0"
+        r="16"
         fill={colorDef.body}
-        opacity={on ? 1 : 0.8}
+        opacity={bodyOpacity}
+        style={{
+          transition: "opacity 0.3s ease",
+        }}
       />
     </g>
   );

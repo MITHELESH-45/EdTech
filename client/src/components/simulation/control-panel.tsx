@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -20,6 +22,9 @@ interface ControlPanelProps {
   selectedResistorId: string | null;
   selectedResistorValue: number | null;
   onChangeResistorValue: (id: string, value: number) => void;
+  selectedPotentiometerId: string | null;
+  potentiometerValue: number | null;
+  onChangePotentiometerValue: (id: string, value: number) => void;
 }
 
 export function ControlPanel({
@@ -38,6 +43,9 @@ export function ControlPanel({
   selectedResistorId,
   selectedResistorValue,
   onChangeResistorValue,
+  selectedPotentiometerId,
+  potentiometerValue,
+  onChangePotentiometerValue,
 }: ControlPanelProps) {
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col">
@@ -182,6 +190,40 @@ export function ControlPanel({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Potentiometer Control */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm mb-3">Potentiometer</h2>
+        {selectedPotentiometerId && potentiometerValue !== null ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Position</Label>
+              <span className="text-sm font-medium text-primary">
+                {Math.round(potentiometerValue * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[potentiometerValue]}
+              onValueChange={(values) =>
+                onChangePotentiometerValue(selectedPotentiometerId, values[0])
+              }
+              min={0}
+              max={1}
+              step={0.01}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0V</span>
+              <span>{(potentiometerValue * 5).toFixed(1)}V</span>
+              <span>5V</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Select a potentiometer on the canvas to adjust its value.
+          </p>
+        )}
       </div>
 
       <div className="flex-1 p-4">
