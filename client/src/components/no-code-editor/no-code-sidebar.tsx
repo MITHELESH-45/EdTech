@@ -1,267 +1,263 @@
+import React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { ElectronicComponent } from "@shared/schema";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import React from "react";
-import { IoIosGlobe } from "react-icons/io";
+import { Search, FolderPlus, FolderOpen, FileJson, Download } from "lucide-react";
+import { GiProcessor } from "react-icons/gi";
+import { FaGlobe, FaInfinity } from "react-icons/fa";
+import { MdOutlineSensors, MdDisplaySettings } from "react-icons/md";
+import { GoGear } from "react-icons/go";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface ElectronicComponent {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface ComponentPaletteProps {
   onSelectComponent: (component: ElectronicComponent) => void;
   selectedComponent: ElectronicComponent | null;
   components?: ElectronicComponent[];
 }
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/ui/tabs"
-
 
 const componentCategories = [
-  { id: "base", label: "Genral" },
-  { id: "power", label: "loop" },
-  { id: "boards", label: "condition" },
-  { id: "structure", label: "GPIO" },
-  { id: "structure", label: "sensor" },
-  { id: "structure", label: "iot" },
-  { id: "structure", label: "Motors" },
-  { id: "structure", label: "Database" },
-  { id: "structure", label: "Display" }
+  { 
+    id: "general", 
+    label: "General",
+    icon: <FaGlobe />,
+    components: [
+      { id: "print", name: "Print", color: "bg-blue-500" },
+      { id: "graph", name: "Graph", color: "bg-cyan-500" },
+      { id: "variable", name: "Variable", color: "bg-yellow-500" },
+      { id: "sleep", name: "Sleep", color: "bg-pink-500" }
+    ]
+  },
+  { 
+    id: "loop", 
+    label: "Loop",
+    icon: <FaInfinity />,
+    components: [
+      { id: "break", name: "Break", color: "bg-yellow-500" },
+      { id: "repeat", name: "Repeat", color: "bg-blue-500" },
+      { id: "for-loop", name: "For Loop", color: "bg-purple-500" },
+      { id: "while-loop", name: "While Loop", color: "bg-green-500" },
+      { id: "forever-loop", name: "Forever Loop", color: "bg-cyan-500" }
+    ]
+  },
+  { 
+    id: "condition", 
+    label: "Condition",
+    icon: "?",
+    components: [
+      { id: "if-else", name: "If-Else", color: "bg-blue-500" }
+    ]
+  },
+  { 
+    id: "gpio", 
+    label: "GPIO",
+    icon: <GiProcessor />,
+    components: [
+      { id: "gpio-pin", name: "GPIO Pin", color: "bg-green-500" },
+      { id: "pin-write", name: "Pin Write", color: "bg-orange-500" },
+      { id: "pin-read", name: "Pin Read", color: "bg-blue-500" },
+      { id: "pwm", name: "PWM", color: "bg-purple-500" },
+      { id: "adc", name: "ADC", color: "bg-green-500" },
+      { id: "neopixel-led", name: "NeoPixel LED", color: "bg-cyan-500" },
+      { id: "buzzor-tone", name: "Buzzer Tone", color: "bg-cyan-500" }
+    ]
+  },
+  { 
+    id: "sensor", 
+    label: "Sensor",
+    icon: <MdOutlineSensors />,
+    components: [
+      { id: "ultra-sonic", name: "Ultrasonic", color: "bg-blue-500" },
+      { id: "dht11-sensor", name: "DHT11 Sensor", color: "bg-blue-500" },
+      { id: "ir-sensor", name: "IR Sensor", color: "bg-blue-500" }
+    ]
+  },
+  { 
+    id: "motors", 
+    label: "Motors",
+    icon: <GoGear />,
+    components: [
+      { id: "l298-motor", name: "L298 Motor Driver", color: "bg-blue-500" },
+      { id: "servo-motor", name: "Servo Motor", color: "bg-blue-500" },
+    ]
+  },
+  { 
+    id: "display", 
+    label: "Display",
+    icon: <MdDisplaySettings />,
+    components: [
+      { id: "1.3in-oled", name: "1.3in Oled display", color: "bg-blue-500" },
+      { id: "play-animation", name: "Play Animation", color: "bg-blue-500" },
+      { id: "show-image", name: "Show Image", color: "bg-blue-500" }
+    ]
+  },
 ] as const;
-
-function ComponentIcon({ componentId, className }: { componentId: string; className?: string }) {
-  const iconMap: Record<string, JSX.Element> = {
-    led: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="20" cy="16" r="8" fill="currentColor" opacity="0.2" />
-        <circle cx="20" cy="16" r="8" />
-        <line x1="16" y1="24" x2="16" y2="34" />
-        <line x1="24" y1="24" x2="24" y2="34" />
-        <path d="M14 8 L10 4" />
-        <path d="M26 8 L30 4" />
-        <path d="M20 6 L20 2" />
-      </svg>
-    ),
-    resistor: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <line x1="4" y1="20" x2="10" y2="20" />
-        <path d="M10 20 L12 14 L16 26 L20 14 L24 26 L28 14 L30 20" />
-        <line x1="30" y1="20" x2="36" y2="20" />
-      </svg>
-    ),
-    button: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="10" y="12" width="20" height="16" rx="2" />
-        <circle cx="20" cy="20" r="5" fill="currentColor" opacity="0.3" />
-        <line x1="4" y1="20" x2="10" y2="20" />
-        <line x1="30" y1="20" x2="36" y2="20" />
-      </svg>
-    ),
-    buzzer: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="20" cy="18" r="10" />
-        <circle cx="20" cy="18" r="4" fill="currentColor" opacity="0.3" />
-        <line x1="16" y1="28" x2="16" y2="34" />
-        <line x1="24" y1="28" x2="24" y2="34" />
-        <text x="20" y="20" textAnchor="middle" fontSize="6" fill="currentColor" stroke="none">+</text>
-      </svg>
-    ),
-    potentiometer: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="8" y="12" width="24" height="16" rx="2" />
-        <circle cx="20" cy="20" r="6" />
-        <line x1="20" y1="14" x2="20" y2="20" />
-        <line x1="12" y1="28" x2="12" y2="34" />
-        <line x1="20" y1="28" x2="20" y2="34" />
-        <line x1="28" y1="28" x2="28" y2="34" />
-      </svg>
-    ),
-    ultrasonic: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="6" y="10" width="28" height="18" rx="2" />
-        <circle cx="14" cy="19" r="5" />
-        <circle cx="26" cy="19" r="5" />
-        <line x1="10" y1="28" x2="10" y2="34" />
-        <line x1="17" y1="28" x2="17" y2="34" />
-        <line x1="23" y1="28" x2="23" y2="34" />
-        <line x1="30" y1="28" x2="30" y2="34" />
-      </svg>
-    ),
-    "ir-sensor": (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="10" y="8" width="20" height="24" rx="2" />
-        <circle cx="20" cy="16" r="4" fill="currentColor" opacity="0.3" />
-        <rect x="16" y="24" width="8" height="4" fill="currentColor" opacity="0.2" />
-        <line x1="14" y1="32" x2="14" y2="36" />
-        <line x1="20" y1="32" x2="20" y2="36" />
-        <line x1="26" y1="32" x2="26" y2="36" />
-      </svg>
-    ),
-    dht11: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="10" y="6" width="20" height="26" rx="2" />
-        <rect x="14" y="10" width="12" height="12" rx="1" fill="currentColor" opacity="0.2" />
-        <circle cx="20" cy="16" r="3" />
-        <line x1="14" y1="32" x2="14" y2="36" />
-        <line x1="20" y1="32" x2="20" y2="36" />
-        <line x1="26" y1="32" x2="26" y2="36" />
-      </svg>
-    ),
-    servo: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="6" y="12" width="28" height="16" rx="2" />
-        <circle cx="30" cy="20" r="4" />
-        <line x1="30" y1="16" x2="36" y2="10" strokeWidth="2" />
-        <line x1="10" y1="28" x2="10" y2="34" />
-        <line x1="20" y1="28" x2="20" y2="34" />
-        <line x1="30" y1="28" x2="30" y2="34" />
-      </svg>
-    ),
-    "power-5v": (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="20" cy="20" r="12" />
-        <text x="20" y="24" textAnchor="middle" fontSize="10" fill="currentColor" stroke="none" fontWeight="bold">5V</text>
-      </svg>
-    ),
-    ground: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <line x1="20" y1="8" x2="20" y2="16" />
-        <line x1="10" y1="16" x2="30" y2="16" />
-        <line x1="14" y1="22" x2="26" y2="22" />
-        <line x1="18" y1="28" x2="22" y2="28" />
-      </svg>
-    ),
-    arduino: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="6" y="10" width="28" height="20" rx="2" />
-        <rect x="10" y="14" width="4" height="3" fill="currentColor" opacity="0.3" />
-        <circle cx="30" cy="26" r="2" />
-        <line x1="8" y1="6" x2="8" y2="10" />
-        <line x1="12" y1="6" x2="12" y2="10" />
-        <line x1="16" y1="6" x2="16" y2="10" />
-      </svg>
-    ),
-    esp32: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="8" y="8" width="24" height="24" rx="2" />
-        <rect x="14" y="14" width="12" height="8" fill="currentColor" opacity="0.2" />
-        <circle cx="20" cy="28" r="2" fill="currentColor" opacity="0.5" />
-        <line x1="10" y1="4" x2="10" y2="8" />
-        <line x1="15" y1="4" x2="15" y2="8" />
-        <line x1="25" y1="4" x2="25" y2="8" />
-        <line x1="30" y1="4" x2="30" y2="8" />
-      </svg>
-    ),
-    breadboard: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="4" y="8" width="32" height="24" rx="1" />
-        <line x1="4" y1="20" x2="36" y2="20" strokeDasharray="2 2" />
-        {[8, 14, 20, 26, 32].map((x) => (
-          <g key={x}>
-            <circle cx={x} cy="13" r="1.5" fill="currentColor" opacity="0.3" />
-            <circle cx={x} cy="27" r="1.5" fill="currentColor" opacity="0.3" />
-          </g>
-        ))}
-      </svg>
-    ),
-    wire: (
-      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M4 20 Q20 8 36 20" />
-        <circle cx="4" cy="20" r="2" fill="currentColor" />
-        <circle cx="36" cy="20" r="2" fill="currentColor" />
-      </svg>
-    ),
-  };
-
-  return iconMap[componentId] || (
-    <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="8" y="8" width="24" height="24" rx="4" />
-    </svg>
-  );
-}
 
 export function NocodeSidebar({ onSelectComponent, selectedComponent, components = [] }: ComponentPaletteProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
 
-  const filteredComponents = components.filter((component) => {
-    if (!searchQuery.trim()) return true;
+  // Filter components based on search query
+  const filteredCategories = React.useMemo(() => {
+    if (!searchQuery.trim()) return componentCategories;
+    
     const query = searchQuery.toLowerCase();
-    return (
-      component.name.toLowerCase().includes(query) ||
-      component.category.toLowerCase().includes(query)
-    );
-  });
+    return componentCategories
+      .map(category => ({
+        ...category,
+        components: category.components.filter(comp => 
+          comp.name.toLowerCase().includes(query) ||
+          comp.id.toLowerCase().includes(query)
+        )
+      }))
+      .filter(category => category.components.length > 0);
+  }, [searchQuery]);
 
-  const groupedComponents = componentCategories.map((category) => ({
-    ...category,
-    components: filteredComponents.filter((c) => c.category === category.id),
-  }));
+  // Expand all categories when searching, collapse when search is cleared
+  React.useEffect(() => {
+    if (searchQuery.trim()) {
+      setExpandedItems(filteredCategories.map(cat => cat.id));
+    } else {
+      setExpandedItems([]);
+    }
+  }, [searchQuery, filteredCategories]);
 
   return (
-    <div className="h-[100vh] flex flex-col bg-card border-r border-border">
-      <div className="p-4 border-b border-border">
-        <h2 className="font-semibold text-sm">Components</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Change the side bar
-        </p>
-      </div>
-      
-      <ScrollArea className="flex-1">
-        <div className="p-3 space-y-4">
-          <div className="flex-1 max-w-md">
+    <div className="h-full flex flex-col bg-card border-r border-border">
+      <Tabs defaultValue="projects" className="flex-1 flex flex-col">
+        <TabsList className="w-full rounded-none border-b">
+          <TabsTrigger value="projects" className="flex-1">Projects</TabsTrigger>
+          <TabsTrigger value="blocks" className="flex-1">Blocks</TabsTrigger>
+        </TabsList>
+
+        {/* Projects Tab */}
+        <TabsContent value="projects" className="flex-1 m-0 p-4 space-y-4 overflow-auto">
+          <button className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors">
+            <FolderPlus className="h-4 w-4" />
+            <span className="text-sm font-medium">New Project</span>
+          </button>
+
+          <button className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors">
+            <FolderOpen className="h-4 w-4" />
+            <span className="text-sm font-medium">Open project</span>
+          </button>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600">
+              <span>📁</span>
+              <span>Projects</span>
+            </div>
+            <div className="pl-6 flex items-center gap-2 text-sm text-muted-foreground">
+              <FileJson className="h-4 w-4" />
+              <span>sample.json</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600">
+              <span>📁</span>
+              <span>Examples</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600">
+              <span>📁</span>
+              <span>Board files</span>
+              <span className="ml-auto flex items-center gap-2">
+                <span className="text-xs bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                <Download className="h-4 w-4 text-muted-foreground" />
+              </span>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Blocks Tab */}
+        <TabsContent value="blocks" className="flex-1 m-0 flex flex-col">
+          <div className="p-4 border-b border-border">
+            <h2 className="font-semibold text-sm">Components</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Click blocks to add them to your circuit
+            </p>
+          </div>
+          
+          <div className="p-3 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Search blocks..."
-                className="pl-9 bg-muted/50 border-transparent focus:border-border"
+                className="pl-9 bg-gray-200 border-transparent focus:border-border"
                 data-testid="input-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-          {groupedComponents.map((group) => (
-            group.components.length > 0 && (
-              <div key={group.id}>
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                  {group.label}
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {group.components.map((component) => (
-                    <button
-                      key={component.id}
-                      onClick={() => onSelectComponent(component)}
-                      className={cn(
-                        "flex flex-col items-center gap-1.5 p-3 rounded-md border transition-all",
-                        "hover-elevate active-elevate-2",
-                        selectedComponent?.id === component.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-background"
-                      )}
-                      data-testid={`component-${component.id}`}
-                    >
-                      <ComponentIcon
-                        componentId={component.icon}
-                        className={cn(
-                          "w-8 h-8",
-                          selectedComponent?.id === component.id
-                            ? "text-primary"
-                            : "text-foreground"
-                        )}
-                      />
-                      <span className="text-xs font-medium text-center leading-tight">
-                        {component.name}
-                      </span>
-                    </button>
-                  ))}
+          
+          <ScrollArea className="flex-1">
+            <div className="p-3">
+              {filteredCategories.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No components found
                 </div>
-              </div>
-            )
-          ))}
-        </div>
-      </ScrollArea>
+              ) : (
+                <Accordion 
+                  type="multiple" 
+                  className="w-full"
+                  value={expandedItems}
+                  onValueChange={setExpandedItems}
+                >
+                  {filteredCategories.map((group) => (
+                    <AccordionItem key={group.id} value={group.id} className="border-none">
+                      <AccordionTrigger className="py-2 px-1 hover:no-underline">
+                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                          <span>{group.icon}</span>
+                          <span>{group.label}</span>
+                          <span className="text-gray-500">({group.components.length})</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4">
+                        <div className="grid grid-cols-2 gap-2">
+                          {group.components.map((component) => (
+                            <button
+                              key={component.id}
+                              onClick={() => onSelectComponent(component as any)}
+                              className={cn(
+                                "flex flex-col items-center gap-1.5 p-3 rounded-md border transition-all",
+                                "hover:shadow-md hover:scale-105 active:scale-95",
+                                selectedComponent?.id === component.id
+                                  ? "border-primary bg-primary/5 shadow-sm"
+                                  : "border-border bg-background hover:border-primary/50"
+                              )}
+                              data-testid={`component-${component.id}`}
+                            >
+                              <span className="text-xs font-medium text-center leading-tight">
+                                {component.name}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
