@@ -13,7 +13,7 @@ interface SensorCardProps {
 const getSensorIcon = (type: SensorType) => {
   switch (type) {
     case 'Temperature': return Thermometer;
-    case 'Humidity': return Droplets;
+    case 'Humidity Sensor': return Droplets;
     case 'Gas': return Wind;
     case 'Light': return Sun;
     case 'Pressure': return Gauge;
