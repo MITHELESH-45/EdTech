@@ -5,6 +5,7 @@ import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema"
 import type { SimulationResult, ComponentState, SimulationError } from "@/lib/simulation-engine";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { LedVisual } from "./LedVisual";
 import { AlertTriangle } from "lucide-react"; // Import AlertTriangle
 
@@ -33,6 +34,9 @@ interface CircuitCanvasProps {
   selectedWireId: string | null;
   onSelectWire: (id: string | null) => void;
   onDeleteSelectedWire: () => void;
+  controlStates: Record<string, { buttonPressed?: boolean; potPosition?: number }>;
+  onButtonPress: (id: string, pressed: boolean) => void;
+  onPotentiometerChange: (id: string, position: number) => void;
 }
 
 function TerminalMarker({
@@ -104,6 +108,10 @@ function PlacedComponentVisual({
   wireMode,
   componentState,
   errors,
+  buttonPressed,
+  potPosition,
+  onButtonPress,
+  onPotentiometerChange,
 }: {
   placed: PlacedComponent;
   component: ElectronicComponent | undefined;
@@ -114,6 +122,10 @@ function PlacedComponentVisual({
   wireMode: boolean;
   componentState?: ComponentState;
   errors?: SimulationError[];
+  buttonPressed?: boolean;
+  potPosition?: number;
+  onButtonPress?: (pressed: boolean) => void;
+  onPotentiometerChange?: (position: number) => void;
 }) {
   if (!component) return null;
 
@@ -185,12 +197,51 @@ function PlacedComponentVisual({
         </>
       )}
       {component.id === "button" && (
-        <>
-          <rect x="-16" y="-12" width="32" height="24" rx="3" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
-          <circle cx="0" cy="0" r="8" fill="#6b7280" />
+        <g
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            if (!wireMode && onButtonPress) {
+              onButtonPress(true);
+            }
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+            if (!wireMode && onButtonPress) {
+              onButtonPress(false);
+            }
+          }}
+          onMouseLeave={() => {
+            if (!wireMode && onButtonPress && buttonPressed) {
+              onButtonPress(false);
+            }
+          }}
+          style={{ cursor: wireMode ? "default" : "pointer" }}
+          onClick={(e) => {
+            // Prevent component selection when clicking button
+            e.stopPropagation();
+          }}
+        >
+          <rect
+            x="-16"
+            y={buttonPressed ? -10 : -12}
+            width="32"
+            height={buttonPressed ? 20 : 24}
+            rx="3"
+            fill={buttonPressed ? "#4b5563" : "#374151"}
+            stroke={buttonPressed ? "#22c55e" : "#1f2937"}
+            strokeWidth={buttonPressed ? 2 : 1.5}
+            className="transition-all duration-100"
+          />
+          <circle
+            cx="0"
+            cy={buttonPressed ? 2 : 0}
+            r={buttonPressed ? 6 : 8}
+            fill={buttonPressed ? "#22c55e" : "#6b7280"}
+            className="transition-all duration-100"
+          />
           <line x1="-26" y1="0" x2="-16" y2="0" stroke="#4b5563" strokeWidth="2" />
           <line x1="16" y1="0" x2="26" y2="0" stroke="#4b5563" strokeWidth="2" />
-        </>
+        </g>
       )}
       {component.id === "buzzer" && (
         <>
@@ -206,10 +257,31 @@ function PlacedComponentVisual({
         <>
           <rect x="-16" y="-10" width="32" height="20" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
           <circle cx="0" cy="0" r="6" fill="#6b7280" />
-          <line x1="0" y1="-6" x2="0" y2="0" stroke="#d4d4d4" strokeWidth="2" />
+          <line
+            x1="0"
+            y1="-6"
+            x2="0"
+            y2="0"
+            stroke="#d4d4d4"
+            strokeWidth="2"
+            transform={`rotate(${(potPosition ?? 0.5) * 270 - 135} 0 0)`}
+            className="transition-all duration-150"
+          />
           <line x1="-8" y1="10" x2="-8" y2="20" stroke="#dc2626" strokeWidth="2" />
           <line x1="0" y1="10" x2="0" y2="20" stroke="#f59e0b" strokeWidth="2" />
           <line x1="8" y1="10" x2="8" y2="20" stroke="#4b5563" strokeWidth="2" />
+          {!isSelected && (
+            <text
+              x="0"
+              y="-18"
+              textAnchor="middle"
+              fontSize="7"
+              fill="hsl(var(--muted-foreground))"
+              className="pointer-events-none"
+            >
+              {Math.round((potPosition ?? 0.5) * 100)}%
+            </text>
+          )}
         </>
       )}
       {component.id === "ultrasonic" && (
@@ -361,6 +433,9 @@ export function CircuitCanvas({
   selectedWireId,
   onSelectWire,
   onDeleteSelectedWire,
+  controlStates,
+  onButtonPress,
+  onPotentiometerChange,
 }: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -593,6 +668,10 @@ export function CircuitCanvas({
                 hoveredTerminal?.componentId === placed.id ? hoveredTerminal.terminalId : null
               }
               wireMode={wireMode}
+              buttonPressed={placed.componentId === "button" ? controlStates[placed.id]?.buttonPressed : undefined}
+              potPosition={placed.componentId === "potentiometer" ? controlStates[placed.id]?.potPosition : undefined}
+              onButtonPress={placed.componentId === "button" ? (pressed) => onButtonPress(placed.id, pressed) : undefined}
+              onPotentiometerChange={placed.componentId === "potentiometer" ? (pos) => onPotentiometerChange(placed.id, pos) : undefined}
             />
           </g>
         ))}
@@ -621,33 +700,52 @@ export function CircuitCanvas({
       )}
 
       {selectedPlacedId && (
-        <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg border border-border p-3 text-sm space-y-2">
+        <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg border border-border p-3 text-sm space-y-2 max-w-xs">
           <p className="text-muted-foreground">Selected component</p>
           <p className="font-medium mb-1">Press DELETE or ESC to remove</p>
           {(() => {
             const selected = placedComponents.find((p) => p.id === selectedPlacedId);
-            if (selected?.componentId !== "resistor") return null;
-            const value = resistorValues[selectedPlacedId] ?? 220;
-            return (
-              <div className="space-y-1">
-                <Label htmlFor="resistor-value" className="text-xs">
-                  Resistor value (Ω)
-                </Label>
-                <Input
-                  id="resistor-value"
-                  type="number"
-                  min={1}
-                  max={1000000}
-                  step={10}
-                  value={value}
-                  onChange={(e) => {
-                    const next = Number(e.target.value) || 0;
-                    onChangeResistorValue(selectedPlacedId, Math.max(1, next));
-                  }}
-                  className="h-7 text-xs px-2"
-                />
-              </div>
-            );
+            if (!selected) return null;
+            
+            if (selected.componentId === "resistor") {
+              const value = resistorValues[selectedPlacedId] ?? 220;
+              return (
+                <div className="space-y-1">
+                  <Label htmlFor="resistor-value" className="text-xs">
+                    Resistor value (Ω)
+                  </Label>
+                  <Input
+                    id="resistor-value"
+                    type="number"
+                    min={1}
+                    max={1000000}
+                    step={10}
+                    value={value}
+                    onChange={(e) => {
+                      const next = Number(e.target.value) || 0;
+                      onChangeResistorValue(selectedPlacedId, Math.max(1, next));
+                    }}
+                    className="h-7 text-xs px-2"
+                  />
+                </div>
+              );
+            }
+            
+            if (selected.componentId === "potentiometer") {
+              const position = controlStates[selectedPlacedId]?.potPosition ?? 0.5;
+              return (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    Position: <span className="font-medium text-foreground">{Math.round(position * 100)}%</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Use the slider in Control Panel →
+                  </p>
+                </div>
+              );
+            }
+            
+            return null;
           })()}
         </div>
       )}
