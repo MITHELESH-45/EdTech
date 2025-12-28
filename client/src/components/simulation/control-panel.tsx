@@ -25,6 +25,10 @@ interface ControlPanelProps {
   selectedPotentiometerId: string | null;
   potentiometerValue: number | null;
   onChangePotentiometerValue: (id: string, value: number) => void;
+  selectedDht11Id: string | null;
+  dht11Temperature: number | null;
+  dht11Humidity: number | null;
+  onChangeDht11Values: (id: string, temperature: number, humidity: number) => void;
 }
 
 export function ControlPanel({
@@ -46,6 +50,10 @@ export function ControlPanel({
   selectedPotentiometerId,
   potentiometerValue,
   onChangePotentiometerValue,
+  selectedDht11Id,
+  dht11Temperature,
+  dht11Humidity,
+  onChangeDht11Values,
 }: ControlPanelProps) {
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col">
@@ -222,6 +230,66 @@ export function ControlPanel({
         ) : (
           <p className="text-xs text-muted-foreground">
             Select a potentiometer on the canvas to adjust its value.
+          </p>
+        )}
+      </div>
+
+      {/* DHT11 Control */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm mb-3">DHT11 Sensor</h2>
+        {selectedDht11Id && dht11Temperature !== null && dht11Humidity !== null ? (
+          <div className="space-y-4">
+            {/* Temperature Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Temperature (°C)</Label>
+                <span className="text-sm font-medium text-primary">
+                  {Math.round(dht11Temperature)}°C
+                </span>
+              </div>
+              <Slider
+                value={[dht11Temperature]}
+                onValueChange={(values) =>
+                  onChangeDht11Values(selectedDht11Id, values[0], dht11Humidity)
+                }
+                min={0}
+                max={50}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0°C</span>
+                <span>50°C</span>
+              </div>
+            </div>
+
+            {/* Humidity Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Humidity (%)</Label>
+                <span className="text-sm font-medium text-primary">
+                  {Math.round(dht11Humidity)}%
+                </span>
+              </div>
+              <Slider
+                value={[dht11Humidity]}
+                onValueChange={(values) =>
+                  onChangeDht11Values(selectedDht11Id, dht11Temperature, values[0])
+                }
+                min={0}
+                max={100}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Select a DHT11 sensor on the canvas to adjust temperature and humidity.
           </p>
         )}
       </div>

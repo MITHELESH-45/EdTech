@@ -150,6 +150,12 @@ export const componentMetadata: Record<string, ComponentMetadata> = {
     width: 24,
     height: 20,
   },
+  object: {
+    id: "object",
+    terminals: [],
+    width: 32,
+    height: 32,
+  },
   "arduino-uno": {
     id: "arduino-uno",
     terminals: [

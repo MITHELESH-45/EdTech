@@ -159,6 +159,46 @@ export class SimulationEngine {
     }
   }
 
+  /**
+   * Update the detection state (true/false) of a specific placed IR sensor component.
+   */
+  setIrDetected(placedId: string, detected: boolean): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "ir-sensor") {
+      comp.state = {
+        ...comp.state,
+        detected: detected === true, // Ensure it's explicitly true or false
+      };
+    }
+  }
+
+  /**
+   * Update the output voltage of a specific placed ultrasonic sensor component.
+   */
+  setUltrasonicVoltage(placedId: string, voltage: number): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "ultrasonic") {
+      comp.state = {
+        ...comp.state,
+        outputVoltage: Math.max(0.5, Math.min(4.5, voltage)), // Clamp between 0.5V and 4.5V
+      };
+    }
+  }
+
+  /**
+   * Update the temperature and humidity values of a specific placed DHT11 sensor component.
+   */
+  setDht11Values(placedId: string, temperature: number, humidity: number): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "dht11") {
+      comp.state = {
+        ...comp.state,
+        temperature: Math.max(0, Math.min(50, temperature)), // Clamp between 0°C and 50°C
+        humidity: Math.max(0, Math.min(100, humidity)), // Clamp between 0% and 100%
+      };
+    }
+  }
+
   loadCircuit(
     placedComponents: PlacedComponentData[],
     wires: WireData[]
@@ -590,6 +630,101 @@ export class SimulationEngine {
                   const wiperVoltage = gndVoltage + position * (vccVoltage - gndVoltage);
                   net.voltage = wiperVoltage;
                   changed = true;
+                }
+              }
+            }
+          }
+
+          // IR Sensor: output voltage based on detection state and power
+          if (comp.type === "ir-sensor") {
+            const vccTerminal = comp.terminals.find((t) => t.id === "vcc");
+            const gndTerminal = comp.terminals.find((t) => t.id === "gnd");
+            const outTerminal = comp.terminals.find((t) => t.id === "out");
+            
+            if (vccTerminal && gndTerminal && outTerminal && term.terminalId === "out") {
+              const vccNetId = this.findNetForTerminal(comp.placedId, "vcc");
+              const gndNetId = this.findNetForTerminal(comp.placedId, "gnd");
+              
+              if (vccNetId && gndNetId) {
+                const vccNet = this.nets.get(vccNetId);
+                const gndNet = this.nets.get(gndNetId);
+                
+                // Only output if IR sensor is powered (VCC and GND connected)
+                if (vccNet && gndNet && !isNaN(vccNet.voltage) && !isNaN(gndNet.voltage)) {
+                  // Check if sensor has enough power (VCC > GND by at least 3V)
+                  const powerVoltage = vccNet.voltage - gndNet.voltage;
+                  if (powerVoltage >= 3.0) {
+                    // Sensor is powered: output based on detection state
+                    const detected = (comp.state.detected as boolean) ?? false;
+                    // Detected = HIGH (VCC voltage), Not Detected = LOW (GND voltage)
+                    net.voltage = detected ? vccNet.voltage : gndNet.voltage;
+                    changed = true;
+                  }
+                  // If not enough power, output remains floating (undefined)
+                }
+              }
+            }
+          }
+
+          // Ultrasonic Sensor: output voltage based on distance measurement and power
+          if (comp.type === "ultrasonic") {
+            const vccTerminal = comp.terminals.find((t) => t.id === "vcc");
+            const gndTerminal = comp.terminals.find((t) => t.id === "gnd");
+            const echoTerminal = comp.terminals.find((t) => t.id === "echo");
+            
+            if (vccTerminal && gndTerminal && echoTerminal && term.terminalId === "echo") {
+              const vccNetId = this.findNetForTerminal(comp.placedId, "vcc");
+              const gndNetId = this.findNetForTerminal(comp.placedId, "gnd");
+              
+              if (vccNetId && gndNetId) {
+                const vccNet = this.nets.get(vccNetId);
+                const gndNet = this.nets.get(gndNetId);
+                
+                // Only output if ultrasonic sensor is powered (VCC and GND connected)
+                if (vccNet && gndNet && !isNaN(vccNet.voltage) && !isNaN(gndNet.voltage)) {
+                  // Check if sensor has enough power (VCC > GND by at least 4V)
+                  const powerVoltage = vccNet.voltage - gndNet.voltage;
+                  if (powerVoltage >= 4.0) {
+                    // Sensor is powered: output voltage based on distance
+                    const outputVoltage = (comp.state.outputVoltage as number) ?? 0.5;
+                    // Output is relative to GND (absolute voltage)
+                    net.voltage = gndNet.voltage + outputVoltage;
+                    changed = true;
+                  }
+                  // If not enough power, output remains floating (undefined)
+                }
+              }
+            }
+          }
+
+          // DHT11 Sensor: output HIGH on DATA pin when powered and values are set
+          if (comp.type === "dht11") {
+            const vccTerminal = comp.terminals.find((t) => t.id === "vcc");
+            const gndTerminal = comp.terminals.find((t) => t.id === "gnd");
+            const dataTerminal = comp.terminals.find((t) => t.id === "data");
+            
+            if (vccTerminal && gndTerminal && dataTerminal && term.terminalId === "data") {
+              const vccNetId = this.findNetForTerminal(comp.placedId, "vcc");
+              const gndNetId = this.findNetForTerminal(comp.placedId, "gnd");
+              
+              if (vccNetId && gndNetId) {
+                const vccNet = this.nets.get(vccNetId);
+                const gndNet = this.nets.get(gndNetId);
+                
+                // Only output if DHT11 sensor is powered (VCC and GND connected)
+                if (vccNet && gndNet && !isNaN(vccNet.voltage) && !isNaN(gndNet.voltage)) {
+                  // Check if sensor has enough power (VCC > GND by at least 3V)
+                  const powerVoltage = vccNet.voltage - gndNet.voltage;
+                  if (powerVoltage >= 3.0) {
+                    // Sensor is powered and has values: output HIGH
+                    // Values are stored in component state for MCU consumption
+                    const hasValues = (comp.state.temperature !== undefined) && (comp.state.humidity !== undefined);
+                    if (hasValues) {
+                      net.voltage = vccNet.voltage; // HIGH when powered and active
+                      changed = true;
+                    }
+                  }
+                  // If not enough power or no values, output remains floating (undefined)
                 }
               }
             }
