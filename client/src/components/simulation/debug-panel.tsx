@@ -179,7 +179,7 @@ export function DebugPanel({ simulationResult, isRunning }: DebugPanelProps) {
   const uniqueNets = Array.from(new Map(allNets.map((n) => [n.id, n])).values());
 
   return (
-    <div className="h-full flex flex-col bg-card border-l border-border">
+    <div className="flex flex-col bg-card border-l border-border overflow-y-auto">
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div

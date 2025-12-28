@@ -116,7 +116,7 @@ export function SerialMonitor({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-l border-border">
+    <div className="flex flex-col bg-card border-l border-border overflow-y-auto">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm">Serial Monitor</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
