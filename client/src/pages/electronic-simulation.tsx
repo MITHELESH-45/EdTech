@@ -65,6 +65,10 @@ export default function ElectronicSimulation() {
   type ComponentControlState = {
     buttonPressed?: boolean;
     potPosition?: number; // 0-1
+    irDetected?: boolean;
+    ultrasonicDistance?: number; // in cm
+    temperature?: number; // °C
+    humidity?: number; // %
   };
   const [controlStates, setControlStates] = useState<Record<string, ComponentControlState>>({});
 
@@ -244,7 +248,56 @@ export default function ElectronicSimulation() {
       simulationEngine.setResistorResistance(placedId, resistance);
     });
 
-    // Sync control states (button pressed, potentiometer position) into simulation
+    // PROXIMITY DETECTION: Compute IR sensor detection based on nearby objects
+    const IR_DETECTION_RADIUS = 80; // pixels - detection range
+    const objectComponents = placedComponents.filter((p) => p.componentId === "object");
+    
+    // Compute IR detection map based on proximity
+    const irDetectionMap = new Map<string, boolean>();
+    placedComponents.forEach((placed) => {
+      if (placed.componentId === "ir-sensor") {
+        const isDetected = objectComponents.some((obj) => {
+          const dx = obj.x - placed.x;
+          const dy = obj.y - placed.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          return distance <= IR_DETECTION_RADIUS;
+        });
+        irDetectionMap.set(placed.id, isDetected);
+      }
+    });
+
+    // ULTRASONIC DISTANCE: Compute distance to nearest object
+    const MAX_DETECTION_RADIUS_PX = 400; // pixels - max detection range
+    const MIN_CM = 2;
+    const MAX_CM = 400;
+    
+    const ultrasonicDistanceMap = new Map<string, number>();
+    placedComponents.forEach((placed) => {
+      if (placed.componentId === "ultrasonic") {
+        if (objectComponents.length === 0) {
+          // No object: max distance
+          ultrasonicDistanceMap.set(placed.id, MAX_CM);
+        } else {
+          // Find nearest object
+          let minDistancePx = Infinity;
+          objectComponents.forEach((obj) => {
+            const dx = obj.x - placed.x;
+            const dy = obj.y - placed.y;
+            const distancePx = Math.sqrt(dx * dx + dy * dy);
+            if (distancePx < minDistancePx) {
+              minDistancePx = distancePx;
+            }
+          });
+          
+          // Map pixels to centimeters: 0px = 2cm, MAX_DETECTION_RADIUS_PX = 400cm
+          const distanceCm = MIN_CM + (minDistancePx / MAX_DETECTION_RADIUS_PX) * (MAX_CM - MIN_CM);
+          const clampedDistance = Math.max(MIN_CM, Math.min(MAX_CM, distanceCm));
+          ultrasonicDistanceMap.set(placed.id, clampedDistance);
+        }
+      }
+    });
+
+    // Sync control states (button, potentiometer, IR, ultrasonic) into simulation
     // CRITICAL: Ensure ALL buttons are explicitly set to NOT pressed (false) before simulation
     // This prevents buttons from accidentally connecting terminals
     placedComponents.forEach((placed) => {
@@ -260,12 +313,32 @@ export default function ElectronicSimulation() {
         const potState = controlStates[placed.id]?.potPosition ?? 0.5;
         simulationEngine.setPotentiometerPosition(placed.id, potState);
       }
+      if (placed.componentId === "ir-sensor") {
+        // IR sensor: detection computed from proximity (above)
+        const irState = irDetectionMap.get(placed.id) ?? false;
+        const finalState = irState === true ? true : false;
+        simulationEngine.setIrDetected(placed.id, finalState);
+      }
+      if (placed.componentId === "ultrasonic") {
+        // Ultrasonic: distance computed from proximity (above)
+        const distanceCm = ultrasonicDistanceMap.get(placed.id) ?? MAX_CM;
+        // Convert distance to voltage: 2cm = 4.5V, 400cm = 0.5V
+        const voltage = 4.5 - ((distanceCm - MIN_CM) / (MAX_CM - MIN_CM)) * 4.0;
+        const clampedVoltage = Math.max(0.5, Math.min(4.5, voltage));
+        simulationEngine.setUltrasonicVoltage(placed.id, clampedVoltage);
+      }
+      if (placed.componentId === "dht11") {
+        // DHT11: temperature and humidity from control state
+        const temperature = controlStates[placed.id]?.temperature ?? 25;
+        const humidity = controlStates[placed.id]?.humidity ?? 50;
+        simulationEngine.setDht11Values(placed.id, temperature, humidity);
+      }
     });
 
     const result = simulationEngine.simulate(mcuPinStates);
     setSimulationResult(result);
     return result;
-  }, [simulationEngine, placedComponents, wires, resistorValues, controlStates]);
+  }, [simulationEngine, placedComponents, wires, resistorValues, controlStates, mcuPinStates]);
 
   const handleRun = () => {
     const result = runSimulation();
@@ -442,6 +515,23 @@ export default function ElectronicSimulation() {
     return controlStates[selectedPotentiometerId]?.potPosition ?? 0.5;
   }, [selectedPotentiometerId, controlStates]);
 
+  const selectedDht11Id = useMemo(() => {
+    if (!selectedPlacedId) return null;
+    const placed = placedComponents.find((p) => p.id === selectedPlacedId);
+    if (!placed || placed.componentId !== "dht11") return null;
+    return selectedPlacedId;
+  }, [selectedPlacedId, placedComponents]);
+
+  const selectedDht11Temperature = useMemo(() => {
+    if (!selectedDht11Id) return null;
+    return controlStates[selectedDht11Id]?.temperature ?? 25;
+  }, [selectedDht11Id, controlStates]);
+
+  const selectedDht11Humidity = useMemo(() => {
+    if (!selectedDht11Id) return null;
+    return controlStates[selectedDht11Id]?.humidity ?? 50;
+  }, [selectedDht11Id, controlStates]);
+
   const hasMcu = useMemo(
     () =>
       placedComponents.some(
@@ -483,13 +573,24 @@ export default function ElectronicSimulation() {
     }));
   }, []);
 
-  // Auto-update simulation when control states change and simulation is running
+  const handleDht11Change = useCallback((placedId: string, temperature: number, humidity: number) => {
+    setControlStates((prev) => ({
+      ...prev,
+      [placedId]: {
+        ...(prev[placedId] ?? {}),
+        temperature,
+        humidity,
+      },
+    }));
+  }, []);
+
+  // Auto-update simulation when control states change, components move, or simulation is running
   useEffect(() => {
     if (isRunning && simulationResult) {
       const result = runSimulation();
       setSimulationResult(result);
     }
-  }, [controlStates, isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [controlStates, placedComponents, isRunning, runSimulation, simulationResult]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -553,6 +654,10 @@ export default function ElectronicSimulation() {
             selectedPotentiometerId={selectedPotentiometerId}
             potentiometerValue={selectedPotentiometerValue}
             onChangePotentiometerValue={handlePotentiometerChange}
+            selectedDht11Id={selectedDht11Id}
+            dht11Temperature={selectedDht11Temperature}
+            dht11Humidity={selectedDht11Humidity}
+            onChangeDht11Values={handleDht11Change}
           />
 
           {hasMcu && (

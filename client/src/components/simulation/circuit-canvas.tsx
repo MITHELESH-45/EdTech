@@ -34,7 +34,7 @@ interface CircuitCanvasProps {
   selectedWireId: string | null;
   onSelectWire: (id: string | null) => void;
   onDeleteSelectedWire: () => void;
-  controlStates: Record<string, { buttonPressed?: boolean; potPosition?: number }>;
+  controlStates: Record<string, { buttonPressed?: boolean; potPosition?: number; irDetected?: boolean; temperature?: number; humidity?: number }>;
   onButtonPress: (id: string, pressed: boolean) => void;
   onPotentiometerChange: (id: string, position: number) => void;
 }
@@ -110,6 +110,10 @@ function PlacedComponentVisual({
   errors,
   buttonPressed,
   potPosition,
+  irDetected,
+  ultrasonicDistance,
+  dht11Temperature,
+  dht11Humidity,
   onButtonPress,
   onPotentiometerChange,
 }: {
@@ -124,6 +128,10 @@ function PlacedComponentVisual({
   errors?: SimulationError[];
   buttonPressed?: boolean;
   potPosition?: number;
+  irDetected?: boolean;
+  ultrasonicDistance?: number;
+  dht11Temperature?: number;
+  dht11Humidity?: number;
   onButtonPress?: (pressed: boolean) => void;
   onPotentiometerChange?: (position: number) => void;
 }) {
@@ -289,6 +297,19 @@ function PlacedComponentVisual({
           <rect x="-22" y="-12" width="44" height="24" rx="2" fill="#1e40af" stroke="#1e3a8a" strokeWidth="1.5" />
           <circle cx="-8" cy="0" r="7" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1" />
           <circle cx="8" cy="0" r="7" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1" />
+          {/* Distance display */}
+          {ultrasonicDistance !== undefined && (
+            <text
+              x="0"
+              y="-20"
+              textAnchor="middle"
+              fontSize="8"
+              fill={isRunning ? "#60a5fa" : "#6b7280"}
+              fontWeight="bold"
+            >
+              {Math.round(ultrasonicDistance)} cm
+            </text>
+          )}
           <line x1="-15" y1="12" x2="-15" y2="22" stroke="#dc2626" strokeWidth="2" />
           <line x1="-5" y1="12" x2="-5" y2="22" stroke="#f59e0b" strokeWidth="2" />
           <line x1="5" y1="12" x2="5" y2="22" stroke="#22c55e" strokeWidth="2" />
@@ -297,9 +318,31 @@ function PlacedComponentVisual({
       )}
       {component.id === "ir-sensor" && (
         <>
+          {/* Detection radius circle (shown when selected) */}
+          {isSelected && (
+            <circle
+              cx="0"
+              cy="0"
+              r="80"
+              fill="none"
+              stroke={irDetected ? "#eab308" : "#ef4444"}
+              strokeWidth="1"
+              strokeDasharray="4 2"
+              opacity="0.3"
+            />
+          )}
           <rect x="-14" y="-16" width="28" height="32" rx="2" fill="#1f2937" stroke="#111827" strokeWidth="1.5" />
           <circle cx="0" cy="-6" r="5" fill="#ef4444" opacity="0.8" />
           <rect x="-6" y="4" width="12" height="6" fill="#6b7280" />
+          {/* Status indicator: bright yellow when detected, red when not detected */}
+          <circle
+            cx="8"
+            cy="-12"
+            r="3"
+            fill={irDetected ? "#fbbf24" : "#ef4444"}
+            stroke={irDetected ? "#eab308" : "#dc2626"}
+            strokeWidth="1"
+          />
           <line x1="-8" y1="16" x2="-8" y2="24" stroke="#dc2626" strokeWidth="2" />
           <line x1="0" y1="16" x2="0" y2="24" stroke="#22c55e" strokeWidth="2" />
           <line x1="8" y1="16" x2="8" y2="24" stroke="#4b5563" strokeWidth="2" />
@@ -310,6 +353,31 @@ function PlacedComponentVisual({
           <rect x="-14" y="-18" width="28" height="36" rx="2" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1.5" />
           <rect x="-10" y="-14" width="20" height="18" rx="1" fill="#2563eb" />
           <circle cx="0" cy="-5" r="4" fill="#1e40af" />
+          {/* Temperature and Humidity display */}
+          {dht11Temperature !== undefined && dht11Humidity !== undefined && (
+            <g>
+              <text
+                x="0"
+                y="-24"
+                textAnchor="middle"
+                fontSize="7"
+                fill={isRunning ? "#60a5fa" : "#6b7280"}
+                fontWeight="bold"
+              >
+                Temp: {Math.round(dht11Temperature)}°C
+              </text>
+              <text
+                x="0"
+                y="-16"
+                textAnchor="middle"
+                fontSize="7"
+                fill={isRunning ? "#60a5fa" : "#6b7280"}
+                fontWeight="bold"
+              >
+                Hum: {Math.round(dht11Humidity)}%
+              </text>
+            </g>
+          )}
           <line x1="-8" y1="18" x2="-8" y2="28" stroke="#dc2626" strokeWidth="2" />
           <line x1="0" y1="18" x2="0" y2="28" stroke="#f59e0b" strokeWidth="2" />
           <line x1="8" y1="18" x2="8" y2="28" stroke="#4b5563" strokeWidth="2" />
@@ -338,6 +406,13 @@ function PlacedComponentVisual({
           <line x1="-12" y1="-6" x2="12" y2="-6" stroke="#4b5563" strokeWidth="3" />
           <line x1="-8" y1="0" x2="8" y2="0" stroke="#4b5563" strokeWidth="3" />
           <line x1="-4" y1="6" x2="4" y2="6" stroke="#4b5563" strokeWidth="3" />
+        </>
+      )}
+      {component.id === "object" && (
+        <>
+          <rect x="-16" y="-16" width="32" height="32" rx="4" fill="#f59e0b" stroke="#d97706" strokeWidth="2" />
+          <circle cx="0" cy="0" r="8" fill="#fbbf24" opacity="0.5" />
+          <text x="0" y="5" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">OBJ</text>
         </>
       )}
       {component.id === "arduino-uno" && (
@@ -556,6 +631,7 @@ export function CircuitCanvas({
         { id: "servo", name: "Servo Motor", category: "base", icon: "servo", description: "" },
         { id: "5v", name: "5V Power", category: "power", icon: "power-5v", description: "" },
         { id: "gnd", name: "GND", category: "power", icon: "ground", description: "" },
+        { id: "object", name: "Object", category: "base", icon: "object", description: "" },
         { id: "arduino-uno", name: "Arduino UNO", category: "boards", icon: "arduino", description: "" },
         { id: "esp32", name: "ESP32", category: "boards", icon: "esp32", description: "" },
         { id: "breadboard", name: "Breadboard", category: "structure", icon: "breadboard", description: "" },
@@ -644,7 +720,51 @@ export function CircuitCanvas({
           />
         )}
 
-        {placedComponents.map((placed) => (
+        {placedComponents.map((placed) => {
+          // Compute IR detection for this component based on nearby objects
+          const IR_DETECTION_RADIUS = 80;
+          const objectComponents = placedComponents.filter((p) => p.componentId === "object");
+          const irDetectedComputed = placed.componentId === "ir-sensor"
+            ? objectComponents.some((obj) => {
+                const dx = obj.x - placed.x;
+                const dy = obj.y - placed.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance <= IR_DETECTION_RADIUS;
+              })
+            : undefined;
+
+          // Compute ultrasonic distance for this component
+          const MAX_DETECTION_RADIUS_PX = 400;
+          const MIN_CM = 2;
+          const MAX_CM = 400;
+          let ultrasonicDistanceComputed: number | undefined = undefined;
+          if (placed.componentId === "ultrasonic") {
+            if (objectComponents.length === 0) {
+              ultrasonicDistanceComputed = MAX_CM;
+            } else {
+              let minDistancePx = Infinity;
+              objectComponents.forEach((obj) => {
+                const dx = obj.x - placed.x;
+                const dy = obj.y - placed.y;
+                const distancePx = Math.sqrt(dx * dx + dy * dy);
+                if (distancePx < minDistancePx) {
+                  minDistancePx = distancePx;
+                }
+              });
+              const distanceCm = MIN_CM + (minDistancePx / MAX_DETECTION_RADIUS_PX) * (MAX_CM - MIN_CM);
+              ultrasonicDistanceComputed = Math.max(MIN_CM, Math.min(MAX_CM, distanceCm));
+            }
+          }
+
+          // Get DHT11 temperature and humidity from control state
+          const dht11TemperatureComputed = placed.componentId === "dht11"
+            ? controlStates[placed.id]?.temperature
+            : undefined;
+          const dht11HumidityComputed = placed.componentId === "dht11"
+            ? controlStates[placed.id]?.humidity
+            : undefined;
+
+          return (
           <g
             key={placed.id}
             onMouseDown={(e) => handleComponentMouseDown(e, placed.id, placed.x, placed.y)}
@@ -670,11 +790,16 @@ export function CircuitCanvas({
               wireMode={wireMode}
               buttonPressed={placed.componentId === "button" ? controlStates[placed.id]?.buttonPressed : undefined}
               potPosition={placed.componentId === "potentiometer" ? controlStates[placed.id]?.potPosition : undefined}
+              irDetected={irDetectedComputed ?? (controlStates[placed.id]?.irDetected ?? false)}
+              ultrasonicDistance={ultrasonicDistanceComputed}
+              dht11Temperature={dht11TemperatureComputed}
+              dht11Humidity={dht11HumidityComputed}
               onButtonPress={placed.componentId === "button" ? (pressed) => onButtonPress(placed.id, pressed) : undefined}
               onPotentiometerChange={placed.componentId === "potentiometer" ? (pos) => onPotentiometerChange(placed.id, pos) : undefined}
             />
           </g>
-        ))}
+          );
+        })}
 
         {selectedComponent && !wireMode && (
           <g transform={`translate(${mousePos.x}, ${mousePos.y})`} opacity="0.5">
