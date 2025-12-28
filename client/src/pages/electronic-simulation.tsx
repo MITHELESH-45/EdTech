@@ -16,7 +16,7 @@ import {
 import { componentMetadata, getTerminalPosition } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
 import { LogicPanel } from "@/components/simulation/logic-panel";
-import { SerialMonitor } from "@/components/simulation/serial-monitor";
+import { SerialMonitorConsole } from "@/components/simulation/serial-monitor-console";
 import {
   startBuzzerSound,
   stopBuzzerSound,
@@ -352,6 +352,7 @@ export default function ElectronicSimulation() {
         const { voltage, powered } = simulationEngine.getServoSignalVoltage(placed.id);
         if (powered && voltage !== null) {
           // Map voltage to angle: 0V = 0°, 5V = 180°
+          // HIGH (5V) → 180°, LOW (0V) → 0°
           const angle = Math.max(0, Math.min(180, (voltage / 5) * 180));
           servoUpdates[placed.id] = angle;
           simulationEngine.setServoAngle(placed.id, angle);
@@ -365,21 +366,41 @@ export default function ElectronicSimulation() {
       }
     });
 
-    // Update control states with computed servo angles (only if changed to avoid infinite loops)
-    if (Object.keys(servoUpdates).length > 0) {
-      setControlStates((prev) => {
-        let hasChanges = false;
-        const next = { ...prev };
-        Object.entries(servoUpdates).forEach(([id, angle]) => {
-          const currentAngle = prev[id]?.servoAngle;
-          if (currentAngle !== angle) {
-            hasChanges = true;
-            next[id] = { ...(next[id] ?? {}), servoAngle: angle };
-          }
-        });
-        return hasChanges ? next : prev;
+    // Update control states with computed sensor values (IR detection, ultrasonic distance, servo angles)
+    // This ensures sensor values are displayed in the serial monitor
+    setControlStates((prev) => {
+      let hasChanges = false;
+      const next = { ...prev };
+      
+      // Update IR sensor detection states
+      irDetectionMap.forEach((detected, placedId) => {
+        const currentDetected = prev[placedId]?.irDetected;
+        if (currentDetected !== detected) {
+          hasChanges = true;
+          next[placedId] = { ...(next[placedId] ?? {}), irDetected: detected };
+        }
       });
-    }
+      
+      // Update ultrasonic sensor distance values
+      ultrasonicDistanceMap.forEach((distance, placedId) => {
+        const currentDistance = prev[placedId]?.ultrasonicDistance;
+        if (currentDistance !== distance) {
+          hasChanges = true;
+          next[placedId] = { ...(next[placedId] ?? {}), ultrasonicDistance: distance };
+        }
+      });
+      
+      // Update servo angles
+      Object.entries(servoUpdates).forEach(([id, angle]) => {
+        const currentAngle = prev[id]?.servoAngle;
+        if (currentAngle !== angle) {
+          hasChanges = true;
+          next[id] = { ...(next[id] ?? {}), servoAngle: angle };
+        }
+      });
+      
+      return hasChanges ? next : prev;
+    });
 
     setSimulationResult(result);
     return result;
@@ -716,79 +737,92 @@ export default function ElectronicSimulation() {
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Header />
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="w-56 flex-shrink-0 h-full overflow-y-auto scrollbar-hide">
-          {isLoading ? (
-            <PaletteSkeleton />
-          ) : (
-            <ComponentPalette
-              onSelectComponent={handleSelectComponent}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Main content row: Palette | Canvas | Controls */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="w-56 flex-shrink-0 h-full overflow-y-auto scrollbar-hide">
+            {isLoading ? (
+              <PaletteSkeleton />
+            ) : (
+              <ComponentPalette
+                onSelectComponent={handleSelectComponent}
+                selectedComponent={selectedComponent}
+                components={components}
+              />
+            )}
+          </div>
+
+          {/* Center area: Canvas + Serial Monitor below */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <CircuitCanvas
+              placedComponents={placedComponents}
+              wires={wires}
               selectedComponent={selectedComponent}
-              components={components}
-            />
-          )}
-        </div>
-
-        <CircuitCanvas
-          placedComponents={placedComponents}
-          wires={wires}
-          selectedComponent={selectedComponent}
-          selectedPlacedId={selectedPlacedId}
-          isRunning={isRunning}
-          simulationResult={simulationResult}
-          onPlaceComponent={handlePlaceComponent}
-          onAddWire={handleAddWire}
-          onSelectPlaced={handleSelectPlaced}
-          onDeleteSelected={handleDeleteSelected}
-          wireMode={wireMode}
-          wireStart={wireStart}
-          onWireStart={setWireStart}
-          resistorValues={resistorValues}
-          onChangeResistorValue={handleChangeResistorValue}
-          onMovePlaced={handleMovePlaced}
-          selectedWireId={selectedWireId}
-          onSelectWire={setSelectedWireId}
-          onDeleteSelectedWire={handleDeleteSelectedWire}
-          controlStates={controlStates}
-          onButtonPress={handleButtonPress}
-          onPotentiometerChange={handlePotentiometerChange}
-        />
-
-        <div className="flex flex-shrink-0 h-full">
-          <div className="h-full overflow-y-auto scrollbar-hide">
-            <ControlPanel
+              selectedPlacedId={selectedPlacedId}
               isRunning={isRunning}
-              ledState={ledActive}
-              errorMessage={errorMessage}
+              simulationResult={simulationResult}
+              onPlaceComponent={handlePlaceComponent}
+              onAddWire={handleAddWire}
+              onSelectPlaced={handleSelectPlaced}
+              onDeleteSelected={handleDeleteSelected}
               wireMode={wireMode}
-              onRun={handleRun}
-              onStop={handleStop}
-              onReset={handleReset}
-              onToggleWireMode={handleToggleWireMode}
-              onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
-              showDebugPanel={showDebugPanel}
-              componentCount={placedComponents.length}
-              wireCount={wires.length}
-              selectedResistorId={selectedResistorId}
-              selectedResistorValue={selectedResistorValue}
+              wireStart={wireStart}
+              onWireStart={setWireStart}
+              resistorValues={resistorValues}
               onChangeResistorValue={handleChangeResistorValue}
-              selectedPotentiometerId={selectedPotentiometerId}
-              potentiometerValue={selectedPotentiometerValue}
-              onChangePotentiometerValue={handlePotentiometerChange}
-              selectedDht11Id={selectedDht11Id}
-              dht11Temperature={selectedDht11Temperature}
-              dht11Humidity={selectedDht11Humidity}
-              onChangeDht11Values={handleDht11Change}
-              selectedServoId={selectedServoId}
-              servoAngle={selectedServoAngle}
-              onChangeServoAngle={handleServoAngleChange}
-              soundEnabled={soundEnabled}
-              onToggleSound={handleToggleSound}
+              onMovePlaced={handleMovePlaced}
+              selectedWireId={selectedWireId}
+              onSelectWire={setSelectedWireId}
+              onDeleteSelectedWire={handleDeleteSelectedWire}
+              controlStates={controlStates}
+              onButtonPress={handleButtonPress}
+              onPotentiometerChange={handlePotentiometerChange}
+            />
+
+            {/* Serial Monitor Console - Below Canvas */}
+            <SerialMonitorConsole
+              placedComponents={placedComponents}
+              mcuPinStates={mcuPinStates}
+              simulationResult={simulationResult}
+              controlStates={controlStates}
+              isRunning={isRunning}
             />
           </div>
 
-          {hasMcu && (
-            <>
+          <div className="flex flex-shrink-0 h-full">
+            <div className="h-full overflow-y-auto scrollbar-hide">
+              <ControlPanel
+                isRunning={isRunning}
+                ledState={ledActive}
+                errorMessage={errorMessage}
+                wireMode={wireMode}
+                onRun={handleRun}
+                onStop={handleStop}
+                onReset={handleReset}
+                onToggleWireMode={handleToggleWireMode}
+                onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
+                showDebugPanel={showDebugPanel}
+                componentCount={placedComponents.length}
+                wireCount={wires.length}
+                selectedResistorId={selectedResistorId}
+                selectedResistorValue={selectedResistorValue}
+                onChangeResistorValue={handleChangeResistorValue}
+                selectedPotentiometerId={selectedPotentiometerId}
+                potentiometerValue={selectedPotentiometerValue}
+                onChangePotentiometerValue={handlePotentiometerChange}
+                selectedDht11Id={selectedDht11Id}
+                dht11Temperature={selectedDht11Temperature}
+                dht11Humidity={selectedDht11Humidity}
+                onChangeDht11Values={handleDht11Change}
+                selectedServoId={selectedServoId}
+                servoAngle={selectedServoAngle}
+                onChangeServoAngle={handleServoAngleChange}
+                soundEnabled={soundEnabled}
+                onToggleSound={handleToggleSound}
+              />
+            </div>
+
+            {hasMcu && (
               <div className="h-full w-72 overflow-y-auto scrollbar-hide">
                 <LogicPanel
                   placedComponents={placedComponents}
@@ -796,24 +830,17 @@ export default function ElectronicSimulation() {
                   onChangePinState={handleChangePinState}
                 />
               </div>
+            )}
+
+            {showDebugPanel && (
               <div className="h-full w-72 overflow-y-auto scrollbar-hide">
-                <SerialMonitor
-                  placedComponents={placedComponents}
-                  mcuPinStates={mcuPinStates}
+                <DebugPanel
                   simulationResult={simulationResult}
+                  isRunning={isRunning}
                 />
               </div>
-            </>
-          )}
-
-          {showDebugPanel && (
-            <div className="h-full w-72 overflow-y-auto scrollbar-hide">
-              <DebugPanel
-                simulationResult={simulationResult}
-                isRunning={isRunning}
-              />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
