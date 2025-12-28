@@ -866,9 +866,104 @@ export class SimulationEngine {
           const gnd = this.nets.get(gndNet);
 
           if (vcc && gnd && !isNaN(vcc.voltage) && !isNaN(gnd.voltage)) {
-            if (vcc.voltage >= 4.5 && gnd.voltage === 0) {
+            // FIX: Use voltage difference instead of strict gnd === 0
+            // Servo needs at least 4V difference between VCC and GND
+            const voltageDiff = vcc.voltage - gnd.voltage;
+            if (voltageDiff >= 4.0) {
               baseState.powered = true;
               baseState.properties.powered = true;
+              
+              // Also get the current angle from state
+              const currentAngle = component.state.angle as number ?? 90;
+              baseState.properties.angle = currentAngle;
+            }
+          }
+        }
+        break;
+      }
+
+      case "ir-sensor": {
+        const vccNet = this.findNetForTerminal(component.placedId, "vcc");
+        const gndNet = this.findNetForTerminal(component.placedId, "gnd");
+
+        if (vccNet && gndNet) {
+          const vcc = this.nets.get(vccNet);
+          const gnd = this.nets.get(gndNet);
+
+          if (vcc && gnd && !isNaN(vcc.voltage) && !isNaN(gnd.voltage)) {
+            const voltageDiff = vcc.voltage - gnd.voltage;
+            if (voltageDiff >= 3.0) {
+              baseState.powered = true;
+              baseState.isActive = true;
+              const detected = component.state.detected as boolean ?? false;
+              baseState.properties.detected = detected;
+            }
+          }
+        }
+        break;
+      }
+
+      case "ultrasonic": {
+        const vccNet = this.findNetForTerminal(component.placedId, "vcc");
+        const gndNet = this.findNetForTerminal(component.placedId, "gnd");
+
+        if (vccNet && gndNet) {
+          const vcc = this.nets.get(vccNet);
+          const gnd = this.nets.get(gndNet);
+
+          if (vcc && gnd && !isNaN(vcc.voltage) && !isNaN(gnd.voltage)) {
+            const voltageDiff = vcc.voltage - gnd.voltage;
+            if (voltageDiff >= 4.0) {
+              baseState.powered = true;
+              baseState.isActive = true;
+              const distance = component.state.distance as number ?? 0;
+              baseState.properties.distance = distance;
+            }
+          }
+        }
+        break;
+      }
+
+      case "dht11": {
+        const vccNet = this.findNetForTerminal(component.placedId, "vcc");
+        const gndNet = this.findNetForTerminal(component.placedId, "gnd");
+
+        if (vccNet && gndNet) {
+          const vcc = this.nets.get(vccNet);
+          const gnd = this.nets.get(gndNet);
+
+          if (vcc && gnd && !isNaN(vcc.voltage) && !isNaN(gnd.voltage)) {
+            const voltageDiff = vcc.voltage - gnd.voltage;
+            if (voltageDiff >= 3.0) {
+              baseState.powered = true;
+              baseState.isActive = true;
+              const temperature = component.state.temperature as number ?? 25;
+              const humidity = component.state.humidity as number ?? 50;
+              baseState.properties.temperature = temperature;
+              baseState.properties.humidity = humidity;
+            }
+          }
+        }
+        break;
+      }
+
+      case "potentiometer": {
+        const vccNet = this.findNetForTerminal(component.placedId, "vcc");
+        const gndNet = this.findNetForTerminal(component.placedId, "gnd");
+
+        if (vccNet && gndNet) {
+          const vcc = this.nets.get(vccNet);
+          const gnd = this.nets.get(gndNet);
+
+          if (vcc && gnd && !isNaN(vcc.voltage) && !isNaN(gnd.voltage)) {
+            const voltageDiff = vcc.voltage - gnd.voltage;
+            if (voltageDiff >= 1.0) {
+              baseState.powered = true;
+              baseState.isActive = true;
+              const position = component.state.position as number ?? 0.5;
+              const outputVoltage = gnd.voltage + position * voltageDiff;
+              baseState.properties.position = position;
+              baseState.properties.outputVoltage = outputVoltage;
             }
           }
         }
@@ -1551,25 +1646,25 @@ export const COMPONENT_TERMINAL_DEFINITIONS: Record<string, TerminalDefinition[]
     { id: "negative", name: "Negative (-)", type: "negative", offsetX: 6, offsetY: 20, mode: "INPUT" },
   ],
   potentiometer: [
-    { id: "vcc", name: "VCC", type: "power", offsetX: -8, offsetY: 20, mode: "INPUT" },
-    { id: "signal", name: "Signal", type: "signal", offsetX: 0, offsetY: 20, mode: "OUTPUT" },
-    { id: "gnd", name: "GND", type: "ground", offsetX: 8, offsetY: 20, mode: "INPUT" },
+    { id: "vcc", name: "VCC", type: "power", offsetX: -12, offsetY: 24, mode: "INPUT" },
+    { id: "signal", name: "Signal", type: "signal", offsetX: 0, offsetY: 24, mode: "OUTPUT" },
+    { id: "gnd", name: "GND", type: "ground", offsetX: 12, offsetY: 24, mode: "INPUT" },
   ],
   ultrasonic: [
-    { id: "vcc", name: "VCC", type: "power", offsetX: -15, offsetY: 22, mode: "INPUT" },
-    { id: "trig", name: "TRIG", type: "signal", offsetX: -5, offsetY: 22, mode: "INPUT" },
-    { id: "echo", name: "ECHO", type: "data", offsetX: 5, offsetY: 22, mode: "OUTPUT" },
-    { id: "gnd", name: "GND", type: "ground", offsetX: 15, offsetY: 22, mode: "INPUT" },
+    { id: "vcc", name: "VCC", type: "power", offsetX: -15, offsetY: 24, mode: "INPUT" },
+    { id: "trig", name: "TRIG", type: "signal", offsetX: -5, offsetY: 24, mode: "INPUT" },
+    { id: "echo", name: "ECHO", type: "data", offsetX: 5, offsetY: 24, mode: "OUTPUT" },
+    { id: "gnd", name: "GND", type: "ground", offsetX: 15, offsetY: 24, mode: "INPUT" },
   ],
   "ir-sensor": [
-    { id: "vcc", name: "VCC", type: "power", offsetX: -8, offsetY: 24, mode: "INPUT" },
+    { id: "vcc", name: "VCC", type: "power", offsetX: -10, offsetY: 24, mode: "INPUT" },
     { id: "out", name: "OUT", type: "data", offsetX: 0, offsetY: 24, mode: "OUTPUT" },
-    { id: "gnd", name: "GND", type: "ground", offsetX: 8, offsetY: 24, mode: "INPUT" },
+    { id: "gnd", name: "GND", type: "ground", offsetX: 10, offsetY: 24, mode: "INPUT" },
   ],
   dht11: [
-    { id: "vcc", name: "VCC", type: "power", offsetX: -8, offsetY: 28, mode: "INPUT" },
+    { id: "vcc", name: "VCC", type: "power", offsetX: -10, offsetY: 28, mode: "INPUT" },
     { id: "data", name: "DATA", type: "data", offsetX: 0, offsetY: 28, mode: "OUTPUT" },
-    { id: "gnd", name: "GND", type: "ground", offsetX: 8, offsetY: 28, mode: "INPUT" },
+    { id: "gnd", name: "GND", type: "ground", offsetX: 10, offsetY: 28, mode: "INPUT" },
   ],
   servo: [
     { id: "signal", name: "Signal (Orange)", type: "signal", offsetX: -14, offsetY: 20, mode: "INPUT" },
