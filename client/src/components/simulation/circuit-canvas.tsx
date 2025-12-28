@@ -34,7 +34,7 @@ interface CircuitCanvasProps {
   selectedWireId: string | null;
   onSelectWire: (id: string | null) => void;
   onDeleteSelectedWire: () => void;
-  controlStates: Record<string, { buttonPressed?: boolean; potPosition?: number; irDetected?: boolean; temperature?: number; humidity?: number }>;
+  controlStates: Record<string, { buttonPressed?: boolean; potPosition?: number; irDetected?: boolean; temperature?: number; humidity?: number; servoAngle?: number }>;
   onButtonPress: (id: string, pressed: boolean) => void;
   onPotentiometerChange: (id: string, position: number) => void;
 }
@@ -114,6 +114,7 @@ function PlacedComponentVisual({
   ultrasonicDistance,
   dht11Temperature,
   dht11Humidity,
+  servoAngle,
   onButtonPress,
   onPotentiometerChange,
 }: {
@@ -132,6 +133,7 @@ function PlacedComponentVisual({
   ultrasonicDistance?: number;
   dht11Temperature?: number;
   dht11Humidity?: number;
+  servoAngle?: number;
   onButtonPress?: (pressed: boolean) => void;
   onPotentiometerChange?: (position: number) => void;
 }) {
@@ -383,16 +385,44 @@ function PlacedComponentVisual({
           <line x1="8" y1="18" x2="8" y2="28" stroke="#4b5563" strokeWidth="2" />
         </>
       )}
-      {component.id === "servo" && (
-        <>
-          <rect x="-20" y="-10" width="40" height="20" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
-          <circle cx="14" cy="0" r="6" fill="#6b7280" />
-          <line x1="14" y1="-6" x2="20" y2="-14" stroke="#4b5563" strokeWidth="3" strokeLinecap="round" />
-          <line x1="-14" y1="10" x2="-14" y2="20" stroke="#f59e0b" strokeWidth="2" />
-          <line x1="0" y1="10" x2="0" y2="20" stroke="#dc2626" strokeWidth="2" />
-          <line x1="14" y1="10" x2="14" y2="20" stroke="#4b5563" strokeWidth="2" />
-        </>
-      )}
+      {component.id === "servo" && (() => {
+        const angle = servoAngle ?? 90; // Default to 90° (center)
+        const isPowered = isRunning && componentState?.powered;
+        return (
+          <>
+            {/* Servo body */}
+            <rect x="-20" y="-10" width="40" height="20" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
+            {/* Servo horn hub */}
+            <circle cx="10" cy="0" r="8" fill="#4b5563" stroke="#374151" strokeWidth="1" />
+            {/* Rotating horn */}
+            <g 
+              style={{ 
+                transformOrigin: '10px 0px',
+                transform: `rotate(${angle - 90}deg)`, // -90 so 0° points left, 180° points right
+                transition: isPowered ? 'transform 0.3s ease-out' : 'none'
+              }}
+            >
+              <rect x="8" y="-3" width="18" height="6" rx="2" fill={isPowered ? "#22c55e" : "#6b7280"} stroke="#1f2937" strokeWidth="1" />
+              <circle cx="22" cy="0" r="2" fill="#1f2937" />
+            </g>
+            {/* Wire connectors */}
+            <line x1="-14" y1="10" x2="-14" y2="20" stroke="#f59e0b" strokeWidth="2" /> {/* Signal - Orange */}
+            <line x1="0" y1="10" x2="0" y2="20" stroke="#dc2626" strokeWidth="2" /> {/* VCC - Red */}
+            <line x1="14" y1="10" x2="14" y2="20" stroke="#4b5563" strokeWidth="2" /> {/* GND - Brown */}
+            {/* Angle display */}
+            <text
+              x="0"
+              y="-18"
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="bold"
+              fill={isPowered ? "#22c55e" : "#6b7280"}
+            >
+              {Math.round(angle)}°
+            </text>
+          </>
+        );
+      })()}
       {component.id === "5v" && (
         <>
           <circle cx="0" cy="0" r="14" fill="#dc2626" stroke="#991b1b" strokeWidth="2" />
@@ -794,6 +824,7 @@ export function CircuitCanvas({
               ultrasonicDistance={ultrasonicDistanceComputed}
               dht11Temperature={dht11TemperatureComputed}
               dht11Humidity={dht11HumidityComputed}
+              servoAngle={placed.componentId === "servo" ? controlStates[placed.id]?.servoAngle : undefined}
               onButtonPress={placed.componentId === "button" ? (pressed) => onButtonPress(placed.id, pressed) : undefined}
               onPotentiometerChange={placed.componentId === "potentiometer" ? (pos) => onPotentiometerChange(placed.id, pos) : undefined}
             />

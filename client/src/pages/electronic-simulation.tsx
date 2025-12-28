@@ -17,6 +17,12 @@ import { componentMetadata, getTerminalPosition } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
 import { LogicPanel } from "@/components/simulation/logic-panel";
 import { SerialMonitor } from "@/components/simulation/serial-monitor";
+import {
+  startBuzzerSound,
+  stopBuzzerSound,
+  resumeAudioContext,
+  cleanupAudio,
+} from "@/lib/audio/buzzer-audio";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -60,6 +66,7 @@ export default function ElectronicSimulation() {
   const [resistorValues, setResistorValues] = useState<Record<string, number>>({});
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
   const [mcuPinStates, setMcuPinStates] = useState<McuPinStateMap>({});
+  const [soundEnabled, setSoundEnabled] = useState(false);
   
   // Component control states (button pressed, potentiometer position)
   type ComponentControlState = {
@@ -69,6 +76,7 @@ export default function ElectronicSimulation() {
     ultrasonicDistance?: number; // in cm
     temperature?: number; // °C
     humidity?: number; // %
+    servoAngle?: number; // 0-180 degrees
   };
   const [controlStates, setControlStates] = useState<Record<string, ComponentControlState>>({});
 
@@ -336,6 +344,43 @@ export default function ElectronicSimulation() {
     });
 
     const result = simulationEngine.simulate(mcuPinStates);
+
+    // SERVO ANGLE COMPUTATION: After simulation, compute servo angles from signal voltages
+    const servoUpdates: Record<string, number> = {};
+    placedComponents.forEach((placed) => {
+      if (placed.componentId === "servo") {
+        const { voltage, powered } = simulationEngine.getServoSignalVoltage(placed.id);
+        if (powered && voltage !== null) {
+          // Map voltage to angle: 0V = 0°, 5V = 180°
+          const angle = Math.max(0, Math.min(180, (voltage / 5) * 180));
+          servoUpdates[placed.id] = angle;
+          simulationEngine.setServoAngle(placed.id, angle);
+        } else if (powered) {
+          // Powered but signal is floating - keep last angle or default to 90°
+          const lastAngle = controlStates[placed.id]?.servoAngle ?? 90;
+          servoUpdates[placed.id] = lastAngle;
+          simulationEngine.setServoAngle(placed.id, lastAngle);
+        }
+        // If not powered, don't update - servo is frozen
+      }
+    });
+
+    // Update control states with computed servo angles (only if changed to avoid infinite loops)
+    if (Object.keys(servoUpdates).length > 0) {
+      setControlStates((prev) => {
+        let hasChanges = false;
+        const next = { ...prev };
+        Object.entries(servoUpdates).forEach(([id, angle]) => {
+          const currentAngle = prev[id]?.servoAngle;
+          if (currentAngle !== angle) {
+            hasChanges = true;
+            next[id] = { ...(next[id] ?? {}), servoAngle: angle };
+          }
+        });
+        return hasChanges ? next : prev;
+      });
+    }
+
     setSimulationResult(result);
     return result;
   }, [simulationEngine, placedComponents, wires, resistorValues, controlStates, mcuPinStates]);
@@ -422,6 +467,7 @@ export default function ElectronicSimulation() {
 
   const handleStop = () => {
     setIsRunning(false);
+    stopBuzzerSound(); // Stop buzzer sound immediately
     setWires((prev) =>
       prev.map((w) => ({ ...w, isActive: false }))
     );
@@ -532,6 +578,17 @@ export default function ElectronicSimulation() {
     return controlStates[selectedDht11Id]?.humidity ?? 50;
   }, [selectedDht11Id, controlStates]);
 
+  const selectedServoId = useMemo(() => {
+    if (!selectedPlacedId) return null;
+    const placed = placedComponents.find((p) => p.id === selectedPlacedId);
+    return placed?.componentId === "servo" ? selectedPlacedId : null;
+  }, [selectedPlacedId, placedComponents]);
+
+  const selectedServoAngle = useMemo(() => {
+    if (!selectedServoId) return null;
+    return controlStates[selectedServoId]?.servoAngle ?? 90;
+  }, [selectedServoId, controlStates]);
+
   const hasMcu = useMemo(
     () =>
       placedComponents.some(
@@ -584,6 +641,16 @@ export default function ElectronicSimulation() {
     }));
   }, []);
 
+  const handleServoAngleChange = useCallback((placedId: string, angle: number) => {
+    setControlStates((prev) => ({
+      ...prev,
+      [placedId]: {
+        ...(prev[placedId] ?? {}),
+        servoAngle: angle,
+      },
+    }));
+  }, []);
+
   // Auto-update simulation when control states change, components move, or simulation is running
   useEffect(() => {
     if (isRunning && simulationResult) {
@@ -592,12 +659,65 @@ export default function ElectronicSimulation() {
     }
   }, [controlStates, placedComponents, isRunning, runSimulation, simulationResult]);
 
+  // Handle sound toggle
+  const handleToggleSound = useCallback(() => {
+    setSoundEnabled((prev) => {
+      const newValue = !prev;
+      if (newValue) {
+        resumeAudioContext();
+      } else {
+        stopBuzzerSound();
+      }
+      return newValue;
+    });
+  }, []);
+
+  // Buzzer sound effect - plays when buzzer is powered and sound is enabled
+  useEffect(() => {
+    if (!isRunning || !soundEnabled || !simulationResult) {
+      stopBuzzerSound();
+      return;
+    }
+
+    // Check if any buzzer is powered
+    let buzzerPowered = false;
+    let maxVoltageDrop = 0;
+
+    placedComponents.forEach((placed) => {
+      if (placed.componentId === "buzzer") {
+        const state = simulationResult.componentStates.get(placed.id);
+        if (state?.powered) {
+          buzzerPowered = true;
+          // Get voltage drop from component state or estimate from net voltages
+          const vd = state.properties?.voltageDrop;
+          const voltageDrop = typeof vd === 'number' ? vd : 5; // Default to 5V if powered
+          maxVoltageDrop = Math.max(maxVoltageDrop, voltageDrop);
+        }
+      }
+    });
+
+    if (buzzerPowered && maxVoltageDrop > 0) {
+      // Normalize voltage drop: 0V = 0, 5V = 1
+      const intensity = Math.max(0, Math.min(1, maxVoltageDrop / 5));
+      startBuzzerSound(intensity);
+    } else {
+      stopBuzzerSound();
+    }
+  }, [isRunning, soundEnabled, simulationResult, placedComponents]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      cleanupAudio();
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Header />
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="w-56 flex-shrink-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="w-56 flex-shrink-0 h-full overflow-y-auto scrollbar-hide">
           {isLoading ? (
             <PaletteSkeleton />
           ) : (
@@ -634,42 +754,49 @@ export default function ElectronicSimulation() {
           onPotentiometerChange={handlePotentiometerChange}
         />
 
-        <div className="flex flex-shrink-0">
-          <ControlPanel
-            isRunning={isRunning}
-            ledState={ledActive}
-            errorMessage={errorMessage}
-            wireMode={wireMode}
-            onRun={handleRun}
-            onStop={handleStop}
-            onReset={handleReset}
-            onToggleWireMode={handleToggleWireMode}
-            onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
-            showDebugPanel={showDebugPanel}
-            componentCount={placedComponents.length}
-            wireCount={wires.length}
-            selectedResistorId={selectedResistorId}
-            selectedResistorValue={selectedResistorValue}
-            onChangeResistorValue={handleChangeResistorValue}
-            selectedPotentiometerId={selectedPotentiometerId}
-            potentiometerValue={selectedPotentiometerValue}
-            onChangePotentiometerValue={handlePotentiometerChange}
-            selectedDht11Id={selectedDht11Id}
-            dht11Temperature={selectedDht11Temperature}
-            dht11Humidity={selectedDht11Humidity}
-            onChangeDht11Values={handleDht11Change}
-          />
+        <div className="flex flex-shrink-0 h-full">
+          <div className="h-full overflow-y-auto scrollbar-hide">
+            <ControlPanel
+              isRunning={isRunning}
+              ledState={ledActive}
+              errorMessage={errorMessage}
+              wireMode={wireMode}
+              onRun={handleRun}
+              onStop={handleStop}
+              onReset={handleReset}
+              onToggleWireMode={handleToggleWireMode}
+              onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
+              showDebugPanel={showDebugPanel}
+              componentCount={placedComponents.length}
+              wireCount={wires.length}
+              selectedResistorId={selectedResistorId}
+              selectedResistorValue={selectedResistorValue}
+              onChangeResistorValue={handleChangeResistorValue}
+              selectedPotentiometerId={selectedPotentiometerId}
+              potentiometerValue={selectedPotentiometerValue}
+              onChangePotentiometerValue={handlePotentiometerChange}
+              selectedDht11Id={selectedDht11Id}
+              dht11Temperature={selectedDht11Temperature}
+              dht11Humidity={selectedDht11Humidity}
+              onChangeDht11Values={handleDht11Change}
+              selectedServoId={selectedServoId}
+              servoAngle={selectedServoAngle}
+              onChangeServoAngle={handleServoAngleChange}
+              soundEnabled={soundEnabled}
+              onToggleSound={handleToggleSound}
+            />
+          </div>
 
           {hasMcu && (
             <>
-              <div className="w-72">
+              <div className="h-full w-72 overflow-y-auto scrollbar-hide">
                 <LogicPanel
                   placedComponents={placedComponents}
                   mcuPinStates={mcuPinStates}
                   onChangePinState={handleChangePinState}
                 />
               </div>
-              <div className="w-72">
+              <div className="h-full w-72 overflow-y-auto scrollbar-hide">
                 <SerialMonitor
                   placedComponents={placedComponents}
                   mcuPinStates={mcuPinStates}
@@ -680,7 +807,7 @@ export default function ElectronicSimulation() {
           )}
 
           {showDebugPanel && (
-            <div className="w-72">
+            <div className="h-full w-72 overflow-y-auto scrollbar-hide">
               <DebugPanel
                 simulationResult={simulationResult}
                 isRunning={isRunning}

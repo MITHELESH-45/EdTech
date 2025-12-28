@@ -199,6 +199,65 @@ export class SimulationEngine {
     }
   }
 
+  /**
+   * Update the angle of a specific placed servo motor component.
+   */
+  setServoAngle(placedId: string, angle: number): void {
+    const comp = this.components.get(placedId);
+    if (comp && comp.type === "servo") {
+      comp.state = {
+        ...comp.state,
+        angle: Math.max(0, Math.min(180, angle)), // Clamp between 0° and 180°
+      };
+    }
+  }
+
+  /**
+   * Get the signal voltage for a servo motor (used to compute angle from electrical signal).
+   */
+  getServoSignalVoltage(placedId: string): { voltage: number | null; powered: boolean } {
+    const comp = this.components.get(placedId);
+    if (!comp || comp.type !== "servo") {
+      return { voltage: null, powered: false };
+    }
+
+    // Check if servo is powered (VCC and GND connected)
+    const vccNetId = this.findNetForTerminal(placedId, "vcc");
+    const gndNetId = this.findNetForTerminal(placedId, "gnd");
+    const signalNetId = this.findNetForTerminal(placedId, "signal");
+
+    if (!vccNetId || !gndNetId) {
+      return { voltage: null, powered: false };
+    }
+
+    const vccNet = this.nets.get(vccNetId);
+    const gndNet = this.nets.get(gndNetId);
+
+    if (!vccNet || !gndNet || isNaN(vccNet.voltage) || isNaN(gndNet.voltage)) {
+      return { voltage: null, powered: false };
+    }
+
+    // Check if powered (VCC > GND by at least 4V)
+    const powerVoltage = vccNet.voltage - gndNet.voltage;
+    if (powerVoltage < 4.0) {
+      return { voltage: null, powered: false };
+    }
+
+    // Servo is powered - now check signal
+    if (!signalNetId) {
+      return { voltage: null, powered: true }; // Powered but no signal
+    }
+
+    const signalNet = this.nets.get(signalNetId);
+    if (!signalNet || isNaN(signalNet.voltage)) {
+      return { voltage: null, powered: true }; // Powered but signal is floating
+    }
+
+    // Return signal voltage relative to GND
+    const signalVoltage = signalNet.voltage - gndNet.voltage;
+    return { voltage: Math.max(0, signalVoltage), powered: true };
+  }
+
   loadCircuit(
     placedComponents: PlacedComponentData[],
     wires: WireData[]
