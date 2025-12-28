@@ -1,8 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
-import { ComponentPalette } from "@/components/simulation/component-palette";
-import { CircuitCanvas } from "@/components/simulation/circuit-canvas";
+import { NoCodeCanvas } from "@/components/no-code-editor/no-code-cavas";
 import { DebugPanel } from "@/components/simulation/debug-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -224,7 +223,7 @@ export default function NocodeEditor() {
 
   return (
     <div className="max-h-screen bg-background flex flex-col">
-      <Header />
+      <Header showSearch={false}/>
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-56 flex-shrink-0">
@@ -239,7 +238,7 @@ export default function NocodeEditor() {
           )}
         </div>
 
-        <CircuitCanvas
+        <NoCodeCanvas
           placedComponents={placedComponents}
           wires={wires}
           selectedComponent={selectedComponent}
