@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug } from "lucide-react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,11 @@ interface ControlPanelProps {
   dht11Temperature: number | null;
   dht11Humidity: number | null;
   onChangeDht11Values: (id: string, temperature: number, humidity: number) => void;
+  selectedServoId: string | null;
+  servoAngle: number | null;
+  onChangeServoAngle: (id: string, angle: number) => void;
+  soundEnabled: boolean;
+  onToggleSound: () => void;
 }
 
 export function ControlPanel({
@@ -54,9 +59,14 @@ export function ControlPanel({
   dht11Temperature,
   dht11Humidity,
   onChangeDht11Values,
+  selectedServoId,
+  servoAngle,
+  onChangeServoAngle,
+  soundEnabled,
+  onToggleSound,
 }: ControlPanelProps) {
   return (
-    <div className="w-72 border-l border-border bg-card flex flex-col">
+    <div className="w-72 border-l border-border bg-card flex flex-col overflow-y-auto">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Controls</h2>
         <div className="space-y-2">
@@ -113,6 +123,20 @@ export function ControlPanel({
           >
             <Bug className="h-4 w-4" />
             {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
+          </Button>
+
+          <Button
+            onClick={onToggleSound}
+            variant={soundEnabled ? "default" : "outline"}
+            className="w-full justify-start gap-2"
+            data-testid="button-toggle-sound"
+          >
+            {soundEnabled ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
+            {soundEnabled ? "Buzzer Sound: ON" : "Buzzer Sound: OFF"}
           </Button>
         </div>
       </div>
@@ -290,6 +314,43 @@ export function ControlPanel({
         ) : (
           <p className="text-xs text-muted-foreground">
             Select a DHT11 sensor on the canvas to adjust temperature and humidity.
+          </p>
+        )}
+      </div>
+
+      {/* Servo Motor Control */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm mb-3">Servo Motor</h2>
+        {selectedServoId && servoAngle !== null ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Angle</Label>
+              <span className="text-sm font-medium text-primary">
+                {Math.round(servoAngle)}°
+              </span>
+            </div>
+            <Slider
+              value={[servoAngle]}
+              onValueChange={(values) =>
+                onChangeServoAngle(selectedServoId, values[0])
+              }
+              min={0}
+              max={180}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0°</span>
+              <span>90°</span>
+              <span>180°</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Manual control. If SIGNAL pin is driven by MCU, angle follows that voltage.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Select a servo motor on the canvas to adjust its angle.
           </p>
         )}
       </div>
