@@ -70,30 +70,78 @@ function TerminalMarker({
     }
   };
 
+  const baseRadius = 7;
+  const hoverRadius = 10;
+  const hitAreaRadius = 14; // Minimum 12x12 px hit area (14px radius = 28px diameter)
+
   return (
-    <g className="terminal-marker">
+    <g className="terminal-marker" style={{ cursor: isWireMode ? 'crosshair' : 'pointer' }}>
+      {/* Large invisible hit area for easier clicking */}
       <circle
         cx={x}
         cy={y}
-        r={isHovered ? 9 : 6}
+        r={hitAreaRadius}
+        fill="transparent"
+        style={{ cursor: isWireMode ? 'crosshair' : 'pointer' }}
+      />
+      
+      {/* Outer glow when hovered */}
+      {isHovered && (
+        <circle
+          cx={x}
+          cy={y}
+          r={hoverRadius + 6}
+          fill="rgba(34, 197, 94, 0.25)"
+          className="pointer-events-none animate-pulse"
+        />
+      )}
+      
+      {/* Main terminal circle */}
+      <circle
+        cx={x}
+        cy={y}
+        r={isHovered ? hoverRadius : baseRadius}
         fill={getColor()}
         stroke={isHovered ? "#22c55e" : "white"}
         strokeWidth={isHovered ? 3 : 2}
-        className={cn("transition-all duration-150", isWireMode && "cursor-crosshair")}
+        className="transition-all duration-150 pointer-events-none"
         data-testid={`terminal-${terminal.id}`}
       />
+      
+      {/* Inner highlight for depth effect */}
+      <circle
+        cx={x}
+        cy={y}
+        r={isHovered ? 4 : 3}
+        fill="rgba(255,255,255,0.3)"
+        className="pointer-events-none"
+      />
+      
       <title>{terminal.name}</title>
+      
+      {/* Terminal name label on hover */}
       {isHovered && (
-        <text
-          x={x}
-          y={y - 12}
-          textAnchor="middle"
-          fontSize="10"
-          fill="hsl(var(--foreground))"
-          className="pointer-events-none"
-        >
-          {terminal.name}
-        </text>
+        <g className="pointer-events-none">
+          {/* Label background */}
+          <rect
+            x={x - 20}
+            y={y - 25}
+            width="40"
+            height="14"
+            rx="3"
+            fill="rgba(0,0,0,0.8)"
+          />
+          <text
+            x={x}
+            y={y - 14}
+            textAnchor="middle"
+            fontSize="9"
+            fill="#ffffff"
+            fontWeight="500"
+          >
+            {terminal.name}
+          </text>
+        </g>
       )}
     </g>
   );
@@ -448,24 +496,81 @@ function PlacedComponentVisual({
       )}
       {component.id === "arduino-uno" && (
         <>
-          <rect x="-40" y="-25" width="80" height="50" rx="3" fill="#008184" stroke="#006668" strokeWidth="2" />
-          <rect x="-35" y="-20" width="12" height="8" fill="#1f2937" />
-          <rect x="-35" y="5" width="20" height="10" fill="#c0c0c0" />
-          <text x="10" y="5" fontSize="8" fill="white" fontWeight="bold">UNO</text>
-          {[-30, -22, -14, -6, 2, 10, 18, 26].map((x, i) => (
-            <rect key={i} x={x} y="-28" width="4" height="6" fill="#ffd700" />
-          ))}
+          {/* Main board body - enlarged for better pin spacing */}
+          <rect x="-70" y="-42" width="140" height="84" rx="4" fill="#008184" stroke="#006668" strokeWidth="2.5" />
+          {/* USB connector */}
+          <rect x="-65" y="-35" width="18" height="14" rx="2" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+          {/* Power jack */}
+          <rect x="-65" y="15" width="22" height="16" rx="2" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+          {/* Reset button */}
+          <circle cx="-45" cy="0" r="5" fill="#dc2626" stroke="#991b1b" strokeWidth="1" />
+          {/* Main chip */}
+          <rect x="-10" y="-15" width="40" height="30" rx="2" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+          {/* Arduino branding */}
+          <text x="30" y="5" fontSize="12" fill="white" fontWeight="bold">UNO</text>
+          <text x="30" y="-8" fontSize="7" fill="#a0dade">ARDUINO</text>
+          {/* LED indicators */}
+          <circle cx="50" cy="-25" r="3" fill="#22c55e" opacity="0.7" />
+          <circle cx="50" cy="-15" r="3" fill="#f59e0b" opacity="0.7" />
+          {/* Top pin header background - Power & Analog */}
+          <rect x="-62" y="-42" width="128" height="8" fill="#2d6b6d" rx="1" />
+          {/* Bottom pin header background - Digital */}
+          <rect x="-62" y="34" width="124" height="8" fill="#2d6b6d" rx="1" />
+          {/* Pin labels for top row */}
+          <text x="-56" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">5V</text>
+          <text x="-42" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">3.3V</text>
+          <text x="-28" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">GND</text>
+          <text x="-14" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">GND</text>
+          <text x="0" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">VIN</text>
+          <text x="18" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">A0</text>
+          <text x="32" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">A1</text>
+          <text x="46" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">A2</text>
+          <text x="60" y="-29" fontSize="5" fill="#a0dade" textAnchor="middle">A3</text>
+          {/* Pin labels for bottom row */}
+          <text x="-56" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">13</text>
+          <text x="-42" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">12</text>
+          <text x="-28" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">~11</text>
+          <text x="-14" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">~10</text>
+          <text x="0" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">~9</text>
+          <text x="14" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">8</text>
+          <text x="28" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">7</text>
+          <text x="42" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">~6</text>
+          <text x="56" y="31" fontSize="5" fill="#a0dade" textAnchor="middle">~5</text>
         </>
       )}
       {component.id === "esp32" && (
         <>
-          <rect x="-20" y="-20" width="40" height="40" rx="3" fill="#1f2937" stroke="#111827" strokeWidth="2" />
-          <rect x="-14" y="-14" width="28" height="16" fill="#374151" rx="1" />
-          <circle cx="0" cy="12" r="3" fill="#22c55e" />
-          <text x="0" y="-4" textAnchor="middle" fontSize="6" fill="#9ca3af">ESP32</text>
-          {[-12, 0, 12].map((x, i) => (
-            <rect key={i} x={x - 2} y="-24" width="4" height="6" fill="#ffd700" />
-          ))}
+          {/* Main board body - enlarged for better pin spacing */}
+          <rect x="-45" y="-45" width="90" height="90" rx="4" fill="#1f2937" stroke="#111827" strokeWidth="2.5" />
+          {/* WiFi antenna area */}
+          <rect x="-35" y="-40" width="70" height="25" rx="2" fill="#374151" stroke="#4b5563" strokeWidth="1" />
+          <text x="0" y="-24" textAnchor="middle" fontSize="7" fill="#9ca3af">WIFI/BT</text>
+          {/* Main chip */}
+          <rect x="-20" y="-10" width="40" height="30" rx="2" fill="#111827" stroke="#374151" strokeWidth="1" />
+          {/* ESP32 branding */}
+          <text x="0" y="8" textAnchor="middle" fontSize="8" fill="#9ca3af" fontWeight="bold">ESP32</text>
+          {/* LED indicator */}
+          <circle cx="0" cy="30" r="4" fill="#22c55e" opacity="0.8" />
+          {/* USB connector */}
+          <rect x="-10" y="35" width="20" height="8" rx="1" fill="#6b7280" stroke="#4b5563" strokeWidth="0.5" />
+          {/* Left side pin header background */}
+          <rect x="-45" y="-40" width="10" height="80" fill="#2a2a2a" rx="1" />
+          {/* Right side pin header background */}
+          <rect x="35" y="-40" width="10" height="80" fill="#2a2a2a" rx="1" />
+          {/* Left pin labels */}
+          <text x="-30" y="-33" fontSize="5" fill="#9ca3af" textAnchor="start">3.3V</text>
+          <text x="-30" y="-19" fontSize="5" fill="#9ca3af" textAnchor="start">GND</text>
+          <text x="-30" y="-5" fontSize="5" fill="#9ca3af" textAnchor="start">D15</text>
+          <text x="-30" y="9" fontSize="5" fill="#9ca3af" textAnchor="start">D2</text>
+          <text x="-30" y="23" fontSize="5" fill="#9ca3af" textAnchor="start">D4</text>
+          <text x="-30" y="37" fontSize="5" fill="#9ca3af" textAnchor="start">D5</text>
+          {/* Right pin labels */}
+          <text x="30" y="-33" fontSize="5" fill="#9ca3af" textAnchor="end">VIN</text>
+          <text x="30" y="-19" fontSize="5" fill="#9ca3af" textAnchor="end">GND</text>
+          <text x="30" y="-5" fontSize="5" fill="#9ca3af" textAnchor="end">D13</text>
+          <text x="30" y="9" fontSize="5" fill="#9ca3af" textAnchor="end">D12</text>
+          <text x="30" y="23" fontSize="5" fill="#9ca3af" textAnchor="end">D14</text>
+          <text x="30" y="37" fontSize="5" fill="#9ca3af" textAnchor="end">D27</text>
         </>
       )}
       {component.id === "breadboard" && (
@@ -575,16 +680,19 @@ export function CircuitCanvas({
     const pos = getMousePosition(e);
 
     if (wireMode) {
-      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents);
+      // Use a generous threshold for click detection - makes it easier to click on pins
+      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents, 24);
 
       if (nearestTerminal) {
         if (!wireStart) {
+          // Start a new wire from this terminal
           onWireStart({
             x: nearestTerminal.x,
             y: nearestTerminal.y,
             terminal: { componentId: nearestTerminal.componentId, terminalId: nearestTerminal.terminalId },
           });
         } else {
+          // Complete the wire to this terminal
           onAddWire({
             startX: wireStart.x,
             startY: wireStart.y,
@@ -596,7 +704,11 @@ export function CircuitCanvas({
           });
           onWireStart(null);
         }
+      } else if (wireStart) {
+        // Clicked empty space while drawing wire - cancel the wire
+        onWireStart(null);
       }
+      // If no terminal found and no wire started, just ignore the click
     } else if (selectedComponent) {
       onPlaceComponent(selectedComponent, pos.x, pos.y);
     } else {
@@ -630,8 +742,9 @@ export function CircuitCanvas({
     }
 
     if (wireMode) {
-      // Use a smaller threshold for better precision on dense components like breadboards
-      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents, 16);
+      // Use a threshold that balances precision with ease of use
+      // 20px allows hovering near pins while still being precise enough for breadboards (8px spacing)
+      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents, 20);
       setHoveredTerminal(nearestTerminal ? { componentId: nearestTerminal.componentId, terminalId: nearestTerminal.terminalId } : null);
     } else {
       setHoveredTerminal(null);
@@ -666,7 +779,13 @@ export function CircuitCanvas({
   );
 
   return (
-    <div className="flex-1 bg-muted/30 relative overflow-hidden" tabIndex={0}>
+    <div 
+      className={cn(
+        "flex-1 bg-muted/30 relative overflow-hidden",
+        wireMode && "cursor-crosshair"
+      )} 
+      tabIndex={0}
+    >
       <div
         className="absolute inset-0 opacity-30"
         style={{
@@ -706,43 +825,195 @@ export function CircuitCanvas({
           const midX = (wire.startX + wire.endX) / 2;
           const midY = (wire.startY + wire.endY) / 2;
           const controlY = midY - 30;
+          const isSelected = wire.id === selectedWireId;
+          
+          // High contrast wire colors
+          const wireColor = isSelected
+            ? "#f97316" // Orange for selected
+            : wire.isActive
+            ? "#22c55e" // Bright green for active
+            : "#10b981"; // Teal-green for inactive (still visible)
 
           return (
-            <path
-              key={wire.id}
-              d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
-              fill="none"
-              stroke={
-                wire.id === selectedWireId
-                  ? "#f97316"
-                  : wire.isActive
-                  ? "#4ade80" // Slightly brighter green for active
-                  : "#4b5563" // Neutral gray for inactive
-              }
-              strokeWidth={wire.isActive ? "4" : "3"} // Slightly thicker if active
-              strokeLinecap="round"
-              filter={wire.isActive ? "url(#wire-glow)" : undefined} // Add glow if active
-              opacity={wire.isActive ? 1 : 0.8} // Adjust opacity
-              className="transition-all duration-300 cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectWire(wire.id);
-                onSelectPlaced(null);
-              }}
-            />
+            <g key={wire.id} className="wire-group">
+              {/* Wire shadow for depth */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke="rgba(0,0,0,0.3)"
+                strokeWidth={wire.isActive ? 6 : 5}
+                strokeLinecap="round"
+                className="pointer-events-none"
+                transform="translate(1, 2)"
+              />
+              
+              {/* Main wire stroke - thicker and more visible */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke={wireColor}
+                strokeWidth={wire.isActive ? 4 : 3}
+                strokeLinecap="round"
+                filter={wire.isActive ? "url(#wire-glow)" : undefined}
+                className="transition-all duration-200 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWire(wire.id);
+                  onSelectPlaced(null);
+                }}
+              />
+              
+              {/* Wire highlight line for 3D effect */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke="rgba(255,255,255,0.3)"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                className="pointer-events-none"
+                transform="translate(-0.5, -0.5)"
+              />
+              
+              {/* Start endpoint circle */}
+              <circle
+                cx={wire.startX}
+                cy={wire.startY}
+                r={isSelected ? 7 : 5}
+                fill={wireColor}
+                stroke="#ffffff"
+                strokeWidth={2}
+                className="transition-all duration-200 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWire(wire.id);
+                  onSelectPlaced(null);
+                }}
+              />
+              <circle
+                cx={wire.startX}
+                cy={wire.startY}
+                r={2}
+                fill="rgba(255,255,255,0.5)"
+                className="pointer-events-none"
+              />
+              
+              {/* End endpoint circle */}
+              <circle
+                cx={wire.endX}
+                cy={wire.endY}
+                r={isSelected ? 7 : 5}
+                fill={wireColor}
+                stroke="#ffffff"
+                strokeWidth={2}
+                className="transition-all duration-200 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWire(wire.id);
+                  onSelectPlaced(null);
+                }}
+              />
+              <circle
+                cx={wire.endX}
+                cy={wire.endY}
+                r={2}
+                fill="rgba(255,255,255,0.5)"
+                className="pointer-events-none"
+              />
+              
+              {/* Selection indicator ring */}
+              {isSelected && (
+                <>
+                  <circle
+                    cx={wire.startX}
+                    cy={wire.startY}
+                    r={10}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth={2}
+                    strokeDasharray="4 2"
+                    className="animate-pulse pointer-events-none"
+                  />
+                  <circle
+                    cx={wire.endX}
+                    cy={wire.endY}
+                    r={10}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth={2}
+                    strokeDasharray="4 2"
+                    className="animate-pulse pointer-events-none"
+                  />
+                </>
+              )}
+            </g>
           );
         })}
 
+        {/* Wire preview while drawing */}
         {wireMode && wireStart && (
-          <path
-            d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
-            fill="none"
-            stroke={hoveredTerminal ? "#22c55e" : "#3b82f6"}
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray="6 4"
-            className="opacity-70"
-          />
+          <g className="wire-preview">
+            {/* Preview wire shadow */}
+            <path
+              d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
+              fill="none"
+              stroke="rgba(0,0,0,0.2)"
+              strokeWidth="5"
+              strokeLinecap="round"
+              className="pointer-events-none"
+              transform="translate(1, 2)"
+            />
+            
+            {/* Main preview wire */}
+            <path
+              d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
+              fill="none"
+              stroke={hoveredTerminal ? "#22c55e" : "#3b82f6"}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeDasharray="8 4"
+              className="pointer-events-none"
+            />
+            
+            {/* Start point indicator */}
+            <circle
+              cx={wireStart.x}
+              cy={wireStart.y}
+              r={8}
+              fill={hoveredTerminal ? "#22c55e" : "#3b82f6"}
+              stroke="#ffffff"
+              strokeWidth={2}
+              className="pointer-events-none"
+            />
+            <circle
+              cx={wireStart.x}
+              cy={wireStart.y}
+              r={3}
+              fill="#ffffff"
+              className="pointer-events-none"
+            />
+            
+            {/* Cursor endpoint indicator */}
+            <circle
+              cx={mousePos.x}
+              cy={mousePos.y}
+              r={hoveredTerminal ? 10 : 6}
+              fill={hoveredTerminal ? "#22c55e" : "transparent"}
+              stroke={hoveredTerminal ? "#ffffff" : "#3b82f6"}
+              strokeWidth={2}
+              className="pointer-events-none transition-all duration-100"
+            />
+            {hoveredTerminal && (
+              <circle
+                cx={mousePos.x}
+                cy={mousePos.y}
+                r={14}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth={2}
+                className="pointer-events-none animate-ping"
+              />
+            )}
+          </g>
         )}
 
         {placedComponents.map((placed) => {
@@ -793,8 +1064,14 @@ export function CircuitCanvas({
           <g
             key={placed.id}
             onMouseDown={(e) => handleComponentMouseDown(e, placed.id, placed.x, placed.y)}
-            // Prevent canvas click handler from immediately clearing the selection
-            onClick={(e) => e.stopPropagation()}
+            // In wire mode, let clicks propagate to canvas for wire connections
+            // Otherwise, stop propagation to prevent clearing selection
+            onClick={(e) => {
+              if (!wireMode) {
+                e.stopPropagation();
+              }
+              // In wire mode, let the click bubble up to handleCanvasClick
+            }}
           >
             <PlacedComponentVisual
               placed={placed}
@@ -846,6 +1123,21 @@ export function CircuitCanvas({
             <p className="text-sm text-muted-foreground max-w-xs">
               Select a component from the palette and click on the canvas to place it
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Wire Mode Status Indicator */}
+      {wireMode && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-primary/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg border border-primary/50 z-20">
+          <div className="flex items-center gap-2 text-primary-foreground">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm font-medium">
+              {wireStart 
+                ? "Click a pin or breadboard hole to complete wire" 
+                : "Click a pin or breadboard hole to start wiring"}
+            </span>
+            <span className="text-xs opacity-70 ml-2">(ESC to cancel)</span>
           </div>
         </div>
       )}
