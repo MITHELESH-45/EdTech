@@ -814,208 +814,20 @@ export function CircuitCanvas({
             </feMerge>
           </filter>
           <filter id="wire-glow" x="-50%" y="-50%" width="200%" height="200%">
-             <feGaussianBlur stdDeviation="2" result="blur" />
+             <feGaussianBlur stdDeviation="3" result="blur" />
              <feMerge>
                <feMergeNode in="blur" />
                <feMergeNode in="SourceGraphic" />
              </feMerge>
           </filter>
+          <filter id="wire-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="1" dy="2" stdDeviation="2" floodOpacity="0.4"/>
+          </filter>
         </defs>
-        {wires.map((wire) => {
-          const midX = (wire.startX + wire.endX) / 2;
-          const midY = (wire.startY + wire.endY) / 2;
-          const controlY = midY - 30;
-          const isSelected = wire.id === selectedWireId;
-          
-          // High contrast wire colors
-          const wireColor = isSelected
-            ? "#f97316" // Orange for selected
-            : wire.isActive
-            ? "#22c55e" // Bright green for active
-            : "#10b981"; // Teal-green for inactive (still visible)
 
-          return (
-            <g key={wire.id} className="wire-group">
-              {/* Wire shadow for depth */}
-              <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
-                fill="none"
-                stroke="rgba(0,0,0,0.3)"
-                strokeWidth={wire.isActive ? 6 : 5}
-                strokeLinecap="round"
-                className="pointer-events-none"
-                transform="translate(1, 2)"
-              />
-              
-              {/* Main wire stroke - thicker and more visible */}
-              <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
-                fill="none"
-                stroke={wireColor}
-                strokeWidth={wire.isActive ? 4 : 3}
-                strokeLinecap="round"
-                filter={wire.isActive ? "url(#wire-glow)" : undefined}
-                className="transition-all duration-200 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectWire(wire.id);
-                  onSelectPlaced(null);
-                }}
-              />
-              
-              {/* Wire highlight line for 3D effect */}
-              <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
-                fill="none"
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                className="pointer-events-none"
-                transform="translate(-0.5, -0.5)"
-              />
-              
-              {/* Start endpoint circle */}
-              <circle
-                cx={wire.startX}
-                cy={wire.startY}
-                r={isSelected ? 7 : 5}
-                fill={wireColor}
-                stroke="#ffffff"
-                strokeWidth={2}
-                className="transition-all duration-200 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectWire(wire.id);
-                  onSelectPlaced(null);
-                }}
-              />
-              <circle
-                cx={wire.startX}
-                cy={wire.startY}
-                r={2}
-                fill="rgba(255,255,255,0.5)"
-                className="pointer-events-none"
-              />
-              
-              {/* End endpoint circle */}
-              <circle
-                cx={wire.endX}
-                cy={wire.endY}
-                r={isSelected ? 7 : 5}
-                fill={wireColor}
-                stroke="#ffffff"
-                strokeWidth={2}
-                className="transition-all duration-200 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectWire(wire.id);
-                  onSelectPlaced(null);
-                }}
-              />
-              <circle
-                cx={wire.endX}
-                cy={wire.endY}
-                r={2}
-                fill="rgba(255,255,255,0.5)"
-                className="pointer-events-none"
-              />
-              
-              {/* Selection indicator ring */}
-              {isSelected && (
-                <>
-                  <circle
-                    cx={wire.startX}
-                    cy={wire.startY}
-                    r={10}
-                    fill="none"
-                    stroke="#f97316"
-                    strokeWidth={2}
-                    strokeDasharray="4 2"
-                    className="animate-pulse pointer-events-none"
-                  />
-                  <circle
-                    cx={wire.endX}
-                    cy={wire.endY}
-                    r={10}
-                    fill="none"
-                    stroke="#f97316"
-                    strokeWidth={2}
-                    strokeDasharray="4 2"
-                    className="animate-pulse pointer-events-none"
-                  />
-                </>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Wire preview while drawing */}
-        {wireMode && wireStart && (
-          <g className="wire-preview">
-            {/* Preview wire shadow */}
-            <path
-              d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
-              fill="none"
-              stroke="rgba(0,0,0,0.2)"
-              strokeWidth="5"
-              strokeLinecap="round"
-              className="pointer-events-none"
-              transform="translate(1, 2)"
-            />
-            
-            {/* Main preview wire */}
-            <path
-              d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
-              fill="none"
-              stroke={hoveredTerminal ? "#22c55e" : "#3b82f6"}
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeDasharray="8 4"
-              className="pointer-events-none"
-            />
-            
-            {/* Start point indicator */}
-            <circle
-              cx={wireStart.x}
-              cy={wireStart.y}
-              r={8}
-              fill={hoveredTerminal ? "#22c55e" : "#3b82f6"}
-              stroke="#ffffff"
-              strokeWidth={2}
-              className="pointer-events-none"
-            />
-            <circle
-              cx={wireStart.x}
-              cy={wireStart.y}
-              r={3}
-              fill="#ffffff"
-              className="pointer-events-none"
-            />
-            
-            {/* Cursor endpoint indicator */}
-            <circle
-              cx={mousePos.x}
-              cy={mousePos.y}
-              r={hoveredTerminal ? 10 : 6}
-              fill={hoveredTerminal ? "#22c55e" : "transparent"}
-              stroke={hoveredTerminal ? "#ffffff" : "#3b82f6"}
-              strokeWidth={2}
-              className="pointer-events-none transition-all duration-100"
-            />
-            {hoveredTerminal && (
-              <circle
-                cx={mousePos.x}
-                cy={mousePos.y}
-                r={14}
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth={2}
-                className="pointer-events-none animate-ping"
-              />
-            )}
-          </g>
-        )}
-
+        {/* RENDER ORDER: Components first (background), then wires on top */}
+        
+        {/* ═══════════════ COMPONENTS LAYER ═══════════════ */}
         {placedComponents.map((placed) => {
           // Compute IR detection for this component based on nearby objects
           const IR_DETECTION_RADIUS = 80;
@@ -1103,6 +915,212 @@ export function CircuitCanvas({
           </g>
           );
         })}
+
+        {/* ═══════════════ WIRES LAYER (renders ON TOP of components) ═══════════════ */}
+        {wires.map((wire) => {
+          const midX = (wire.startX + wire.endX) / 2;
+          const midY = (wire.startY + wire.endY) / 2;
+          const controlY = midY - 30;
+          const isSelected = wire.id === selectedWireId;
+          
+          // High contrast wire colors - very visible
+          const wireColor = isSelected
+            ? "#f97316" // Orange for selected
+            : wire.isActive
+            ? "#22c55e" // Bright green for active
+            : "#059669"; // Emerald green for inactive (high contrast)
+
+          return (
+            <g key={wire.id} className="wire-group" filter="url(#wire-shadow)">
+              {/* Wire shadow for depth */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke="rgba(0,0,0,0.4)"
+                strokeWidth={wire.isActive ? 8 : 7}
+                strokeLinecap="round"
+                className="pointer-events-none"
+                transform="translate(1, 2)"
+              />
+              
+              {/* Wire outer stroke for thickness */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke={isSelected ? "#c2410c" : "#064e3b"}
+                strokeWidth={wire.isActive ? 6 : 5}
+                strokeLinecap="round"
+                className="pointer-events-none"
+              />
+              
+              {/* Main wire stroke - very visible */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke={wireColor}
+                strokeWidth={wire.isActive ? 4.5 : 3.5}
+                strokeLinecap="round"
+                filter={wire.isActive ? "url(#wire-glow)" : undefined}
+                className="transition-all duration-200 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWire(wire.id);
+                  onSelectPlaced(null);
+                }}
+              />
+              
+              {/* Wire highlight line for 3D effect */}
+              <path
+                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                fill="none"
+                stroke="rgba(255,255,255,0.4)"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                className="pointer-events-none"
+                transform="translate(-0.5, -1)"
+              />
+              
+              {/* Start endpoint circle */}
+              <circle
+                cx={wire.startX}
+                cy={wire.startY}
+                r={isSelected ? 8 : 6}
+                fill={wireColor}
+                stroke="#ffffff"
+                strokeWidth={2.5}
+                className="transition-all duration-200 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWire(wire.id);
+                  onSelectPlaced(null);
+                }}
+              />
+              <circle
+                cx={wire.startX}
+                cy={wire.startY}
+                r={2.5}
+                fill="rgba(255,255,255,0.6)"
+                className="pointer-events-none"
+              />
+              
+              {/* End endpoint circle */}
+              <circle
+                cx={wire.endX}
+                cy={wire.endY}
+                r={isSelected ? 8 : 6}
+                fill={wireColor}
+                stroke="#ffffff"
+                strokeWidth={2.5}
+                className="transition-all duration-200 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectWire(wire.id);
+                  onSelectPlaced(null);
+                }}
+              />
+              <circle
+                cx={wire.endX}
+                cy={wire.endY}
+                r={2.5}
+                fill="rgba(255,255,255,0.6)"
+                className="pointer-events-none"
+              />
+              
+              {/* Selection indicator ring */}
+              {isSelected && (
+                <>
+                  <circle
+                    cx={wire.startX}
+                    cy={wire.startY}
+                    r={12}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth={2.5}
+                    strokeDasharray="4 2"
+                    className="animate-pulse pointer-events-none"
+                  />
+                  <circle
+                    cx={wire.endX}
+                    cy={wire.endY}
+                    r={12}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth={2.5}
+                    strokeDasharray="4 2"
+                    className="animate-pulse pointer-events-none"
+                  />
+                </>
+              )}
+            </g>
+          );
+        })}
+
+        {/* ═══════════════ WIRE PREVIEW (while drawing) ═══════════════ */}
+        {wireMode && wireStart && (
+          <g className="wire-preview">
+            {/* Preview wire shadow */}
+            <path
+              d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
+              fill="none"
+              stroke="rgba(0,0,0,0.3)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              className="pointer-events-none"
+              transform="translate(1, 2)"
+            />
+            
+            {/* Main preview wire */}
+            <path
+              d={`M ${wireStart.x} ${wireStart.y} Q ${(wireStart.x + mousePos.x) / 2} ${Math.min(wireStart.y, mousePos.y) - 30} ${mousePos.x} ${mousePos.y}`}
+              fill="none"
+              stroke={hoveredTerminal ? "#22c55e" : "#3b82f6"}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="8 4"
+              className="pointer-events-none"
+            />
+            
+            {/* Start point indicator */}
+            <circle
+              cx={wireStart.x}
+              cy={wireStart.y}
+              r={9}
+              fill={hoveredTerminal ? "#22c55e" : "#3b82f6"}
+              stroke="#ffffff"
+              strokeWidth={2.5}
+              className="pointer-events-none"
+            />
+            <circle
+              cx={wireStart.x}
+              cy={wireStart.y}
+              r={3.5}
+              fill="#ffffff"
+              className="pointer-events-none"
+            />
+            
+            {/* Cursor endpoint indicator */}
+            <circle
+              cx={mousePos.x}
+              cy={mousePos.y}
+              r={hoveredTerminal ? 11 : 7}
+              fill={hoveredTerminal ? "#22c55e" : "transparent"}
+              stroke={hoveredTerminal ? "#ffffff" : "#3b82f6"}
+              strokeWidth={2.5}
+              className="pointer-events-none transition-all duration-100"
+            />
+            {hoveredTerminal && (
+              <circle
+                cx={mousePos.x}
+                cy={mousePos.y}
+                r={16}
+                fill="none"
+                stroke="#22c55e"
+                strokeWidth={2}
+                className="pointer-events-none animate-ping"
+              />
+            )}
+          </g>
+        )}
 
         {selectedComponent && !wireMode && (
           <g transform={`translate(${mousePos.x}, ${mousePos.y})`} opacity="0.5">
