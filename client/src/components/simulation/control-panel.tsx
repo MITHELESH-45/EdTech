@@ -1,7 +1,10 @@
-import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug } from "lucide-react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -16,6 +19,21 @@ interface ControlPanelProps {
   showDebugPanel: boolean;
   componentCount: number;
   wireCount: number;
+  selectedResistorId: string | null;
+  selectedResistorValue: number | null;
+  onChangeResistorValue: (id: string, value: number) => void;
+  selectedPotentiometerId: string | null;
+  potentiometerValue: number | null;
+  onChangePotentiometerValue: (id: string, value: number) => void;
+  selectedDht11Id: string | null;
+  dht11Temperature: number | null;
+  dht11Humidity: number | null;
+  onChangeDht11Values: (id: string, temperature: number, humidity: number) => void;
+  selectedServoId: string | null;
+  servoAngle: number | null;
+  onChangeServoAngle: (id: string, angle: number) => void;
+  soundEnabled: boolean;
+  onToggleSound: () => void;
 }
 
 export function ControlPanel({
@@ -31,9 +49,24 @@ export function ControlPanel({
   showDebugPanel,
   componentCount,
   wireCount,
+  selectedResistorId,
+  selectedResistorValue,
+  onChangeResistorValue,
+  selectedPotentiometerId,
+  potentiometerValue,
+  onChangePotentiometerValue,
+  selectedDht11Id,
+  dht11Temperature,
+  dht11Humidity,
+  onChangeDht11Values,
+  selectedServoId,
+  servoAngle,
+  onChangeServoAngle,
+  soundEnabled,
+  onToggleSound,
 }: ControlPanelProps) {
   return (
-    <div className="w-72 border-l border-border bg-card flex flex-col">
+    <div className="w-72 border-l border-border bg-card flex flex-col overflow-y-auto">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Controls</h2>
         <div className="space-y-2">
@@ -91,46 +124,67 @@ export function ControlPanel({
             <Bug className="h-4 w-4" />
             {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
           </Button>
+
+          <Button
+            onClick={onToggleSound}
+            variant={soundEnabled ? "default" : "outline"}
+            className="w-full justify-start gap-2"
+            data-testid="button-toggle-sound"
+          >
+            {soundEnabled ? (
+              <Volume2 className="h-4 w-4" />
+            ) : (
+              <VolumeX className="h-4 w-4" />
+            )}
+            {soundEnabled ? "Buzzer Sound: ON" : "Buzzer Sound: OFF"}
+          </Button>
         </div>
       </div>
 
-      <div className="p-4 border-b border-border">
+      {/* Status Panel - Color coded */}
+      <div className={`rounded-lg border p-4 ${
+        isRunning && !errorMessage
+          ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+          : errorMessage
+          ? "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+          : "bg-card text-card-foreground"
+      }`}>
         <h2 className="font-semibold text-sm mb-3">Status</h2>
         
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-md bg-muted/50" data-testid="status-simulation-state">
-            <span className="text-sm text-muted-foreground">State</span>
+          <div className="flex items-center justify-between p-3 rounded-md bg-white/50 dark:bg-black/20" data-testid="status-simulation-state">
+            <span className="text-sm opacity-80">State</span>
             <div className="flex items-center gap-2">
               <div
                 className={cn(
                   "w-2 h-2 rounded-full",
-                  isRunning ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                  isRunning && !errorMessage ? "bg-green-500 animate-pulse" : errorMessage ? "bg-red-500" : "bg-gray-400"
                 )}
               />
               <span className="text-sm font-medium" data-testid="text-simulation-state">
-                {isRunning ? "Running" : "Stopped"}
+                {errorMessage ? "Error" : isRunning ? "Running" : "Stopped"}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-md bg-muted/50" data-testid="status-led-state">
-            <span className="text-sm text-muted-foreground">LED</span>
+          <div className="flex items-center justify-between p-3 rounded-md bg-white/50 dark:bg-black/20" data-testid="status-led-state">
+            <span className="text-sm opacity-80">LED</span>
             <div className="flex items-center gap-2">
               <Zap
                 className={cn(
                   "h-4 w-4 transition-colors",
-                  ledState && isRunning ? "text-yellow-500" : "text-gray-400"
+                  ledState && isRunning && !errorMessage ? "text-yellow-500" : "text-gray-400"
                 )}
               />
               <span className="text-sm font-medium" data-testid="text-led-state">
-                {ledState && isRunning ? "ON" : "OFF"}
+                {ledState && isRunning && !errorMessage ? "ON" : "OFF"}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-border space-y-3">
         <h2 className="font-semibold text-sm mb-3">Circuit Info</h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-md bg-muted/50 text-center">
@@ -142,6 +196,163 @@ export function ControlPanel({
             <div className="text-xs text-muted-foreground">Wires</div>
           </div>
         </div>
+
+        <div className="mt-2">
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            Resistor Value
+          </p>
+          {selectedResistorId && selectedResistorValue !== null ? (
+            <Input
+              type="number"
+              min={1}
+              max={1000000}
+              step={10}
+              value={selectedResistorValue}
+              onChange={(e) =>
+                onChangeResistorValue(
+                  selectedResistorId,
+                  Math.max(1, Number(e.target.value) || 0)
+                )
+              }
+              className="h-8 text-xs"
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Select a resistor on the canvas to edit its value.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Potentiometer Control */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm mb-3">Potentiometer</h2>
+        {selectedPotentiometerId && potentiometerValue !== null ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Position</Label>
+              <span className="text-sm font-medium text-primary">
+                {Math.round(potentiometerValue * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[potentiometerValue]}
+              onValueChange={(values) =>
+                onChangePotentiometerValue(selectedPotentiometerId, values[0])
+              }
+              min={0}
+              max={1}
+              step={0.01}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0V</span>
+              <span>{(potentiometerValue * 5).toFixed(1)}V</span>
+              <span>5V</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Select a potentiometer on the canvas to adjust its value.
+          </p>
+        )}
+      </div>
+
+      {/* DHT11 Control */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm mb-3">DHT11 Sensor</h2>
+        {selectedDht11Id && dht11Temperature !== null && dht11Humidity !== null ? (
+          <div className="space-y-4">
+            {/* Temperature Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Temperature (°C)</Label>
+                <span className="text-sm font-medium text-primary">
+                  {Math.round(dht11Temperature)}°C
+                </span>
+              </div>
+              <Slider
+                value={[dht11Temperature]}
+                onValueChange={(values) =>
+                  onChangeDht11Values(selectedDht11Id, values[0], dht11Humidity)
+                }
+                min={0}
+                max={50}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0°C</span>
+                <span>50°C</span>
+              </div>
+            </div>
+
+            {/* Humidity Slider */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Humidity (%)</Label>
+                <span className="text-sm font-medium text-primary">
+                  {Math.round(dht11Humidity)}%
+                </span>
+              </div>
+              <Slider
+                value={[dht11Humidity]}
+                onValueChange={(values) =>
+                  onChangeDht11Values(selectedDht11Id, dht11Temperature, values[0])
+                }
+                min={0}
+                max={100}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Select a DHT11 sensor on the canvas to adjust temperature and humidity.
+          </p>
+        )}
+      </div>
+
+      {/* Servo Motor Control */}
+      <div className="p-4 border-b border-border">
+        <h2 className="font-semibold text-sm mb-3">Servo Motor</h2>
+        {selectedServoId && servoAngle !== null ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Angle</Label>
+              <span className="text-sm font-medium text-primary">
+                {Math.round(servoAngle)}°
+              </span>
+            </div>
+            <Slider
+              value={[servoAngle]}
+              onValueChange={(values) =>
+                onChangeServoAngle(selectedServoId, values[0])
+              }
+              min={0}
+              max={180}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0°</span>
+              <span>90°</span>
+              <span>180°</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Manual control. If SIGNAL pin is driven by MCU, angle follows that voltage.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Select a servo motor on the canvas to adjust its angle.
+          </p>
+        )}
       </div>
 
       <div className="flex-1 p-4">

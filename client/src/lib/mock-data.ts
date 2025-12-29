@@ -275,6 +275,13 @@ export const mockComponents: ElectronicComponent[] = [
     description: "Ground connection"
   },
   {
+    id: "object",
+    name: "Object",
+    category: "base",
+    icon: "object",
+    description: "Detectable object for proximity sensors"
+  },
+  {
     id: "arduino-uno",
     name: "Arduino UNO",
     category: "boards",
