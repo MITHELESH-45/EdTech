@@ -797,7 +797,7 @@ export default function ElectronicSimulation() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <Header />
+      <Header showSearch={false}/>
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Main content row: Palette | Canvas | Controls */}
