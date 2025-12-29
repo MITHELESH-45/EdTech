@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { LedVisual } from "./LedVisual";
+import { BreadboardVisual } from "./BreadboardVisual";
 import { AlertTriangle } from "lucide-react"; // Import AlertTriangle
 
 interface ExtendedWire extends Wire {
@@ -468,21 +469,14 @@ function PlacedComponentVisual({
         </>
       )}
       {component.id === "breadboard" && (
-        <>
-          <rect x="-80" y="-40" width="160" height="80" rx="2" fill="#f5f5dc" stroke="#d4d4a8" strokeWidth="2" />
-          <line x1="-80" y1="0" x2="80" y2="0" stroke="#d4d4a8" strokeWidth="1" strokeDasharray="4 2" />
-          {Array.from({ length: 15 }).map((_, i) => (
-            <g key={i}>
-              <circle cx={-70 + i * 10} cy="-20" r="2" fill="#4b5563" />
-              <circle cx={-70 + i * 10} cy="-10" r="2" fill="#4b5563" />
-              <circle cx={-70 + i * 10} cy="10" r="2" fill="#4b5563" />
-              <circle cx={-70 + i * 10} cy="20" r="2" fill="#4b5563" />
-            </g>
-          ))}
-        </>
+        <BreadboardVisual
+          hoveredTerminal={hoveredTerminal}
+          wireMode={wireMode}
+        />
       )}
 
-      {showTerminals && terminals.map((terminal) => {
+      {/* Breadboard has its own pin rendering in BreadboardVisual */}
+      {showTerminals && component.id !== "breadboard" && terminals.map((terminal) => {
         const pos = getTerminalPosition(0, 0, 0, terminal);
         return (
           <TerminalMarker
@@ -636,9 +630,10 @@ export function CircuitCanvas({
     }
 
     if (wireMode) {
-      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents);
+      // Use a smaller threshold for better precision on dense components like breadboards
+      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents, 16);
       setHoveredTerminal(nearestTerminal ? { componentId: nearestTerminal.componentId, terminalId: nearestTerminal.terminalId } : null);
-    } else if (wireMode) {
+    } else {
       setHoveredTerminal(null);
     }
   };

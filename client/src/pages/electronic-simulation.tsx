@@ -12,6 +12,7 @@ import {
   type SimulationResult,
   type McuPinStateMap,
   type PinLogicState,
+  getBreadboardInternalConnections,
 } from "@/lib/simulation-engine";
 import { componentMetadata, getTerminalPosition } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
@@ -27,6 +28,59 @@ import {
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
   endTerminal?: { componentId: string; terminalId: string };
+}
+
+/**
+ * Generates implicit internal wires for breadboard connections.
+ * A real breadboard has internal connections:
+ * - Terminal strips: holes a-e in same column are connected, f-j in same column are connected
+ * - Power rails: entire + rail is connected, entire - rail is connected
+ * - Center trench blocks conduction between a-e and f-j
+ * 
+ * These implicit wires are injected before simulation so the engine sees them as normal wires.
+ */
+function generateBreadboardImplicitWires(
+  placedComponents: PlacedComponent[]
+): ExtendedWire[] {
+  const implicitWires: ExtendedWire[] = [];
+  const breadboards = placedComponents.filter((p) => p.componentId === "breadboard");
+  
+  if (breadboards.length === 0) return implicitWires;
+  
+  // Get the breadboard internal connection groups
+  const connectionGroups = getBreadboardInternalConnections();
+  
+  // For each breadboard, create implicit wires for all internal connections
+  for (const breadboard of breadboards) {
+    const breadboardId = breadboard.id;
+    
+    // For each connection group, chain-connect all terminals
+    // e.g., for [a1, b1, c1, d1, e1], create wires: a1-b1, b1-c1, c1-d1, d1-e1
+    for (const group of connectionGroups) {
+      const terminals = group.terminals;
+      
+      // Chain consecutive terminals together
+      for (let i = 0; i < terminals.length - 1; i++) {
+        const startTerminalId = terminals[i];
+        const endTerminalId = terminals[i + 1];
+        
+        // Create an implicit wire connecting these two terminals
+        // The x/y coordinates are not important for simulation, only the terminal references matter
+        implicitWires.push({
+          id: `implicit-${breadboardId}-${startTerminalId}-${endTerminalId}`,
+          startX: 0, // Not used for simulation
+          startY: 0,
+          endX: 0,
+          endY: 0,
+          isActive: false,
+          startTerminal: { componentId: breadboardId, terminalId: startTerminalId },
+          endTerminal: { componentId: breadboardId, terminalId: endTerminalId },
+        });
+      }
+    }
+  }
+  
+  return implicitWires;
 }
 
 function PaletteSkeleton() {
@@ -249,7 +303,15 @@ export default function ElectronicSimulation() {
   }, [selectedWireId]);
 
   const runSimulation = useCallback(() => {
-    simulationEngine.loadCircuit(placedComponents, wires);
+    // BREADBOARD NET ENGINE: Generate implicit internal wires for breadboard connections
+    // This makes breadboard rows automatically connected (like a real breadboard)
+    const breadboardImplicitWires = generateBreadboardImplicitWires(placedComponents);
+    
+    // Combine user-placed wires with breadboard implicit wires
+    const allWires = [...wires, ...breadboardImplicitWires];
+    
+    // Load circuit with both explicit and implicit wires
+    simulationEngine.loadCircuit(placedComponents, allWires);
 
     // Sync any edited resistor values into the simulation state
     Object.entries(resistorValues).forEach(([placedId, resistance]) => {
