@@ -17,6 +17,8 @@ interface ControlPanelProps {
   showDebugPanel: boolean;
   componentCount: number;
   wireCount: number;
+  generatedCode?: string;
+  onCodeChange?: (code: string) => void;
 }
 
 export function NocodePanel({
@@ -32,16 +34,17 @@ export function NocodePanel({
   showDebugPanel,
   componentCount,
   wireCount,
+  generatedCode = "# No code generated yet\n",
+  onCodeChange,
 }: ControlPanelProps) {
   const [codeExpanded, setCodeExpanded] = useState(true);
   const [outputExpanded, setOutputExpanded] = useState(true);
   const [circuitExpanded, setCircuitExpanded] = useState(true);
-  const [codeContent, setCodeContent] = useState('for i in range(10):\n    print(i)');
-  const [outputContent, setOutputContent] = useState('>>> Welcome (^_^)');
+  const [outputContent, setOutputContent] = useState('>>> Welcome to the No-Code Editor\n>>> Generated Python code will appear here');
 
   const expandedCount = [codeExpanded, outputExpanded, circuitExpanded].filter(Boolean).length;
   
-  const codeLines = codeContent.split('\n').length;
+  const codeLines = generatedCode.split('\n').length;
   const outputLines = outputContent.split('\n').length;
 
   return (
@@ -70,16 +73,20 @@ export function NocodePanel({
           <div className="flex-1 flex flex-col bg-white">
             <div className="flex-1 flex">
               <div className="w-10 bg-gray-50 border-r border-gray-200 py-2 text-right">
-                {codeContent.split('\n').map((_, i) => (
+                {generatedCode.split('\n').map((_, i) => (
                   <div key={i} className="text-xs text-gray-500 px-2 leading-5">
                     {i + 1}
                   </div>
                 ))}
               </div>
               <textarea
-                value={codeContent}
-                onChange={(e) => setCodeContent(e.target.value)}
-                className="flex-1 px-3 py-2 text-xs font-mono text-gray-900 resize-none focus:outline-none leading-5"
+                value={generatedCode}
+                onChange={(e) => onCodeChange?.(e.target.value)}
+                readOnly={!onCodeChange}
+                className={cn(
+                  "flex-1 px-3 py-2 text-xs font-mono text-gray-900 resize-none focus:outline-none leading-5",
+                  !onCodeChange && "bg-gray-50 cursor-default"
+                )}
                 spellCheck={false}
               />
             </div>
@@ -161,7 +168,7 @@ export function NocodePanel({
               <span className="text-gray-900">{componentCount}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Wires:</span>
+              <span className="text-gray-600">Connections:</span>
               <span className="text-gray-900">{wireCount}</span>
             </div>
             <div className="flex justify-between">

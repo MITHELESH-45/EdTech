@@ -14,111 +14,39 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface ElectronicComponent {
-  id: string;
-  name: string;
-  color: string;
-}
+import { schemaData } from "@/lib/no-code-blocks";
 
 interface ComponentPaletteProps {
-  onSelectComponent: (component: ElectronicComponent) => void;
-  selectedComponent: ElectronicComponent | null;
-  components?: ElectronicComponent[];
+  onSelectBlock: (blockId: string) => void;
+  selectedBlockId: string | null;
 }
 
-const componentCategories = [
-  { 
-    id: "general", 
-    label: "General",
-    icon: <FaGlobe />,
-    components: [
-      { id: "print", name: "Print", color: "bg-blue-500" },
-      { id: "graph", name: "Graph", color: "bg-cyan-500" },
-      { id: "variable", name: "Variable", color: "bg-yellow-500" },
-      { id: "sleep", name: "Sleep", color: "bg-pink-500" }
-    ]
-  },
-  { 
-    id: "loop", 
-    label: "Loop",
-    icon: <FaInfinity />,
-    components: [
-      { id: "break", name: "Break", color: "bg-yellow-500" },
-      { id: "repeat", name: "Repeat", color: "bg-blue-500" },
-      { id: "for-loop", name: "For Loop", color: "bg-purple-500" },
-      { id: "while-loop", name: "While Loop", color: "bg-green-500" },
-      { id: "forever-loop", name: "Forever Loop", color: "bg-cyan-500" }
-    ]
-  },
-  { 
-    id: "condition", 
-    label: "Condition",
-    icon: "?",
-    components: [
-      { id: "if-else", name: "If-Else", color: "bg-blue-500" }
-    ]
-  },
-  { 
-    id: "gpio", 
-    label: "GPIO",
-    icon: <GiProcessor />,
-    components: [
-      { id: "gpio-pin", name: "GPIO Pin", color: "bg-green-500" },
-      { id: "pin-write", name: "Pin Write", color: "bg-orange-500" },
-      { id: "pin-read", name: "Pin Read", color: "bg-blue-500" },
-      { id: "pwm", name: "PWM", color: "bg-purple-500" },
-      { id: "adc", name: "ADC", color: "bg-green-500" },
-      { id: "neopixel-led", name: "NeoPixel LED", color: "bg-cyan-500" },
-      { id: "buzzor-tone", name: "Buzzer Tone", color: "bg-cyan-500" }
-    ]
-  },
-  { 
-    id: "sensor", 
-    label: "Sensor",
-    icon: <MdOutlineSensors />,
-    components: [
-      { id: "ultra-sonic", name: "Ultrasonic", color: "bg-blue-500" },
-      { id: "dht11-sensor", name: "DHT11 Sensor", color: "bg-blue-500" },
-      { id: "ir-sensor", name: "IR Sensor", color: "bg-blue-500" }
-    ]
-  },
-  { 
-    id: "motors", 
-    label: "Motors",
-    icon: <GoGear />,
-    components: [
-      { id: "l298-motor", name: "L298 Motor Driver", color: "bg-blue-500" },
-      { id: "servo-motor", name: "Servo Motor", color: "bg-blue-500" },
-    ]
-  },
-  { 
-    id: "display", 
-    label: "Display",
-    icon: <MdDisplaySettings />,
-    components: [
-      { id: "1.3in-oled", name: "1.3in Oled display", color: "bg-blue-500" },
-      { id: "play-animation", name: "Play Animation", color: "bg-blue-500" },
-      { id: "show-image", name: "Show Image", color: "bg-blue-500" }
-    ]
-  },
-] as const;
+// Map category IDs to icons
+const categoryIcons: Record<string, React.ReactNode> = {
+  general: <FaGlobe />,
+  loop: <FaInfinity />,
+  condition: "?",
+  gpio: <GiProcessor />,
+  sensor: <MdOutlineSensors />,
+  motors: <GoGear />,
+  display: <MdDisplaySettings />,
+};
 
-export function NocodeSidebar({ onSelectComponent, selectedComponent, components = [] }: ComponentPaletteProps) {
+export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPaletteProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
 
-  // Filter components based on search query
+  // Filter blocks based on search query
   const filteredCategories = React.useMemo(() => {
-    if (!searchQuery.trim()) return componentCategories;
+    if (!searchQuery.trim()) return schemaData.categories;
     
     const query = searchQuery.toLowerCase();
-    return componentCategories
+    return schemaData.categories
       .map(category => ({
         ...category,
-        components: category.components.filter(comp => 
-          comp.name.toLowerCase().includes(query) ||
-          comp.id.toLowerCase().includes(query)
+        components: category.components.filter(block => 
+          block.label.toLowerCase().includes(query) ||
+          block.id.toLowerCase().includes(query)
         )
       }))
       .filter(category => category.components.length > 0);
@@ -186,9 +114,9 @@ export function NocodeSidebar({ onSelectComponent, selectedComponent, components
         {/* Blocks Tab */}
         <TabsContent value="blocks" className="flex-1 m-0 flex flex-col">
           <div className="p-4 border-b border-border">
-            <h2 className="font-semibold text-sm">Components</h2>
+            <h2 className="font-semibold text-sm">Blocks</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Click blocks to add them to your circuit
+              Click blocks to add them to your canvas
             </p>
           </div>
           
@@ -210,7 +138,7 @@ export function NocodeSidebar({ onSelectComponent, selectedComponent, components
             <div className="p-3">
               {filteredCategories.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
-                  No components found
+                  No blocks found
                 </div>
               ) : (
                 <Accordion 
@@ -223,28 +151,29 @@ export function NocodeSidebar({ onSelectComponent, selectedComponent, components
                     <AccordionItem key={group.id} value={group.id} className="border-none">
                       <AccordionTrigger className="py-2 px-1 hover:no-underline">
                         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                          <span>{group.icon}</span>
+                          <span>{categoryIcons[group.id] || "•"}</span>
                           <span>{group.label}</span>
                           <span className="text-gray-500">({group.components.length})</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pt-2 pb-4">
                         <div className="grid grid-cols-2 gap-2">
-                          {group.components.map((component) => (
+                          {group.components.map((block) => (
                             <button
-                              key={component.id}
-                              onClick={() => onSelectComponent(component as any)}
+                              key={block.id}
+                              onClick={() => onSelectBlock(block.id)}
                               className={cn(
                                 "flex flex-col items-center gap-1.5 p-3 rounded-md border transition-all",
                                 "hover:shadow-md hover:scale-105 active:scale-95",
-                                selectedComponent?.id === component.id
+                                selectedBlockId === block.id
                                   ? "border-primary bg-primary/5 shadow-sm"
                                   : "border-border bg-background hover:border-primary/50"
                               )}
-                              data-testid={`component-${component.id}`}
+                              data-testid={`block-${block.id}`}
+                              style={{ borderLeftColor: selectedBlockId === block.id ? block.color : undefined, borderLeftWidth: selectedBlockId === block.id ? '3px' : undefined }}
                             >
                               <span className="text-xs font-medium text-center leading-tight">
-                                {component.name}
+                                {block.label}
                               </span>
                             </button>
                           ))}
