@@ -15,14 +15,14 @@ export function InlineFieldRenderer({ fields, values, onChange }: InlineFieldRen
           return (
             <div key={key} className="flex items-center gap-1.5">
               {field.label && (
-                <span className="text-xs text-gray-600 whitespace-nowrap">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {field.label}:
                 </span>
               )}
               <input
                 type="text"
                 value={value || ''}
-                className="flex-1 min-w-0 text-xs border border-gray-300 rounded px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-0.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring"
                 onChange={(e) => onChange(key, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -38,14 +38,14 @@ export function InlineFieldRenderer({ fields, values, onChange }: InlineFieldRen
           return (
             <div key={key} className="flex items-center gap-1.5">
               {field.label && (
-                <span className="text-xs text-gray-600 whitespace-nowrap">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {field.label}:
                 </span>
               )}
               <input
                 type="number"
                 value={numValue}
-                className="text-xs border border-gray-300 rounded px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 w-16"
+                className="text-xs border border-input rounded px-2 py-0.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring w-16"
                 onChange={(e) => {
                   const inputValue = e.target.value;
                   const parsed = Number(inputValue);
@@ -69,13 +69,13 @@ export function InlineFieldRenderer({ fields, values, onChange }: InlineFieldRen
           return (
             <div key={key} className="flex items-center gap-1.5">
               {field.label && (
-                <span className="text-xs text-gray-600 whitespace-nowrap">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {field.label}:
                 </span>
               )}
               <select
                 value={value || field.default || ''}
-                className="flex-1 min-w-0 text-xs border border-gray-300 rounded px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 cursor-pointer"
+                className="flex-1 min-w-0 text-xs border border-input rounded px-2 py-0.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring cursor-pointer"
                 onChange={(e) => onChange(key, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -94,7 +94,7 @@ export function InlineFieldRenderer({ fields, values, onChange }: InlineFieldRen
         if (field.type === "toggle") {
           return (
             <div key={key} className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-600">
+              <span className="text-xs text-muted-foreground">
                 {field.label}:
               </span>
               <input
@@ -103,7 +103,7 @@ export function InlineFieldRenderer({ fields, values, onChange }: InlineFieldRen
                 onChange={(e) => onChange(key, e.target.checked)}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-4 h-4 cursor-pointer"
+                className="w-4 h-4 cursor-pointer accent-primary"
               />
             </div>
           );
@@ -114,14 +114,14 @@ export function InlineFieldRenderer({ fields, values, onChange }: InlineFieldRen
           return (
             <div key={key} className="flex items-center gap-1.5">
               {field.label && (
-                <span className="text-xs text-gray-600 whitespace-nowrap">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {field.label}:
                 </span>
               )}
               <input
                 type="color"
                 value={value || field.default || '#FF0000'}
-                className="w-10 h-7 border border-gray-300 rounded cursor-pointer"
+                className="w-10 h-7 border border-input rounded cursor-pointer bg-background"
                 onChange={(e) => onChange(key, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
