@@ -124,6 +124,7 @@ export default function ElectronicSimulation() {
   const [wireStart, setWireStart] = useState<{ x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null>(null);
   const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [showLogicPanel, setShowLogicPanel] = useState(false);
   const [resistorValues, setResistorValues] = useState<Record<string, number>>({});
   const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
   const [mcuPinStates, setMcuPinStates] = useState<McuPinStateMap>({});
@@ -954,6 +955,15 @@ export default function ElectronicSimulation() {
         onCancel={handleDialogCancel}
       />
 
+      {/* Logic / Code Panel - Slide-out Sheet */}
+      <LogicPanel
+        placedComponents={placedComponents}
+        mcuPinStates={mcuPinStates}
+        onChangePinState={handleChangePinState}
+        open={showLogicPanel}
+        onOpenChange={setShowLogicPanel}
+      />
+
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Main content row: Palette | Canvas | Controls */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1019,6 +1029,9 @@ export default function ElectronicSimulation() {
                 onToggleWireMode={handleToggleWireMode}
                 onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
                 showDebugPanel={showDebugPanel}
+                onToggleLogicPanel={() => setShowLogicPanel(!showLogicPanel)}
+                showLogicPanel={showLogicPanel}
+                hasMcu={hasMcu}
                 componentCount={placedComponents.length}
                 wireCount={wires.length}
                 selectedResistorId={selectedResistorId}
@@ -1041,16 +1054,6 @@ export default function ElectronicSimulation() {
                 isDirty={isDirty}
               />
             </div>
-
-            {hasMcu && (
-              <div className="h-full w-72 overflow-y-auto scrollbar-hide">
-                <LogicPanel
-                  placedComponents={placedComponents}
-                  mcuPinStates={mcuPinStates}
-                  onChangePinState={handleChangePinState}
-                />
-              </div>
-            )}
 
             {showDebugPanel && (
               <div className="h-full w-72 overflow-y-auto scrollbar-hide">
