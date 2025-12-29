@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX, Save, FolderOpen, FileJson } from "lucide-react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX, Save, FolderOpen, FileJson, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,9 @@ interface ControlPanelProps {
   onToggleWireMode: () => void;
   onToggleDebugPanel: () => void;
   showDebugPanel: boolean;
+  onToggleLogicPanel: () => void;
+  showLogicPanel: boolean;
+  hasMcu: boolean;
   componentCount: number;
   wireCount: number;
   selectedResistorId: string | null;
@@ -51,6 +54,9 @@ export function ControlPanel({
   onToggleWireMode,
   onToggleDebugPanel,
   showDebugPanel,
+  onToggleLogicPanel,
+  showLogicPanel,
+  hasMcu,
   componentCount,
   wireCount,
   selectedResistorId,
@@ -164,6 +170,24 @@ export function ControlPanel({
           >
             <Bug className="h-4 w-4" />
             {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
+          </Button>
+
+          <Button
+            onClick={onToggleLogicPanel}
+            variant={showLogicPanel ? "default" : "outline"}
+            className={cn(
+              "w-full justify-start gap-2",
+              hasMcu && "ring-1 ring-primary/30"
+            )}
+            data-testid="button-toggle-logic"
+          >
+            <Cpu className="h-4 w-4" />
+            Logic / Code Panel
+            {hasMcu && (
+              <span className="ml-auto text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">
+                MCU
+              </span>
+            )}
           </Button>
 
           <Button
