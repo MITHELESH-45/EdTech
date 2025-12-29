@@ -2,25 +2,22 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { componentMetadata, getTerminalPosition, findNearestTerminal, type Terminal } from "@/lib/circuit-types";
 import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
-import type { SimulationResult, ComponentState, SimulationError } from "@/lib/simulation-engine";
+import type { SimulationResult } from "@/lib/simulation-engine";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { LedVisual } from "./LedVisual";
-import { BreadboardVisual } from "./BreadboardVisual";
-import { AlertTriangle } from "lucide-react"; // Import AlertTriangle
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
   endTerminal?: { componentId: string; terminalId: string };
 }
 
-interface CircuitCanvasProps {
+interface NoCodeCanvasProps {
   placedComponents: PlacedComponent[];
   wires: ExtendedWire[];
   selectedComponent: ElectronicComponent | null;
   selectedPlacedId: string | null;
   isRunning: boolean;
+  ledState: boolean;
   simulationResult: SimulationResult | null;
   onPlaceComponent: (component: ElectronicComponent, x: number, y: number) => void;
   onAddWire: (wire: Omit<ExtendedWire, "id">) => void;
@@ -31,13 +28,6 @@ interface CircuitCanvasProps {
   onWireStart: (point: { x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null) => void;
   resistorValues: Record<string, number>;
   onChangeResistorValue: (id: string, value: number) => void;
-  onMovePlaced: (id: string, x: number, y: number) => void;
-  selectedWireId: string | null;
-  onSelectWire: (id: string | null) => void;
-  onDeleteSelectedWire: () => void;
-  controlStates: Record<string, { buttonPressed?: boolean; potPosition?: number; irDetected?: boolean; temperature?: number; humidity?: number; servoAngle?: number }>;
-  onButtonPress: (id: string, pressed: boolean) => void;
-  onPotentiometerChange: (id: string, position: number) => void;
 }
 
 function TerminalMarker({
@@ -82,13 +72,12 @@ function TerminalMarker({
         className={cn("transition-all duration-150", isWireMode && "cursor-crosshair")}
         data-testid={`terminal-${terminal.id}`}
       />
-      <title>{terminal.name}</title>
-      {isHovered && (
+      {(isHovered || isWireMode) && (
         <text
           x={x}
           y={y - 12}
           textAnchor="middle"
-          fontSize="10"
+          fontSize="9"
           fill="hsl(var(--foreground))"
           className="pointer-events-none"
         >
@@ -103,57 +92,26 @@ function PlacedComponentVisual({
   placed,
   component,
   isRunning,
+  ledState,
   isSelected,
   showTerminals,
   hoveredTerminal,
   wireMode,
-  componentState,
-  errors,
-  buttonPressed,
-  potPosition,
-  irDetected,
-  ultrasonicDistance,
-  dht11Temperature,
-  dht11Humidity,
-  servoAngle,
-  onButtonPress,
-  onPotentiometerChange,
 }: {
   placed: PlacedComponent;
   component: ElectronicComponent | undefined;
   isRunning: boolean;
+  ledState: boolean;
   isSelected: boolean;
   showTerminals: boolean;
   hoveredTerminal: string | null;
   wireMode: boolean;
-  componentState?: ComponentState;
-  errors?: SimulationError[];
-  buttonPressed?: boolean;
-  potPosition?: number;
-  irDetected?: boolean;
-  ultrasonicDistance?: number;
-  dht11Temperature?: number;
-  dht11Humidity?: number;
-  servoAngle?: number;
-  onButtonPress?: (pressed: boolean) => void;
-  onPotentiometerChange?: (position: number) => void;
 }) {
   if (!component) return null;
 
   const metadata = componentMetadata[component.id];
-  
-  // Find errors affecting this component
-  const componentError = errors?.find(e => e.affectedComponents.includes(placed.id));
-  const errorColor = componentError?.type === "SHORT_CIRCUIT" ? "#ef4444" : "#f59e0b"; // Red or Amber
-
-  const ledOn =
-    isRunning &&
-    componentState?.type === "led" &&
-    componentState.isActive === true;
-  const ledBrightness =
-    (typeof componentState?.properties?.brightness === "number"
-      ? (componentState.properties.brightness as number)
-      : 0) ?? 0;
+  const isLed = component.id === "led";
+  const ledOn = isLed && isRunning && ledState;
 
   const terminals = metadata?.terminals || [];
 
@@ -179,16 +137,28 @@ function PlacedComponentVisual({
 
       {component.id === "led" && (
         <>
-          <LedVisual
-            on={ledOn}
-            brightness={ledBrightness}
-            color={
-              (componentState?.properties?.color as
-                | "red"
-                | "yellow"
-                | "green") ?? "red"
-            }
+          <circle
+            cx="0"
+            cy="0"
+            r="16"
+            className={cn(
+              "transition-all duration-300",
+              ledOn ? "fill-red-500" : "fill-gray-300"
+            )}
+            stroke={ledOn ? "#ef4444" : "#9ca3af"}
+            strokeWidth="2"
           />
+          {ledOn && (
+            <circle
+              cx="0"
+              cy="0"
+              r="24"
+              fill="none"
+              stroke="#ef4444"
+              strokeWidth="1"
+              opacity="0.3"
+            />
+          )}
           <line x1="-8" y1="16" x2="-8" y2="28" stroke="#dc2626" strokeWidth="2" />
           <line x1="8" y1="16" x2="8" y2="28" stroke="#4b5563" strokeWidth="2" />
           <text x="-8" y="36" textAnchor="middle" fontSize="7" fill="#dc2626">+</text>
@@ -208,51 +178,12 @@ function PlacedComponentVisual({
         </>
       )}
       {component.id === "button" && (
-        <g
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            if (!wireMode && onButtonPress) {
-              onButtonPress(true);
-            }
-          }}
-          onMouseUp={(e) => {
-            e.stopPropagation();
-            if (!wireMode && onButtonPress) {
-              onButtonPress(false);
-            }
-          }}
-          onMouseLeave={() => {
-            if (!wireMode && onButtonPress && buttonPressed) {
-              onButtonPress(false);
-            }
-          }}
-          style={{ cursor: wireMode ? "default" : "pointer" }}
-          onClick={(e) => {
-            // Prevent component selection when clicking button
-            e.stopPropagation();
-          }}
-        >
-          <rect
-            x="-16"
-            y={buttonPressed ? -10 : -12}
-            width="32"
-            height={buttonPressed ? 20 : 24}
-            rx="3"
-            fill={buttonPressed ? "#4b5563" : "#374151"}
-            stroke={buttonPressed ? "#22c55e" : "#1f2937"}
-            strokeWidth={buttonPressed ? 2 : 1.5}
-            className="transition-all duration-100"
-          />
-          <circle
-            cx="0"
-            cy={buttonPressed ? 2 : 0}
-            r={buttonPressed ? 6 : 8}
-            fill={buttonPressed ? "#22c55e" : "#6b7280"}
-            className="transition-all duration-100"
-          />
+        <>
+          <rect x="-16" y="-12" width="32" height="24" rx="3" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
+          <circle cx="0" cy="0" r="8" fill="#6b7280" />
           <line x1="-26" y1="0" x2="-16" y2="0" stroke="#4b5563" strokeWidth="2" />
           <line x1="16" y1="0" x2="26" y2="0" stroke="#4b5563" strokeWidth="2" />
-        </g>
+        </>
       )}
       {component.id === "buzzer" && (
         <>
@@ -268,31 +199,10 @@ function PlacedComponentVisual({
         <>
           <rect x="-16" y="-10" width="32" height="20" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
           <circle cx="0" cy="0" r="6" fill="#6b7280" />
-          <line
-            x1="0"
-            y1="-6"
-            x2="0"
-            y2="0"
-            stroke="#d4d4d4"
-            strokeWidth="2"
-            transform={`rotate(${(potPosition ?? 0.5) * 270 - 135} 0 0)`}
-            className="transition-all duration-150"
-          />
+          <line x1="0" y1="-6" x2="0" y2="0" stroke="#d4d4d4" strokeWidth="2" />
           <line x1="-8" y1="10" x2="-8" y2="20" stroke="#dc2626" strokeWidth="2" />
           <line x1="0" y1="10" x2="0" y2="20" stroke="#f59e0b" strokeWidth="2" />
           <line x1="8" y1="10" x2="8" y2="20" stroke="#4b5563" strokeWidth="2" />
-          {!isSelected && (
-            <text
-              x="0"
-              y="-18"
-              textAnchor="middle"
-              fontSize="7"
-              fill="hsl(var(--muted-foreground))"
-              className="pointer-events-none"
-            >
-              {Math.round((potPosition ?? 0.5) * 100)}%
-            </text>
-          )}
         </>
       )}
       {component.id === "ultrasonic" && (
@@ -300,19 +210,6 @@ function PlacedComponentVisual({
           <rect x="-22" y="-12" width="44" height="24" rx="2" fill="#1e40af" stroke="#1e3a8a" strokeWidth="1.5" />
           <circle cx="-8" cy="0" r="7" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1" />
           <circle cx="8" cy="0" r="7" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1" />
-          {/* Distance display */}
-          {ultrasonicDistance !== undefined && (
-            <text
-              x="0"
-              y="-20"
-              textAnchor="middle"
-              fontSize="8"
-              fill={isRunning ? "#60a5fa" : "#6b7280"}
-              fontWeight="bold"
-            >
-              {Math.round(ultrasonicDistance)} cm
-            </text>
-          )}
           <line x1="-15" y1="12" x2="-15" y2="22" stroke="#dc2626" strokeWidth="2" />
           <line x1="-5" y1="12" x2="-5" y2="22" stroke="#f59e0b" strokeWidth="2" />
           <line x1="5" y1="12" x2="5" y2="22" stroke="#22c55e" strokeWidth="2" />
@@ -321,31 +218,9 @@ function PlacedComponentVisual({
       )}
       {component.id === "ir-sensor" && (
         <>
-          {/* Detection radius circle (shown when selected) */}
-          {isSelected && (
-            <circle
-              cx="0"
-              cy="0"
-              r="80"
-              fill="none"
-              stroke={irDetected ? "#eab308" : "#ef4444"}
-              strokeWidth="1"
-              strokeDasharray="4 2"
-              opacity="0.3"
-            />
-          )}
           <rect x="-14" y="-16" width="28" height="32" rx="2" fill="#1f2937" stroke="#111827" strokeWidth="1.5" />
           <circle cx="0" cy="-6" r="5" fill="#ef4444" opacity="0.8" />
           <rect x="-6" y="4" width="12" height="6" fill="#6b7280" />
-          {/* Status indicator: bright yellow when detected, red when not detected */}
-          <circle
-            cx="8"
-            cy="-12"
-            r="3"
-            fill={irDetected ? "#fbbf24" : "#ef4444"}
-            stroke={irDetected ? "#eab308" : "#dc2626"}
-            strokeWidth="1"
-          />
           <line x1="-8" y1="16" x2="-8" y2="24" stroke="#dc2626" strokeWidth="2" />
           <line x1="0" y1="16" x2="0" y2="24" stroke="#22c55e" strokeWidth="2" />
           <line x1="8" y1="16" x2="8" y2="24" stroke="#4b5563" strokeWidth="2" />
@@ -356,74 +231,21 @@ function PlacedComponentVisual({
           <rect x="-14" y="-18" width="28" height="36" rx="2" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1.5" />
           <rect x="-10" y="-14" width="20" height="18" rx="1" fill="#2563eb" />
           <circle cx="0" cy="-5" r="4" fill="#1e40af" />
-          {/* Temperature and Humidity display */}
-          {dht11Temperature !== undefined && dht11Humidity !== undefined && (
-            <g>
-              <text
-                x="0"
-                y="-24"
-                textAnchor="middle"
-                fontSize="7"
-                fill={isRunning ? "#60a5fa" : "#6b7280"}
-                fontWeight="bold"
-              >
-                Temp: {Math.round(dht11Temperature)}°C
-              </text>
-              <text
-                x="0"
-                y="-16"
-                textAnchor="middle"
-                fontSize="7"
-                fill={isRunning ? "#60a5fa" : "#6b7280"}
-                fontWeight="bold"
-              >
-                Hum: {Math.round(dht11Humidity)}%
-              </text>
-            </g>
-          )}
           <line x1="-8" y1="18" x2="-8" y2="28" stroke="#dc2626" strokeWidth="2" />
           <line x1="0" y1="18" x2="0" y2="28" stroke="#f59e0b" strokeWidth="2" />
           <line x1="8" y1="18" x2="8" y2="28" stroke="#4b5563" strokeWidth="2" />
         </>
       )}
-      {component.id === "servo" && (() => {
-        const angle = servoAngle ?? 90; // Default to 90° (center)
-        const isPowered = isRunning && componentState?.powered;
-        return (
-          <>
-            {/* Servo body */}
-            <rect x="-20" y="-10" width="40" height="20" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
-            {/* Servo horn hub */}
-            <circle cx="10" cy="0" r="8" fill="#4b5563" stroke="#374151" strokeWidth="1" />
-            {/* Rotating horn */}
-            <g 
-              style={{ 
-                transformOrigin: '10px 0px',
-                transform: `rotate(${angle - 90}deg)`, // -90 so 0° points left, 180° points right
-                transition: isPowered ? 'transform 0.3s ease-out' : 'none'
-              }}
-            >
-              <rect x="8" y="-3" width="18" height="6" rx="2" fill={isPowered ? "#22c55e" : "#6b7280"} stroke="#1f2937" strokeWidth="1" />
-              <circle cx="22" cy="0" r="2" fill="#1f2937" />
-            </g>
-            {/* Wire connectors */}
-            <line x1="-14" y1="10" x2="-14" y2="20" stroke="#f59e0b" strokeWidth="2" /> {/* Signal - Orange */}
-            <line x1="0" y1="10" x2="0" y2="20" stroke="#dc2626" strokeWidth="2" /> {/* VCC - Red */}
-            <line x1="14" y1="10" x2="14" y2="20" stroke="#4b5563" strokeWidth="2" /> {/* GND - Brown */}
-            {/* Angle display */}
-            <text
-              x="0"
-              y="-18"
-              textAnchor="middle"
-              fontSize="9"
-              fontWeight="bold"
-              fill={isPowered ? "#22c55e" : "#6b7280"}
-            >
-              {Math.round(angle)}°
-            </text>
-          </>
-        );
-      })()}
+      {component.id === "servo" && (
+        <>
+          <rect x="-20" y="-10" width="40" height="20" rx="2" fill="#374151" stroke="#1f2937" strokeWidth="1.5" />
+          <circle cx="14" cy="0" r="6" fill="#6b7280" />
+          <line x1="14" y1="-6" x2="20" y2="-14" stroke="#4b5563" strokeWidth="3" strokeLinecap="round" />
+          <line x1="-14" y1="10" x2="-14" y2="20" stroke="#f59e0b" strokeWidth="2" />
+          <line x1="0" y1="10" x2="0" y2="20" stroke="#dc2626" strokeWidth="2" />
+          <line x1="14" y1="10" x2="14" y2="20" stroke="#4b5563" strokeWidth="2" />
+        </>
+      )}
       {component.id === "5v" && (
         <>
           <circle cx="0" cy="0" r="14" fill="#dc2626" stroke="#991b1b" strokeWidth="2" />
@@ -437,13 +259,6 @@ function PlacedComponentVisual({
           <line x1="-12" y1="-6" x2="12" y2="-6" stroke="#4b5563" strokeWidth="3" />
           <line x1="-8" y1="0" x2="8" y2="0" stroke="#4b5563" strokeWidth="3" />
           <line x1="-4" y1="6" x2="4" y2="6" stroke="#4b5563" strokeWidth="3" />
-        </>
-      )}
-      {component.id === "object" && (
-        <>
-          <rect x="-16" y="-16" width="32" height="32" rx="4" fill="#f59e0b" stroke="#d97706" strokeWidth="2" />
-          <circle cx="0" cy="0" r="8" fill="#fbbf24" opacity="0.5" />
-          <text x="0" y="5" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">OBJ</text>
         </>
       )}
       {component.id === "arduino-uno" && (
@@ -469,14 +284,21 @@ function PlacedComponentVisual({
         </>
       )}
       {component.id === "breadboard" && (
-        <BreadboardVisual
-          hoveredTerminal={hoveredTerminal}
-          wireMode={wireMode}
-        />
+        <>
+          <rect x="-80" y="-40" width="160" height="80" rx="2" fill="#f5f5dc" stroke="#d4d4a8" strokeWidth="2" />
+          <line x1="-80" y1="0" x2="80" y2="0" stroke="#d4d4a8" strokeWidth="1" strokeDasharray="4 2" />
+          {Array.from({ length: 15 }).map((_, i) => (
+            <g key={i}>
+              <circle cx={-70 + i * 10} cy="-20" r="2" fill="#4b5563" />
+              <circle cx={-70 + i * 10} cy="-10" r="2" fill="#4b5563" />
+              <circle cx={-70 + i * 10} cy="10" r="2" fill="#4b5563" />
+              <circle cx={-70 + i * 10} cy="20" r="2" fill="#4b5563" />
+            </g>
+          ))}
+        </>
       )}
 
-      {/* Breadboard has its own pin rendering in BreadboardVisual */}
-      {showTerminals && component.id !== "breadboard" && terminals.map((terminal) => {
+      {showTerminals && terminals.map((terminal) => {
         const pos = getTerminalPosition(0, 0, 0, terminal);
         return (
           <TerminalMarker
@@ -489,35 +311,17 @@ function PlacedComponentVisual({
           />
         );
       })}
-
-      {/* Error Indicator Overlay */}
-      {componentError && (
-        <g transform="translate(10, -10)" className="error-indicator">
-          <circle r="8" fill={errorColor} stroke="white" strokeWidth="1.5" />
-          <text
-            x="0"
-            y="3"
-            textAnchor="middle"
-            fill="white"
-            fontSize="10"
-            fontWeight="bold"
-            pointerEvents="none"
-          >
-            !
-          </text>
-          <title>{`${componentError.message} (${componentError.type})`}</title>
-        </g>
-      )}
     </g>
   );
 }
 
-export function CircuitCanvas({
+export function NoCodeCanvas({
   placedComponents,
   wires,
   selectedComponent,
   selectedPlacedId,
   isRunning,
+  ledState,
   simulationResult,
   onPlaceComponent,
   onAddWire,
@@ -528,39 +332,26 @@ export function CircuitCanvas({
   onWireStart,
   resistorValues,
   onChangeResistorValue,
-  onMovePlaced,
-  selectedWireId,
-  onSelectWire,
-  onDeleteSelectedWire,
-  controlStates,
-  onButtonPress,
-  onPotentiometerChange,
-}: CircuitCanvasProps) {
+}: NoCodeCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hoveredTerminal, setHoveredTerminal] = useState<{ componentId: string; terminalId: string } | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if ((e.key === "Delete" || e.key === "Backspace" || e.key === "Escape") && selectedPlacedId) {
         e.preventDefault();
-        if (selectedPlacedId) {
-          onDeleteSelected();
-        } else if (selectedWireId) {
-          onDeleteSelectedWire();
-        }
-      } else if (e.key === "Escape") {
+        onDeleteSelected();
+      }
+      if (e.key === "Escape") {
         onSelectPlaced(null);
-        onSelectWire(null);
         onWireStart(null);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPlacedId, selectedWireId, onDeleteSelected, onDeleteSelectedWire, onSelectPlaced, onSelectWire, onWireStart]);
+  }, [selectedPlacedId, onDeleteSelected, onSelectPlaced, onWireStart]);
 
   const getMousePosition = useCallback((e: React.MouseEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -601,18 +392,13 @@ export function CircuitCanvas({
       onPlaceComponent(selectedComponent, pos.x, pos.y);
     } else {
       onSelectPlaced(null);
-      onSelectWire(null);
     }
   };
 
-  const handleComponentMouseDown = (e: React.MouseEvent, placedId: string, x: number, y: number) => {
+  const handleComponentClick = (e: React.MouseEvent, placedId: string) => {
     e.stopPropagation();
     if (!wireMode && !selectedComponent) {
       onSelectPlaced(placedId);
-      onSelectWire(null);
-      const pos = getMousePosition(e);
-      setDraggingId(placedId);
-      setDragOffset({ x: pos.x - x, y: pos.y - y });
     }
   };
 
@@ -620,26 +406,12 @@ export function CircuitCanvas({
     const pos = getMousePosition(e);
     setMousePos(pos);
 
-    if (draggingId) {
-      const placed = placedComponents.find((p) => p.id === draggingId);
-      if (placed) {
-        const newX = pos.x - dragOffset.x;
-        const newY = pos.y - dragOffset.y;
-        onMovePlaced(draggingId, newX, newY);
-      }
-    }
-
     if (wireMode) {
-      // Use a smaller threshold for better precision on dense components like breadboards
-      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents, 16);
+      const nearestTerminal = findNearestTerminal(pos.x, pos.y, placedComponents);
       setHoveredTerminal(nearestTerminal ? { componentId: nearestTerminal.componentId, terminalId: nearestTerminal.terminalId } : null);
     } else {
       setHoveredTerminal(null);
     }
-  };
-
-  const handleMouseUp = () => {
-    setDraggingId(null);
   };
 
   const componentMap = new Map(
@@ -656,7 +428,6 @@ export function CircuitCanvas({
         { id: "servo", name: "Servo Motor", category: "base", icon: "servo", description: "" },
         { id: "5v", name: "5V Power", category: "power", icon: "power-5v", description: "" },
         { id: "gnd", name: "GND", category: "power", icon: "ground", description: "" },
-        { id: "object", name: "Object", category: "base", icon: "object", description: "" },
         { id: "arduino-uno", name: "Arduino UNO", category: "boards", icon: "arduino", description: "" },
         { id: "esp32", name: "ESP32", category: "boards", icon: "esp32", description: "" },
         { id: "breadboard", name: "Breadboard", category: "structure", icon: "breadboard", description: "" },
@@ -683,25 +454,8 @@ export function CircuitCanvas({
         className="w-full h-full relative z-10"
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
         data-testid="circuit-canvas"
       >
-        <defs>
-          <filter id="led-glow">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="wire-glow" x="-50%" y="-50%" width="200%" height="200%">
-             <feGaussianBlur stdDeviation="2" result="blur" />
-             <feMerge>
-               <feMergeNode in="blur" />
-               <feMergeNode in="SourceGraphic" />
-             </feMerge>
-          </filter>
-        </defs>
         {wires.map((wire) => {
           const midX = (wire.startX + wire.endX) / 2;
           const midY = (wire.startY + wire.endY) / 2;
@@ -712,23 +466,10 @@ export function CircuitCanvas({
               key={wire.id}
               d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
               fill="none"
-              stroke={
-                wire.id === selectedWireId
-                  ? "#f97316"
-                  : wire.isActive
-                  ? "#4ade80" // Slightly brighter green for active
-                  : "#4b5563" // Neutral gray for inactive
-              }
-              strokeWidth={wire.isActive ? "4" : "3"} // Slightly thicker if active
+              stroke={wire.isActive ? "#22c55e" : "#4b5563"}
+              strokeWidth="3"
               strokeLinecap="round"
-              filter={wire.isActive ? "url(#wire-glow)" : undefined} // Add glow if active
-              opacity={wire.isActive ? 1 : 0.8} // Adjust opacity
-              className="transition-all duration-300 cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectWire(wire.id);
-                onSelectPlaced(null);
-              }}
+              className="transition-colors duration-300"
             />
           );
         })}
@@ -745,67 +486,13 @@ export function CircuitCanvas({
           />
         )}
 
-        {placedComponents.map((placed) => {
-          // Compute IR detection for this component based on nearby objects
-          const IR_DETECTION_RADIUS = 80;
-          const objectComponents = placedComponents.filter((p) => p.componentId === "object");
-          const irDetectedComputed = placed.componentId === "ir-sensor"
-            ? objectComponents.some((obj) => {
-                const dx = obj.x - placed.x;
-                const dy = obj.y - placed.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                return distance <= IR_DETECTION_RADIUS;
-              })
-            : undefined;
-
-          // Compute ultrasonic distance for this component
-          const MAX_DETECTION_RADIUS_PX = 400;
-          const MIN_CM = 2;
-          const MAX_CM = 400;
-          let ultrasonicDistanceComputed: number | undefined = undefined;
-          if (placed.componentId === "ultrasonic") {
-            if (objectComponents.length === 0) {
-              ultrasonicDistanceComputed = MAX_CM;
-            } else {
-              let minDistancePx = Infinity;
-              objectComponents.forEach((obj) => {
-                const dx = obj.x - placed.x;
-                const dy = obj.y - placed.y;
-                const distancePx = Math.sqrt(dx * dx + dy * dy);
-                if (distancePx < minDistancePx) {
-                  minDistancePx = distancePx;
-                }
-              });
-              const distanceCm = MIN_CM + (minDistancePx / MAX_DETECTION_RADIUS_PX) * (MAX_CM - MIN_CM);
-              ultrasonicDistanceComputed = Math.max(MIN_CM, Math.min(MAX_CM, distanceCm));
-            }
-          }
-
-          // Get DHT11 temperature and humidity from control state
-          const dht11TemperatureComputed = placed.componentId === "dht11"
-            ? controlStates[placed.id]?.temperature
-            : undefined;
-          const dht11HumidityComputed = placed.componentId === "dht11"
-            ? controlStates[placed.id]?.humidity
-            : undefined;
-
-          return (
-          <g
-            key={placed.id}
-            onMouseDown={(e) => handleComponentMouseDown(e, placed.id, placed.x, placed.y)}
-            // Prevent canvas click handler from immediately clearing the selection
-            onClick={(e) => e.stopPropagation()}
-          >
+        {placedComponents.map((placed) => (
+          <g key={placed.id} onClick={(e) => handleComponentClick(e, placed.id)}>
             <PlacedComponentVisual
               placed={placed}
               component={componentMap.get(placed.id) as ElectronicComponent | undefined}
               isRunning={isRunning}
-              componentState={
-                simulationResult?.componentStates.get(placed.id) as
-                  | ComponentState
-                  | undefined
-              }
-              errors={simulationResult?.errors}
+              ledState={ledState}
               isSelected={selectedPlacedId === placed.id}
             // Always show terminals so that all pins/ports remain visible and easy to wire
             showTerminals={true}
@@ -813,19 +500,9 @@ export function CircuitCanvas({
                 hoveredTerminal?.componentId === placed.id ? hoveredTerminal.terminalId : null
               }
               wireMode={wireMode}
-              buttonPressed={placed.componentId === "button" ? controlStates[placed.id]?.buttonPressed : undefined}
-              potPosition={placed.componentId === "potentiometer" ? controlStates[placed.id]?.potPosition : undefined}
-              irDetected={irDetectedComputed ?? (controlStates[placed.id]?.irDetected ?? false)}
-              ultrasonicDistance={ultrasonicDistanceComputed}
-              dht11Temperature={dht11TemperatureComputed}
-              dht11Humidity={dht11HumidityComputed}
-              servoAngle={placed.componentId === "servo" ? controlStates[placed.id]?.servoAngle : undefined}
-              onButtonPress={placed.componentId === "button" ? (pressed) => onButtonPress(placed.id, pressed) : undefined}
-              onPotentiometerChange={placed.componentId === "potentiometer" ? (pos) => onPotentiometerChange(placed.id, pos) : undefined}
             />
           </g>
-          );
-        })}
+        ))}
 
         {selectedComponent && !wireMode && (
           <g transform={`translate(${mousePos.x}, ${mousePos.y})`} opacity="0.5">
@@ -851,52 +528,33 @@ export function CircuitCanvas({
       )}
 
       {selectedPlacedId && (
-        <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg border border-border p-3 text-sm space-y-2 max-w-xs">
+        <div className="absolute top-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg border border-border p-3 text-sm space-y-2">
           <p className="text-muted-foreground">Selected component</p>
           <p className="font-medium mb-1">Press DELETE or ESC to remove</p>
           {(() => {
             const selected = placedComponents.find((p) => p.id === selectedPlacedId);
-            if (!selected) return null;
-            
-            if (selected.componentId === "resistor") {
-              const value = resistorValues[selectedPlacedId] ?? 220;
-              return (
-                <div className="space-y-1">
-                  <Label htmlFor="resistor-value" className="text-xs">
-                    Resistor value (Ω)
-                  </Label>
-                  <Input
-                    id="resistor-value"
-                    type="number"
-                    min={1}
-                    max={1000000}
-                    step={10}
-                    value={value}
-                    onChange={(e) => {
-                      const next = Number(e.target.value) || 0;
-                      onChangeResistorValue(selectedPlacedId, Math.max(1, next));
-                    }}
-                    className="h-7 text-xs px-2"
-                  />
-                </div>
-              );
-            }
-            
-            if (selected.componentId === "potentiometer") {
-              const position = controlStates[selectedPlacedId]?.potPosition ?? 0.5;
-              return (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">
-                    Position: <span className="font-medium text-foreground">{Math.round(position * 100)}%</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Use the slider in Control Panel →
-                  </p>
-                </div>
-              );
-            }
-            
-            return null;
+            if (selected?.componentId !== "resistor") return null;
+            const value = resistorValues[selectedPlacedId] ?? 220;
+            return (
+              <div className="space-y-1">
+                <Label htmlFor="resistor-value" className="text-xs">
+                  Resistor value (Ω)
+                </Label>
+                <Input
+                  id="resistor-value"
+                  type="number"
+                  min={1}
+                  max={1000000}
+                  step={10}
+                  value={value}
+                  onChange={(e) => {
+                    const next = Number(e.target.value) || 0;
+                    onChangeResistorValue(selectedPlacedId, Math.max(1, next));
+                  }}
+                  className="h-7 text-xs px-2"
+                />
+              </div>
+            );
           })()}
         </div>
       )}
