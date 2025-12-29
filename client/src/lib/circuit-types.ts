@@ -150,6 +150,12 @@ export const componentMetadata: Record<string, ComponentMetadata> = {
     width: 24,
     height: 20,
   },
+  object: {
+    id: "object",
+    terminals: [],
+    width: 32,
+    height: 32,
+  },
   "arduino-uno": {
     id: "arduino-uno",
     terminals: [
@@ -229,8 +235,45 @@ export function findNearestTerminal(
   placedComponents: Array<{ id: string; componentId: string; x: number; y: number; rotation: number }>,
   threshold: number = 32
 ): { componentId: string; terminalId: string; x: number; y: number } | null {
-  let nearest: { componentId: string; terminalId: string; x: number; y: number; distance: number } | null = null;
+  let nearest: { componentId: string; terminalId: string; x: number; y: number; distance: number; isBreadboard: boolean } | null = null;
 
+  for (const placed of placedComponents) {
+    const metadata = componentMetadata[placed.componentId];
+    if (!metadata) continue;
+
+    const isBreadboard = placed.componentId === "breadboard";
+    // Use a tighter threshold for breadboard pins (they are densely packed at 8px apart)
+    const effectiveThreshold = isBreadboard ? Math.min(threshold, 6) : threshold;
+
+    for (const terminal of metadata.terminals) {
+      const pos = getTerminalPosition(placed.x, placed.y, placed.rotation, terminal);
+      const distance = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+
+      // For breadboard, always prefer the closest pin within its tight threshold
+      // For other components, use the provided threshold
+      if (distance < effectiveThreshold) {
+        if (!nearest || distance < nearest.distance) {
+          nearest = {
+            componentId: placed.id,
+            terminalId: terminal.id,
+            x: pos.x,
+            y: pos.y,
+            distance,
+            isBreadboard,
+          };
+        }
+      }
+    }
+  }
+
+  // If we found a breadboard terminal within its tight threshold, return it
+  // Otherwise, check if any non-breadboard terminal was found within the regular threshold
+  if (nearest) {
+    return { componentId: nearest.componentId, terminalId: nearest.terminalId, x: nearest.x, y: nearest.y };
+  }
+
+  // Second pass: try with the original threshold if nothing found with tight threshold
+  // This helps when user clicks between pins but still wants to connect
   for (const placed of placedComponents) {
     const metadata = componentMetadata[placed.componentId];
     if (!metadata) continue;
@@ -246,6 +289,7 @@ export function findNearestTerminal(
           x: pos.x,
           y: pos.y,
           distance,
+          isBreadboard: placed.componentId === "breadboard",
         };
       }
     }
