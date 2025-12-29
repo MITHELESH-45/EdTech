@@ -96,6 +96,7 @@ function Router() {
       </Route>
       <Route path="/iot-simulation">
         <ProtectedRoute component={IoTSimulatorPage} />
+      </Route>
       <Route path="/no-code-editor">
         <ProtectedRoute component={NocodeEditor} />
       </Route>
