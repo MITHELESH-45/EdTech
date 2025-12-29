@@ -82,7 +82,7 @@ export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPalet
           </button>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600">
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
               <span>📁</span>
               <span>Projects</span>
             </div>
@@ -93,14 +93,14 @@ export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPalet
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600">
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
               <span>📁</span>
               <span>Examples</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600">
+            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
               <span>📁</span>
               <span>Board files</span>
               <span className="ml-auto flex items-center gap-2">
@@ -126,7 +126,7 @@ export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPalet
               <Input
                 type="search"
                 placeholder="Search blocks..."
-                className="pl-9 bg-gray-200 border-transparent focus:border-border"
+                className="pl-9 bg-muted/50 border-transparent focus:border-border"
                 data-testid="input-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -153,7 +153,7 @@ export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPalet
                         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                           <span>{categoryIcons[group.id] || "•"}</span>
                           <span>{group.label}</span>
-                          <span className="text-gray-500">({group.components.length})</span>
+                          <span className="text-muted-foreground/70">({group.components.length})</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pt-2 pb-4">

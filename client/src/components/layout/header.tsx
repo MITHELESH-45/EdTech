@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
 
 export function Header( { showSearch = true }: { showSearch?: boolean } ) {
   const { user, logout, isAuthenticated } = useAuth();
@@ -70,6 +71,10 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
               About
             </Button>
           </Link>
+
+          <div className="pl-2 border-l border-border">
+            <ThemeToggleSwitch />
+          </div>
 
           {isAuthenticated ? (
             <DropdownMenu>
