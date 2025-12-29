@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { ComponentPalette } from "@/components/simulation/component-palette";
@@ -24,6 +24,13 @@ import {
   resumeAudioContext,
   cleanupAudio,
 } from "@/lib/audio/buzzer-audio";
+import {
+  downloadCircuit,
+  openFilePicker,
+  loadCircuitFile,
+  type CircuitData,
+} from "@/lib/circuit-file";
+import { UnsavedChangesDialog } from "@/components/simulation/unsaved-changes-dialog";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -134,6 +141,11 @@ export default function ElectronicSimulation() {
   };
   const [controlStates, setControlStates] = useState<Record<string, ComponentControlState>>({});
 
+  // Circuit file save/load state
+  const [isDirty, setIsDirty] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
+
   const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
   const { data: components, isLoading } = useQuery<ElectronicComponent[]>({
@@ -157,6 +169,7 @@ export default function ElectronicSimulation() {
         rotation: 0,
       };
       setPlacedComponents((prev) => [...prev, newPlaced]);
+      setIsDirty(true); // Mark as dirty
 
       if (component.id === "resistor") {
         setResistorValues((prev) => ({
@@ -186,6 +199,7 @@ export default function ElectronicSimulation() {
       id: `wire-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
     setWires((prev) => [...prev, newWire]);
+    setIsDirty(true); // Mark as dirty
   }, []);
 
   const handleToggleWireMode = () => {
@@ -225,6 +239,7 @@ export default function ElectronicSimulation() {
         return updated;
       });
       setSelectedPlacedId(null);
+      setIsDirty(true); // Mark as dirty
       toast({
         title: "Component deleted",
         description: "The component and its connected wires have been removed.",
@@ -237,6 +252,7 @@ export default function ElectronicSimulation() {
       ...prev,
       [id]: value,
     }));
+    setIsDirty(true); // Mark as dirty
   }, []);
 
   const handleMovePlaced = useCallback((id: string, x: number, y: number) => {
@@ -294,12 +310,14 @@ export default function ElectronicSimulation() {
         p.id === id ? { ...p, x, y } : p
       );
     });
+    setIsDirty(true); // Mark as dirty
   }, []);
 
   const handleDeleteSelectedWire = useCallback(() => {
     if (!selectedWireId) return;
     setWires((prev) => prev.filter((w) => w.id !== selectedWireId));
     setSelectedWireId(null);
+    setIsDirty(true); // Mark as dirty
   }, [selectedWireId]);
 
   const runSimulation = useCallback(() => {
@@ -569,6 +587,10 @@ export default function ElectronicSimulation() {
     setWireMode(false);
     setWireStart(null);
     setSelectedPlacedId(null);
+    setResistorValues({});
+    setControlStates({});
+    setMcuPinStates({});
+    setIsDirty(false); // Reset clears dirty state
     simulationEngine.reset();
     toast({
       title: "Circuit Reset",
@@ -689,6 +711,7 @@ export default function ElectronicSimulation() {
           [pinId]: state,
         },
       }));
+      setIsDirty(true); // Mark as dirty
     },
     []
   );
@@ -711,6 +734,7 @@ export default function ElectronicSimulation() {
         potPosition: position,
       },
     }));
+    setIsDirty(true); // Mark as dirty
   }, []);
 
   const handleDht11Change = useCallback((placedId: string, temperature: number, humidity: number) => {
@@ -722,6 +746,7 @@ export default function ElectronicSimulation() {
         humidity,
       },
     }));
+    setIsDirty(true); // Mark as dirty
   }, []);
 
   const handleServoAngleChange = useCallback((placedId: string, angle: number) => {
@@ -732,7 +757,129 @@ export default function ElectronicSimulation() {
         servoAngle: angle,
       },
     }));
+    setIsDirty(true); // Mark as dirty
   }, []);
+
+  // ============== CIRCUIT FILE SAVE/LOAD ==============
+  
+  // Mark circuit as dirty when changes occur
+  const markDirty = useCallback(() => {
+    setIsDirty(true);
+  }, []);
+
+  // Save circuit to local file
+  const handleSaveCircuit = useCallback(() => {
+    const circuitData: CircuitData = {
+      placedComponents,
+      wires,
+      resistorValues,
+      controlStates,
+      mcuPinStates,
+    };
+    
+    downloadCircuit(circuitData);
+    setIsDirty(false);
+    
+    toast({
+      title: "Circuit Saved",
+      description: "Your circuit has been downloaded as a .egroots.json file.",
+    });
+  }, [placedComponents, wires, resistorValues, controlStates, mcuPinStates, toast]);
+
+  // Load circuit from local file
+  const performLoadCircuit = useCallback(async () => {
+    const file = await openFilePicker();
+    if (!file) return;
+    
+    const result = await loadCircuitFile(file);
+    
+    if (!result.valid || !result.data) {
+      toast({
+        title: "Load Failed",
+        description: result.error || "Failed to load circuit file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Stop any running simulation
+    setIsRunning(false);
+    stopBuzzerSound();
+    
+    // Restore circuit state
+    setPlacedComponents(result.data.placedComponents);
+    setWires(result.data.wires.map(w => ({ ...w, isActive: false })));
+    setResistorValues(result.data.resistorValues);
+    setControlStates(result.data.controlStates);
+    setMcuPinStates(result.data.mcuPinStates);
+    
+    // Reset UI state
+    setSimulationResult(null);
+    setSelectedComponent(null);
+    setWireMode(false);
+    setWireStart(null);
+    setSelectedPlacedId(null);
+    setSelectedWireId(null);
+    simulationEngine.reset();
+    
+    // Mark as clean since we just loaded
+    setIsDirty(false);
+    
+    toast({
+      title: "Circuit Loaded",
+      description: `Loaded ${result.data.placedComponents.length} components and ${result.data.wires.length} wires.`,
+    });
+  }, [toast, simulationEngine]);
+
+  // Handle load with unsaved changes check
+  const handleLoadCircuit = useCallback(() => {
+    if (isDirty) {
+      pendingActionRef.current = performLoadCircuit;
+      setShowUnsavedDialog(true);
+    } else {
+      performLoadCircuit();
+    }
+  }, [isDirty, performLoadCircuit]);
+
+  // Unsaved changes dialog handlers
+  const handleDialogSave = useCallback(() => {
+    handleSaveCircuit();
+    setShowUnsavedDialog(false);
+    // Execute pending action after save
+    if (pendingActionRef.current) {
+      pendingActionRef.current();
+      pendingActionRef.current = null;
+    }
+  }, [handleSaveCircuit]);
+
+  const handleDialogDiscard = useCallback(() => {
+    setShowUnsavedDialog(false);
+    setIsDirty(false);
+    // Execute pending action
+    if (pendingActionRef.current) {
+      pendingActionRef.current();
+      pendingActionRef.current = null;
+    }
+  }, []);
+
+  const handleDialogCancel = useCallback(() => {
+    setShowUnsavedDialog(false);
+    pendingActionRef.current = null;
+  }, []);
+
+  // Browser beforeunload warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   // Auto-update simulation when control states change, components move, or simulation is running
   useEffect(() => {
@@ -798,6 +945,14 @@ export default function ElectronicSimulation() {
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       <Header showSearch={false}/>
+      
+      {/* Unsaved Changes Warning Dialog */}
+      <UnsavedChangesDialog
+        open={showUnsavedDialog}
+        onSave={handleDialogSave}
+        onDiscard={handleDialogDiscard}
+        onCancel={handleDialogCancel}
+      />
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Main content row: Palette | Canvas | Controls */}
@@ -881,6 +1036,9 @@ export default function ElectronicSimulation() {
                 onChangeServoAngle={handleServoAngleChange}
                 soundEnabled={soundEnabled}
                 onToggleSound={handleToggleSound}
+                onSaveCircuit={handleSaveCircuit}
+                onLoadCircuit={handleLoadCircuit}
+                isDirty={isDirty}
               />
             </div>
 
