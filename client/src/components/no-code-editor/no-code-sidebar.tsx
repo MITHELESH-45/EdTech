@@ -2,7 +2,14 @@ import React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Search, FolderPlus, FolderOpen, FileJson, Download } from "lucide-react";
+import { Search, FolderPlus, FolderOpen, FileJson, Download, Trash2, Edit2, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { GiProcessor } from "react-icons/gi";
 import { FaGlobe, FaInfinity } from "react-icons/fa";
 import { MdOutlineSensors, MdDisplaySettings } from "react-icons/md";
@@ -16,9 +23,25 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { schemaData } from "@/lib/no-code-blocks";
 
+export interface ProjectData {
+  id: string;
+  name: string;
+  placedBlocks: any[];
+  connections: any[];
+  generatedCode: string;
+  lastModified: number;
+}
+
 interface ComponentPaletteProps {
   onSelectBlock: (blockId: string) => void;
   selectedBlockId: string | null;
+  currentProjectId: string | null;
+  onNewProject: () => void;
+  onLoadProject: (projectId: string) => void;
+  onDeleteProject: (projectId: string) => void;
+  onRenameProject: (projectId: string, newName: string) => void;
+  onDownloadProject: (projectId: string) => void;
+  projects: ProjectData[];
 }
 
 // Map category IDs to icons
@@ -32,9 +55,22 @@ const categoryIcons: Record<string, React.ReactNode> = {
   display: <MdDisplaySettings />,
 };
 
-export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPaletteProps) {
+export function NocodeSidebar({ 
+  onSelectBlock, 
+  selectedBlockId,
+  currentProjectId,
+  onNewProject,
+  onLoadProject,
+  onDeleteProject,
+  onRenameProject,
+  onDownloadProject,
+  projects = [],
+}: ComponentPaletteProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [renamingProjectId, setRenamingProjectId] = React.useState<string | null>(null);
+  const [renameValue, setRenameValue] = React.useState("");
 
   // Filter blocks based on search query
   const filteredCategories = React.useMemo(() => {
@@ -61,6 +97,67 @@ export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPalet
     }
   }, [searchQuery, filteredCategories]);
 
+  const handleOpenProject = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of Array.from(files)) {
+      // Only accept JSON files
+      if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        try {
+          const text = await file.text();
+          const projectData = JSON.parse(text) as ProjectData;
+          
+          // Validate project data structure
+          if (projectData.placedBlocks && Array.isArray(projectData.placedBlocks)) {
+            // Generate a new ID for the loaded project to avoid conflicts
+            const newProject: ProjectData = {
+              ...projectData,
+              id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              name: projectData.name || file.name.replace('.json', ''),
+              lastModified: Date.now(),
+            };
+            
+            // Load the project (parent will handle saving to localStorage)
+            onLoadProject(newProject.id);
+            // The parent should handle loading the project data
+            // For now, we'll trigger a custom event or callback
+            window.dispatchEvent(new CustomEvent('nocode-load-project', { detail: newProject }));
+          }
+        } catch (error) {
+          console.error('Failed to load project file:', error);
+        }
+      }
+    }
+
+    // Reset file input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRenameStart = (project: ProjectData) => {
+    setRenamingProjectId(project.id);
+    setRenameValue(project.name);
+  };
+
+  const handleRenameSubmit = (projectId: string) => {
+    if (renameValue.trim()) {
+      onRenameProject(projectId, renameValue.trim());
+    }
+    setRenamingProjectId(null);
+    setRenameValue("");
+  };
+
+  const handleRenameCancel = () => {
+    setRenamingProjectId(null);
+    setRenameValue("");
+  };
+
   return (
     <div className="h-full flex flex-col bg-card border-r border-border">
       <Tabs defaultValue="projects" className="flex-1 flex flex-col">
@@ -71,25 +168,118 @@ export function NocodeSidebar({ onSelectBlock, selectedBlockId }: ComponentPalet
 
         {/* Projects Tab */}
         <TabsContent value="projects" className="flex-1 m-0 p-4 space-y-4 overflow-auto">
-          <button className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors">
+          <button 
+            onClick={onNewProject}
+            className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
+          >
             <FolderPlus className="h-4 w-4" />
             <span className="text-sm font-medium">New Project</span>
           </button>
 
-          <button className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors">
+          <button 
+            onClick={handleOpenProject}
+            className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
+          >
             <FolderOpen className="h-4 w-4" />
             <span className="text-sm font-medium">Open project</span>
           </button>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
 
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
               <span>📁</span>
               <span>Projects</span>
             </div>
-            <div className="pl-6 flex items-center gap-2 text-sm text-muted-foreground">
-              <FileJson className="h-4 w-4" />
-              <span>sample.json</span>
-            </div>
+            {!projects || projects.length === 0 ? (
+              <div className="pl-6 text-sm text-muted-foreground italic">
+                No projects yet. Create a new project to get started.
+              </div>
+            ) : (
+              projects.map((project) => (
+                <div
+                  key={project.id}
+                  className={cn(
+                    "pl-6 pr-2 flex items-center gap-2 text-sm transition-colors group",
+                    currentProjectId === project.id
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground cursor-pointer"
+                  )}
+                  onClick={() => currentProjectId !== project.id && onLoadProject(project.id)}
+                >
+                  <FileJson className="h-4 w-4 flex-shrink-0" />
+                  {renamingProjectId === project.id ? (
+                    <Input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={() => handleRenameSubmit(project.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSubmit(project.id);
+                        if (e.key === 'Escape') handleRenameCancel();
+                      }}
+                      className="flex-1 h-6 text-xs px-2 py-0"
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <>
+                      <span className="flex-1 truncate">{project.name}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          onClick={(e) => e.stopPropagation()}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+                        >
+                          <MoreVertical className="h-3 w-3" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            onLoadProject(project.id);
+                          }}>
+                            Open
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameStart(project);
+                          }}>
+                            <Edit2 className="h-3 w-3 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            onDownloadProject(project.id);
+                          }}>
+                            <Download className="h-3 w-3 mr-2" />
+                            Download
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
+                                onDeleteProject(project.id);
+                              }
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           <div className="space-y-2">
