@@ -98,14 +98,14 @@ const Pin = memo(function Pin({
 }) {
   // Colors for different states
   const getPinStyle = () => {
-    // Directly hovered pin - strongest highlight
+    // Directly hovered pin - strongest highlight with prominent glow
     if (isHovered) {
       return {
         fill: type === "power" ? "#dc2626" : type === "ground" ? "#2563eb" : "#22c55e",
         stroke: "#ffffff",
-        strokeWidth: 2,
-        innerFill: "rgba(255,255,255,0.6)",
-        scale: 1.3,
+        strokeWidth: 2.5,
+        innerFill: "rgba(255,255,255,0.8)",
+        scale: 1.5,
       };
     }
     // Pin in same connected strip - shows electrical connectivity
@@ -113,45 +113,56 @@ const Pin = memo(function Pin({
       return {
         fill: type === "power" ? "#ef4444" : type === "ground" ? "#3b82f6" : "#4ade80",
         stroke: type === "power" ? "#fca5a5" : type === "ground" ? "#93c5fd" : "#86efac",
-        strokeWidth: 1,
-        innerFill: "rgba(255,255,255,0.4)",
-        scale: 1.15,
+        strokeWidth: 1.5,
+        innerFill: "rgba(255,255,255,0.5)",
+        scale: 1.25,
       };
     }
-    // In wire mode, show pins more prominently
+    // In wire mode, show pins more prominently - MUCH more visible
     if (wireMode) {
       return {
-        fill: type === "power" ? "#7f1d1d" : type === "ground" ? "#1e3a8a" : "#3a3a3a",
-        stroke: type === "power" ? "#dc2626" : type === "ground" ? "#3b82f6" : "#6b7280",
-        strokeWidth: 0.8,
-        innerFill: "#2a2a2a",
-        scale: 1.0,
+        fill: type === "power" ? "#991b1b" : type === "ground" ? "#1e40af" : "#374151",
+        stroke: type === "power" ? "#f87171" : type === "ground" ? "#60a5fa" : "#9ca3af",
+        strokeWidth: 1.2,
+        innerFill: type === "power" ? "#450a0a" : type === "ground" ? "#172554" : "#1f2937",
+        scale: 1.15,
       };
     }
     return {
       fill: "#2a2a2a",
       stroke: "#404040",
-      strokeWidth: 0.3,
+      strokeWidth: 0.5,
       innerFill: "#1a1a1a",
       scale: 1.0,
     };
   };
 
   const style = getPinStyle();
-  const size = 5.6 * style.scale;
-  const innerSize = 3.2 * style.scale;
+  const size = 6.5 * style.scale;
+  const innerSize = 3.5 * style.scale;
   
   return (
-    <g className="breadboard-pin">
-      {/* LARGE INVISIBLE HIT AREA - Makes clicking easier */}
+    <g className="breadboard-pin" style={{ cursor: wireMode ? 'crosshair' : 'default' }}>
+      {/* LARGE INVISIBLE HIT AREA - Covers entire pin cell for easy clicking */}
       <rect
         x={x - PIN_SPACING / 2}
-        y={y - 4}
+        y={y - PIN_SPACING / 2}
         width={PIN_SPACING}
-        height={8}
+        height={PIN_SPACING}
         fill="transparent"
-        className="cursor-crosshair"
+        style={{ cursor: wireMode ? 'crosshair' : 'pointer' }}
       />
+      
+      {/* Outer glow ring when hovered - makes it obvious this is clickable */}
+      {isHovered && (
+        <circle
+          cx={x}
+          cy={y}
+          r={10}
+          fill={type === "power" ? "rgba(220, 38, 38, 0.3)" : type === "ground" ? "rgba(37, 99, 235, 0.3)" : "rgba(34, 197, 94, 0.3)"}
+          className="pointer-events-none"
+        />
+      )}
       
       {/* Pin hole - outer ring */}
       <rect
@@ -159,11 +170,11 @@ const Pin = memo(function Pin({
         y={y - size / 2}
         width={size}
         height={size}
-        rx={1}
+        rx={1.5}
         fill={style.fill}
         stroke={style.stroke}
         strokeWidth={style.strokeWidth}
-        className="transition-all duration-75 pointer-events-none"
+        className="transition-all duration-100 pointer-events-none"
       />
       {/* Inner depth effect */}
       <rect
@@ -171,23 +182,33 @@ const Pin = memo(function Pin({
         y={y - innerSize / 2}
         width={innerSize}
         height={innerSize}
-        rx={0.5}
+        rx={0.75}
         fill={style.innerFill}
-        className="transition-all duration-75 pointer-events-none"
+        className="transition-all duration-100 pointer-events-none"
       />
       
-      {/* Glow effect when hovered in wire mode */}
+      {/* Animated glow ring when hovered in wire mode */}
       {isHovered && wireMode && (
-        <circle
-          cx={x}
-          cy={y}
-          r={8}
-          fill="none"
-          stroke={type === "power" ? "#dc2626" : type === "ground" ? "#3b82f6" : "#22c55e"}
-          strokeWidth={2}
-          opacity={0.6}
-          className="animate-pulse"
-        />
+        <>
+          <circle
+            cx={x}
+            cy={y}
+            r={12}
+            fill="none"
+            stroke={type === "power" ? "#dc2626" : type === "ground" ? "#3b82f6" : "#22c55e"}
+            strokeWidth={2.5}
+            opacity={0.7}
+            className="animate-pulse pointer-events-none"
+          />
+          {/* Click indicator dot */}
+          <circle
+            cx={x}
+            cy={y}
+            r={2}
+            fill="#ffffff"
+            className="pointer-events-none"
+          />
+        </>
       )}
       
       <title>{id}</title>
