@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Header } from "@/components/layout/header";
 import { BlockCanvas } from "@/components/no-code-editor/block-canvas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { NocodeSidebar } from "@/components/no-code-editor/no-code-sidebar";
+import { NocodeSidebar, type ProjectData } from "@/components/no-code-editor/no-code-sidebar";
 import { NocodePanel } from "@/components/no-code-editor/no-code-panel";
 import type { PlacedBlock, BlockConnection } from "@/lib/block-types";
 import { CodeGenerator } from "@/lib/code-generator";
@@ -39,6 +39,9 @@ export default function NocodeEditor() {
   const [connections, setConnections] = useState<BlockConnection[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [generatedCode, setGeneratedCode] = useState<string>("# Generated code will appear here\n");
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSelectBlock = useCallback((blockId: string) => {
     setSelectedBlockType(blockId);
@@ -115,6 +118,71 @@ export default function NocodeEditor() {
     });
   }, [toast]);
 
+  // Load projects from localStorage on mount
+  useEffect(() => {
+    const savedProjects = localStorage.getItem('nocode-projects');
+    if (savedProjects) {
+      try {
+        const loadedProjects = JSON.parse(savedProjects) as ProjectData[];
+        setProjects(loadedProjects);
+        
+        // Load the last active project if available
+        const lastProjectId = localStorage.getItem('nocode-last-project');
+        if (lastProjectId) {
+          const lastProject = loadedProjects.find(p => p.id === lastProjectId);
+          if (lastProject) {
+            loadProjectData(lastProject);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load projects from localStorage:', error);
+      }
+    }
+  }, []);
+
+  const loadProjectData = useCallback((project: ProjectData) => {
+    setPlacedBlocks(project.placedBlocks || []);
+    setConnections(project.connections || []);
+    setGeneratedCode(project.generatedCode || "# Generated code will appear here\n");
+    setCurrentProjectId(project.id);
+    setSelectedBlockId(null);
+    setSelectedBlockType(null);
+    localStorage.setItem('nocode-last-project', project.id);
+    
+    toast({
+      title: "Project loaded",
+      description: `"${project.name}" has been loaded.`,
+    });
+  }, [toast]);
+
+  // Listen for project load events from file input
+  useEffect(() => {
+    const handleLoadProject = (event: CustomEvent) => {
+      const projectData = event.detail as ProjectData;
+      // Add project to list and load it
+      setProjects(prev => {
+        const existing = prev.find(p => p.id === projectData.id);
+        if (existing) return prev;
+        return [...prev, projectData];
+      });
+      loadProjectData(projectData);
+    };
+
+    window.addEventListener('nocode-load-project', handleLoadProject as EventListener);
+    return () => {
+      window.removeEventListener('nocode-load-project', handleLoadProject as EventListener);
+    };
+  }, [loadProjectData]);
+
+  // Save projects to localStorage whenever projects change
+  useEffect(() => {
+    if (projects.length > 0) {
+      localStorage.setItem('nocode-projects', JSON.stringify(projects));
+    } else {
+      localStorage.removeItem('nocode-projects');
+    }
+  }, [projects]);
+
   // Generate code whenever blocks change
   const codeGenerator = useMemo(() => {
     return new CodeGenerator(placedBlocks, connections);
@@ -129,6 +197,130 @@ export default function NocodeEditor() {
   useEffect(() => {
     updateGeneratedCode();
   }, [updateGeneratedCode]);
+
+  // Auto-save project when blocks, connections, or code changes
+  useEffect(() => {
+    if (!currentProjectId) return;
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save (debounce)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      if (currentProjectId) {
+        setProjects(prev => prev.map(p => 
+          p.id === currentProjectId 
+            ? {
+                ...p,
+                placedBlocks,
+                connections,
+                generatedCode,
+                lastModified: Date.now(),
+              }
+            : p
+        ));
+      }
+    }, 1000); // Auto-save after 1 second of inactivity
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [placedBlocks, connections, generatedCode, currentProjectId]);
+
+  const handleNewProject = useCallback(() => {
+    const newProject: ProjectData = {
+      id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: `Project ${projects.length + 1}`,
+      placedBlocks: [],
+      connections: [],
+      generatedCode: "# Generated code will appear here\n",
+      lastModified: Date.now(),
+    };
+
+    setProjects(prev => [...prev, newProject]);
+    loadProjectData(newProject);
+    
+    toast({
+      title: "New project created",
+      description: "A new project has been created.",
+    });
+  }, [projects.length, loadProjectData, toast]);
+
+  const handleLoadProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      loadProjectData(project);
+    }
+  }, [projects, loadProjectData]);
+
+  const handleDeleteProject = useCallback((projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    
+    if (currentProjectId === projectId) {
+      // Clear current project if it was deleted
+      setPlacedBlocks([]);
+      setConnections([]);
+      setGeneratedCode("# Generated code will appear here\n");
+      setCurrentProjectId(null);
+      setSelectedBlockId(null);
+      setSelectedBlockType(null);
+      localStorage.removeItem('nocode-last-project');
+    }
+    
+    toast({
+      title: "Project deleted",
+      description: "The project has been deleted.",
+    });
+  }, [currentProjectId, toast]);
+
+  const handleRenameProject = useCallback((projectId: string, newName: string) => {
+    setProjects(prev => prev.map(p => 
+      p.id === projectId 
+        ? { ...p, name: newName, lastModified: Date.now() }
+        : p
+    ));
+    
+    toast({
+      title: "Project renamed",
+      description: `Project renamed to "${newName}".`,
+    });
+  }, [toast]);
+
+  const handleDownloadProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    // If downloading current project, use current state, otherwise use saved state
+    const projectToDownload = currentProjectId === projectId
+      ? {
+          ...project,
+          placedBlocks,
+          connections,
+          generatedCode,
+          lastModified: Date.now(),
+        }
+      : project;
+
+    const dataStr = JSON.stringify(projectToDownload, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${project.name}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Project downloaded",
+      description: `"${project.name}.json" has been downloaded.`,
+    });
+  }, [projects, currentProjectId, placedBlocks, connections, generatedCode, toast]);
 
   const handleRun = useCallback(() => {
     updateGeneratedCode();
@@ -167,6 +359,13 @@ export default function NocodeEditor() {
           <NocodeSidebar
             onSelectBlock={handleSelectBlock}
             selectedBlockId={selectedBlockType}
+            currentProjectId={currentProjectId}
+            onNewProject={handleNewProject}
+            onLoadProject={handleLoadProject}
+            onDeleteProject={handleDeleteProject}
+            onRenameProject={handleRenameProject}
+            onDownloadProject={handleDownloadProject}
+            projects={projects}
           />
         </div>
 
