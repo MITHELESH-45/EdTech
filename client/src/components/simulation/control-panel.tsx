@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX } from "lucide-react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX, Save, FolderOpen, FileJson, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,9 @@ interface ControlPanelProps {
   onToggleWireMode: () => void;
   onToggleDebugPanel: () => void;
   showDebugPanel: boolean;
+  onToggleLogicPanel: () => void;
+  showLogicPanel: boolean;
+  hasMcu: boolean;
   componentCount: number;
   wireCount: number;
   selectedResistorId: string | null;
@@ -34,6 +37,10 @@ interface ControlPanelProps {
   onChangeServoAngle: (id: string, angle: number) => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
+  // Circuit file operations
+  onSaveCircuit: () => void;
+  onLoadCircuit: () => void;
+  isDirty: boolean;
 }
 
 export function ControlPanel({
@@ -47,6 +54,9 @@ export function ControlPanel({
   onToggleWireMode,
   onToggleDebugPanel,
   showDebugPanel,
+  onToggleLogicPanel,
+  showLogicPanel,
+  hasMcu,
   componentCount,
   wireCount,
   selectedResistorId,
@@ -64,9 +74,46 @@ export function ControlPanel({
   onChangeServoAngle,
   soundEnabled,
   onToggleSound,
+  onSaveCircuit,
+  onLoadCircuit,
+  isDirty,
 }: ControlPanelProps) {
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col overflow-y-auto">
+      {/* Circuit File Operations - Same style as No-Code Editor */}
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <FileJson className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold text-sm">Circuit</h2>
+          {isDirty && (
+            <span className="ml-auto text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 px-2 py-0.5 rounded-full">
+              Unsaved
+            </span>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Button
+            onClick={onSaveCircuit}
+            variant="outline"
+            className="w-full justify-start gap-2"
+            data-testid="button-save-circuit"
+          >
+            <Save className="h-4 w-4" />
+            Save Circuit
+          </Button>
+          
+          <Button
+            onClick={onLoadCircuit}
+            variant="outline"
+            className="w-full justify-start gap-2"
+            data-testid="button-load-circuit"
+          >
+            <FolderOpen className="h-4 w-4" />
+            Load Circuit
+          </Button>
+        </div>
+      </div>
+
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Controls</h2>
         <div className="space-y-2">
@@ -123,6 +170,24 @@ export function ControlPanel({
           >
             <Bug className="h-4 w-4" />
             {showDebugPanel ? "Hide Debug Panel" : "Show Debug Panel"}
+          </Button>
+
+          <Button
+            onClick={onToggleLogicPanel}
+            variant={showLogicPanel ? "default" : "outline"}
+            className={cn(
+              "w-full justify-start gap-2",
+              hasMcu && "ring-1 ring-primary/30"
+            )}
+            data-testid="button-toggle-logic"
+          >
+            <Cpu className="h-4 w-4" />
+            Logic / Code Panel
+            {hasMcu && (
+              <span className="ml-auto text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">
+                MCU
+              </span>
+            )}
           </Button>
 
           <Button
