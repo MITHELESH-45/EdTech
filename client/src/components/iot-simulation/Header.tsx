@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Wifi, Clock, Activity } from 'lucide-react';
 import { useSensorStore } from './store';
-import { ThemeToggleSwitch } from './ThemeToggleSwitch';
 
 export const Header: React.FC = () => {
   const [time, setTime] = useState(new Date().toLocaleTimeString());
@@ -41,10 +40,6 @@ export const Header: React.FC = () => {
         </div>
         
         <Wifi className="w-5 h-5 text-blue-500" />
-        
-        <div className="pl-4 border-l border-border">
-          <ThemeToggleSwitch />
-        </div>
       </div>
     </header>
   );

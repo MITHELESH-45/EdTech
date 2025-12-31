@@ -17,6 +17,7 @@ import Login from "@/pages/login";
 import Signup from "@/pages/signup";
 import Profile from "@/pages/profile";
 import Help from "@/pages/help";
+import NocodeEditor from "./pages/no-code-editor";
 
 function LoadingScreen() {
   return (
@@ -95,6 +96,9 @@ function Router() {
       </Route>
       <Route path="/iot-simulation">
         <ProtectedRoute component={IoTSimulatorPage} />
+      </Route>
+      <Route path="/no-code-editor">
+        <ProtectedRoute component={NocodeEditor} />
       </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />

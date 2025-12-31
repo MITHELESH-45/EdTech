@@ -34,8 +34,8 @@ const tools: ToolItem[] = [
     name: "No-Code Editor",
     icon: Blocks,
     path: "/no-code-editor",
-    isActive: false,
-    comingSoon: true,
+    isActive: true,
+    comingSoon: false,
   },
 ];
 
