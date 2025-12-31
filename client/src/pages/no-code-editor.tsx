@@ -1,20 +1,13 @@
-import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Header } from "@/components/layout/header";
-import { ComponentPalette } from "@/components/simulation/component-palette";
-import { CircuitCanvas } from "@/components/simulation/circuit-canvas";
-import { DebugPanel } from "@/components/simulation/debug-panel";
+import { BlockCanvas } from "@/components/no-code-editor/block-canvas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { SimulationEngine, type SimulationResult } from "@/lib/simulation-engine";
-import type { ElectronicComponent, PlacedComponent, Wire } from "@shared/schema";
-import { NocodeSidebar } from "@/components/no-code-editor/no-code-sidebar";
+import { NocodeSidebar, type ProjectData } from "@/components/no-code-editor/no-code-sidebar";
 import { NocodePanel } from "@/components/no-code-editor/no-code-panel";
-
-interface ExtendedWire extends Wire {
-  startTerminal?: { componentId: string; terminalId: string };
-  endTerminal?: { componentId: string; terminalId: string };
-}
+import type { PlacedBlock, BlockConnection } from "@/lib/block-types";
+import { CodeGenerator } from "@/lib/code-generator";
+import { schemaData } from "@/lib/no-code-blocks";
 
 function PaletteSkeleton() {
   return (
@@ -41,247 +34,371 @@ function PaletteSkeleton() {
 
 export default function NocodeEditor() {
   const { toast } = useToast();
-  const [selectedComponent, setSelectedComponent] = useState<ElectronicComponent | null>(null);
-  const [placedComponents, setPlacedComponents] = useState<PlacedComponent[]>([]);
-  const [wires, setWires] = useState<ExtendedWire[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
-  const [wireMode, setWireMode] = useState(false);
-  const [wireStart, setWireStart] = useState<{ x: number; y: number; terminal?: { componentId: string; terminalId: string } } | null>(null);
-  const [selectedPlacedId, setSelectedPlacedId] = useState<string | null>(null);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const [resistorValues, setResistorValues] = useState<Record<string, number>>({});
+  const [selectedBlockType, setSelectedBlockType] = useState<string | null>(null);
+  const [placedBlocks, setPlacedBlocks] = useState<PlacedBlock[]>([]);
+  const [connections, setConnections] = useState<BlockConnection[]>([]);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = useState<string>("# Generated code will appear here\n");
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const simulationEngine = useMemo(() => new SimulationEngine(), []);
+  const handleSelectBlock = useCallback((blockId: string) => {
+    setSelectedBlockType(blockId);
+    setSelectedBlockId(null);
+  }, []);
 
-  const { data: components, isLoading } = useQuery<ElectronicComponent[]>({
-    queryKey: ["/api/components"],
-  });
-
-  const handleSelectComponent = (component: ElectronicComponent) => {
-    setSelectedComponent(component);
-    setWireMode(false);
-    setWireStart(null);
-    setSelectedPlacedId(null);
-  };
-
-  const handlePlaceComponent = useCallback(
-    (component: ElectronicComponent, x: number, y: number) => {
-      const newPlaced: PlacedComponent = {
-        id: `placed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        componentId: component.id,
-        x,
-        y,
-        rotation: 0,
-      };
-      setPlacedComponents((prev) => [...prev, newPlaced]);
-
-      if (component.id === "resistor") {
-        setResistorValues((prev) => ({
-          ...prev,
-          [newPlaced.id]: 220,
-        }));
+  const handlePlaceBlock = useCallback((blockId: string, x: number, y: number) => {
+    // Get default values from schema
+    let defaultValues: Record<string, any> = {};
+    
+    for (const category of schemaData.categories) {
+      const block = category.components.find(c => c.id === blockId);
+      if (block) {
+        // Initialize with default values
+        Object.entries(block.fields).forEach(([key, field]: [string, any]) => {
+          defaultValues[key] = field.default;
+        });
+        break;
       }
-    },
-    []
-  );
+    }
 
-  const handleAddWire = useCallback((wire: Omit<ExtendedWire, "id">) => {
-    const newWire: ExtendedWire = {
-      ...wire,
-      id: `wire-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    const newBlock: PlacedBlock = {
+      id: `block-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      blockId,
+      x,
+      y,
+      fieldValues: defaultValues,
     };
-    setWires((prev) => [...prev, newWire]);
-  }, []);
-
-  const handleToggleWireMode = () => {
-    setWireMode(!wireMode);
-    setSelectedComponent(null);
-    setWireStart(null);
-    setSelectedPlacedId(null);
-  };
-
-  const handleSelectPlaced = (id: string | null) => {
-    setSelectedPlacedId(id);
-    setSelectedComponent(null);
-  };
-
-  const handleDeleteSelected = useCallback(() => {
-    if (selectedPlacedId) {
-      setPlacedComponents((prev) => prev.filter((p) => p.id !== selectedPlacedId));
-      setWires((prev) =>
-        prev.filter(
-          (w) =>
-            w.startTerminal?.componentId !== selectedPlacedId &&
-            w.endTerminal?.componentId !== selectedPlacedId
-        )
-      );
-      setResistorValues((prev) => {
-        const updated = { ...prev };
-        delete updated[selectedPlacedId];
-        return updated;
-      });
-      setSelectedPlacedId(null);
-      toast({
-        title: "Component deleted",
-        description: "The component and its connected wires have been removed.",
-      });
-    }
-  }, [selectedPlacedId, toast]);
-
-  const handleChangeResistorValue = useCallback((id: string, value: number) => {
-    setResistorValues((prev) => ({
-      ...prev,
-      [id]: value,
-    }));
-  }, []);
-
-  const runSimulation = useCallback(() => {
-    simulationEngine.loadCircuit(placedComponents, wires);
-
-    // Sync any edited resistor values into the simulation state
-    Object.entries(resistorValues).forEach(([placedId, resistance]) => {
-      simulationEngine.setResistorResistance(placedId, resistance);
+    
+    setPlacedBlocks((prev) => [...prev, newBlock]);
+    setSelectedBlockType(null);
+    setSelectedBlockId(newBlock.id);
+    
+    toast({
+      title: "Block placed",
+      description: "Block has been added to the canvas.",
     });
+  }, [toast]);
 
-    const result = simulationEngine.simulate();
-    setSimulationResult(result);
-    return result;
-  }, [simulationEngine, placedComponents, wires, resistorValues]);
-
-  const handleRun = () => {
-    const result = runSimulation();
-    const hasBlockingError = result.errors.some((e) => e.severity === "error");
-
-    if (hasBlockingError || !result.isValid) {
-      setIsRunning(false);
-      const firstError = result.errors[0];
-      toast({
-        title: "Circuit Error",
-        description: firstError?.message ?? "There is a problem with your circuit. Please fix the wiring and try again.",
-        variant: "destructive",
-      });
-      // Ensure wires are not shown as active when the circuit is invalid
-      setWires((prev) =>
-        prev.map((w) => ({ ...w, isActive: false }))
-      );
-    } else if (result.isValid) {
-      setIsRunning(true);
-      setWires((prev) =>
-        prev.map((w) => ({ ...w, isActive: true }))
-      );
-      toast({
-        title: "Simulation Started",
-        description: "Your circuit is now running.",
-      });
-    }
-  };
-
-  const handleStop = () => {
-    setIsRunning(false);
-    setWires((prev) =>
-      prev.map((w) => ({ ...w, isActive: false }))
+  const handleDeleteBlock = useCallback((blockId: string) => {
+    setPlacedBlocks((prev) => prev.filter((b) => b.id !== blockId));
+    setConnections((prev) => 
+      prev.filter((c) => c.fromBlockId !== blockId && c.toBlockId !== blockId)
     );
+    setSelectedBlockId(null);
+    
     toast({
-      title: "Simulation Stopped",
-      description: "The simulation has been stopped.",
+      title: "Block deleted",
+      description: "The block has been removed.",
     });
-  };
+  }, [toast]);
 
-  const handleReset = () => {
-    setPlacedComponents([]);
-    setWires([]);
-    setIsRunning(false);
-    setSimulationResult(null);
-    setSelectedComponent(null);
-    setWireMode(false);
-    setWireStart(null);
-    setSelectedPlacedId(null);
-    simulationEngine.reset();
+  const handleUpdateBlockValues = useCallback((blockId: string, values: Record<string, any>) => {
+    setPlacedBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, fieldValues: values } : b))
+    );
+  }, []);
+
+  const handleMoveBlock = useCallback((blockId: string, x: number, y: number) => {
+    setPlacedBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, x, y } : b))
+    );
+  }, []);
+
+  const handleConnectBlocks = useCallback((fromBlockId: string, toBlockId: string) => {
+    // Update sequential connection (simple version - connects blocks sequentially)
+    setPlacedBlocks((prev) =>
+      prev.map((b) => (b.id === fromBlockId ? { ...b, nextBlockId: toBlockId } : b))
+    );
+    
     toast({
-      title: "Circuit Reset",
-      description: "All components and wires have been cleared.",
+      title: "Blocks connected",
+      description: "Blocks have been connected.",
     });
-  };
+  }, [toast]);
 
-  const ledState = useMemo(() => {
-    if (!simulationResult || !isRunning) return false;
-    for (const [, state] of simulationResult.componentStates) {
-      if (state.type === "led" && state.isActive) {
-        return true;
+  // Load projects from localStorage on mount
+  useEffect(() => {
+    const savedProjects = localStorage.getItem('nocode-projects');
+    if (savedProjects) {
+      try {
+        const loadedProjects = JSON.parse(savedProjects) as ProjectData[];
+        setProjects(loadedProjects);
+        
+        // Load the last active project if available
+        const lastProjectId = localStorage.getItem('nocode-last-project');
+        if (lastProjectId) {
+          const lastProject = loadedProjects.find(p => p.id === lastProjectId);
+          if (lastProject) {
+            loadProjectData(lastProject);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load projects from localStorage:', error);
       }
     }
-    return false;
-  }, [simulationResult, isRunning]);
+  }, []);
 
-  const errorMessage = useMemo(() => {
-    if (!simulationResult) return null;
-    if (simulationResult.errors.length > 0) {
-      return simulationResult.errors[0].message;
+  const loadProjectData = useCallback((project: ProjectData) => {
+    setPlacedBlocks(project.placedBlocks || []);
+    setConnections(project.connections || []);
+    setGeneratedCode(project.generatedCode || "# Generated code will appear here\n");
+    setCurrentProjectId(project.id);
+    setSelectedBlockId(null);
+    setSelectedBlockType(null);
+    localStorage.setItem('nocode-last-project', project.id);
+    
+    toast({
+      title: "Project loaded",
+      description: `"${project.name}" has been loaded.`,
+    });
+  }, [toast]);
+
+  // Listen for project load events from file input
+  useEffect(() => {
+    const handleLoadProject = (event: CustomEvent) => {
+      const projectData = event.detail as ProjectData;
+      // Add project to list and load it
+      setProjects(prev => {
+        const existing = prev.find(p => p.id === projectData.id);
+        if (existing) return prev;
+        return [...prev, projectData];
+      });
+      loadProjectData(projectData);
+    };
+
+    window.addEventListener('nocode-load-project', handleLoadProject as EventListener);
+    return () => {
+      window.removeEventListener('nocode-load-project', handleLoadProject as EventListener);
+    };
+  }, [loadProjectData]);
+
+  // Save projects to localStorage whenever projects change
+  useEffect(() => {
+    if (projects.length > 0) {
+      localStorage.setItem('nocode-projects', JSON.stringify(projects));
+    } else {
+      localStorage.removeItem('nocode-projects');
     }
-    return null;
-  }, [simulationResult]);
+  }, [projects]);
+
+  // Generate code whenever blocks change
+  const codeGenerator = useMemo(() => {
+    return new CodeGenerator(placedBlocks, connections);
+  }, [placedBlocks, connections]);
+
+  const updateGeneratedCode = useCallback(() => {
+    const code = codeGenerator.generate();
+    setGeneratedCode(code);
+  }, [codeGenerator]);
+
+  // Update generated code when blocks or their values change
+  useEffect(() => {
+    updateGeneratedCode();
+  }, [updateGeneratedCode]);
+
+  // Auto-save project when blocks, connections, or code changes
+  useEffect(() => {
+    if (!currentProjectId) return;
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save (debounce)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      if (currentProjectId) {
+        setProjects(prev => prev.map(p => 
+          p.id === currentProjectId 
+            ? {
+                ...p,
+                placedBlocks,
+                connections,
+                generatedCode,
+                lastModified: Date.now(),
+              }
+            : p
+        ));
+      }
+    }, 1000); // Auto-save after 1 second of inactivity
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [placedBlocks, connections, generatedCode, currentProjectId]);
+
+  const handleNewProject = useCallback(() => {
+    const newProject: ProjectData = {
+      id: `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: `Project ${projects.length + 1}`,
+      placedBlocks: [],
+      connections: [],
+      generatedCode: "# Generated code will appear here\n",
+      lastModified: Date.now(),
+    };
+
+    setProjects(prev => [...prev, newProject]);
+    loadProjectData(newProject);
+    
+    toast({
+      title: "New project created",
+      description: "A new project has been created.",
+    });
+  }, [projects.length, loadProjectData, toast]);
+
+  const handleLoadProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      loadProjectData(project);
+    }
+  }, [projects, loadProjectData]);
+
+  const handleDeleteProject = useCallback((projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    
+    if (currentProjectId === projectId) {
+      // Clear current project if it was deleted
+      setPlacedBlocks([]);
+      setConnections([]);
+      setGeneratedCode("# Generated code will appear here\n");
+      setCurrentProjectId(null);
+      setSelectedBlockId(null);
+      setSelectedBlockType(null);
+      localStorage.removeItem('nocode-last-project');
+    }
+    
+    toast({
+      title: "Project deleted",
+      description: "The project has been deleted.",
+    });
+  }, [currentProjectId, toast]);
+
+  const handleRenameProject = useCallback((projectId: string, newName: string) => {
+    setProjects(prev => prev.map(p => 
+      p.id === projectId 
+        ? { ...p, name: newName, lastModified: Date.now() }
+        : p
+    ));
+    
+    toast({
+      title: "Project renamed",
+      description: `Project renamed to "${newName}".`,
+    });
+  }, [toast]);
+
+  const handleDownloadProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+
+    // If downloading current project, use current state, otherwise use saved state
+    const projectToDownload = currentProjectId === projectId
+      ? {
+          ...project,
+          placedBlocks,
+          connections,
+          generatedCode,
+          lastModified: Date.now(),
+        }
+      : project;
+
+    const dataStr = JSON.stringify(projectToDownload, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${project.name}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Project downloaded",
+      description: `"${project.name}.json" has been downloaded.`,
+    });
+  }, [projects, currentProjectId, placedBlocks, connections, generatedCode, toast]);
+
+  const handleRun = useCallback(() => {
+    updateGeneratedCode();
+    toast({
+      title: "Code Generated",
+      description: "Python code has been generated from your blocks.",
+    });
+  }, [updateGeneratedCode, toast]);
+
+  const handleStop = useCallback(() => {
+    toast({
+      title: "Stopped",
+      description: "Execution stopped.",
+    });
+  }, [toast]);
+
+  const handleReset = useCallback(() => {
+    setPlacedBlocks([]);
+    setConnections([]);
+    setSelectedBlockId(null);
+    setSelectedBlockType(null);
+    setGeneratedCode("# Generated code will appear here\n");
+    
+    toast({
+      title: "Canvas Reset",
+      description: "All blocks have been cleared.",
+    });
+  }, [toast]);
 
   return (
     <div className="max-h-screen bg-background flex flex-col">
-      <Header />
+      <Header showSearch={false}/>
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-56 flex-shrink-0">
-          {isLoading ? (
-            <PaletteSkeleton />
-          ) : (
-            <NocodeSidebar
-              onSelectComponent={handleSelectComponent}
-              selectedComponent={selectedComponent}
-              components={components}
-            />
-          )}
+          <NocodeSidebar
+            onSelectBlock={handleSelectBlock}
+            selectedBlockId={selectedBlockType}
+            currentProjectId={currentProjectId}
+            onNewProject={handleNewProject}
+            onLoadProject={handleLoadProject}
+            onDeleteProject={handleDeleteProject}
+            onRenameProject={handleRenameProject}
+            onDownloadProject={handleDownloadProject}
+            projects={projects}
+          />
         </div>
 
-        <CircuitCanvas
-          placedComponents={placedComponents}
-          wires={wires}
-          selectedComponent={selectedComponent}
-          selectedPlacedId={selectedPlacedId}
-          isRunning={isRunning}
-          ledState={ledState}
-          simulationResult={simulationResult}
-          onPlaceComponent={handlePlaceComponent}
-          onAddWire={handleAddWire}
-          onSelectPlaced={handleSelectPlaced}
-          onDeleteSelected={handleDeleteSelected}
-          wireMode={wireMode}
-          wireStart={wireStart}
-          onWireStart={setWireStart}
-          resistorValues={resistorValues}
-          onChangeResistorValue={handleChangeResistorValue}
+        <BlockCanvas
+          placedBlocks={placedBlocks}
+          connections={connections}
+          selectedBlockId={selectedBlockId}
+          selectedBlockType={selectedBlockType}
+          onPlaceBlock={handlePlaceBlock}
+          onSelectBlock={setSelectedBlockId}
+          onDeleteBlock={handleDeleteBlock}
+          onUpdateBlockValues={handleUpdateBlockValues}
+          onConnectBlocks={handleConnectBlocks}
+          onMoveBlock={handleMoveBlock}
         />
 
         <div className="flex flex-shrink-0">
           <NocodePanel
-            isRunning={isRunning}
-            ledState={ledState}
-            errorMessage={errorMessage}
-            wireMode={wireMode}
+            isRunning={false}
+            ledState={false}
+            errorMessage={null}
+            wireMode={false}
             onRun={handleRun}
             onStop={handleStop}
             onReset={handleReset}
-            onToggleWireMode={handleToggleWireMode}
-            onToggleDebugPanel={() => setShowDebugPanel(!showDebugPanel)}
-            showDebugPanel={showDebugPanel}
-            componentCount={placedComponents.length}
-            wireCount={wires.length}
+            onToggleWireMode={() => {}}
+            onToggleDebugPanel={() => {}}
+            showDebugPanel={false}
+            componentCount={placedBlocks.length}
+            wireCount={connections.length}
+            generatedCode={generatedCode}
+            onCodeChange={setGeneratedCode}
           />
-
-          {showDebugPanel && (
-            <div className="w-72">
-              <DebugPanel
-                simulationResult={simulationResult}
-                isRunning={isRunning}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

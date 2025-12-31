@@ -150,45 +150,60 @@ export const componentMetadata: Record<string, ComponentMetadata> = {
     width: 24,
     height: 20,
   },
+  object: {
+    id: "object",
+    terminals: [],
+    width: 32,
+    height: 32,
+  },
   "arduino-uno": {
     id: "arduino-uno",
     terminals: [
-      { id: "5v", name: "5V", type: "power", offsetX: -30, offsetY: -28 },
-      { id: "3v3", name: "3.3V", type: "power", offsetX: -22, offsetY: -28 },
-      { id: "gnd", name: "GND", type: "ground", offsetX: -14, offsetY: -28 },
-      { id: "gnd2", name: "GND", type: "ground", offsetX: -6, offsetY: -28 },
-      { id: "vin", name: "VIN", type: "power", offsetX: 2, offsetY: -28 },
-      { id: "a0", name: "A0", type: "signal", offsetX: 10, offsetY: -28 },
-      { id: "a1", name: "A1", type: "signal", offsetX: 18, offsetY: -28 },
-      { id: "a2", name: "A2", type: "signal", offsetX: 26, offsetY: -28 },
-      { id: "d13", name: "D13", type: "signal", offsetX: -30, offsetY: 28 },
-      { id: "d12", name: "D12", type: "signal", offsetX: -22, offsetY: 28 },
-      { id: "d11", name: "D11~", type: "signal", offsetX: -14, offsetY: 28 },
-      { id: "d10", name: "D10~", type: "signal", offsetX: -6, offsetY: 28 },
-      { id: "d9", name: "D9~", type: "signal", offsetX: 2, offsetY: 28 },
-      { id: "d8", name: "D8", type: "signal", offsetX: 10, offsetY: 28 },
-      { id: "d7", name: "D7", type: "signal", offsetX: 18, offsetY: 28 },
-      { id: "d6", name: "D6~", type: "signal", offsetX: 26, offsetY: 28 },
+      // Power pins - top row (spaced at 14px for clarity)
+      { id: "5v", name: "5V", type: "power", offsetX: -56, offsetY: -38 },
+      { id: "3v3", name: "3.3V", type: "power", offsetX: -42, offsetY: -38 },
+      { id: "gnd", name: "GND", type: "ground", offsetX: -28, offsetY: -38 },
+      { id: "gnd2", name: "GND", type: "ground", offsetX: -14, offsetY: -38 },
+      { id: "vin", name: "VIN", type: "power", offsetX: 0, offsetY: -38 },
+      // Analog pins - top row continued
+      { id: "a0", name: "A0", type: "signal", offsetX: 18, offsetY: -38 },
+      { id: "a1", name: "A1", type: "signal", offsetX: 32, offsetY: -38 },
+      { id: "a2", name: "A2", type: "signal", offsetX: 46, offsetY: -38 },
+      { id: "a3", name: "A3", type: "signal", offsetX: 60, offsetY: -38 },
+      // Digital pins - bottom row (spaced at 14px for clarity)
+      { id: "d13", name: "D13", type: "signal", offsetX: -56, offsetY: 38 },
+      { id: "d12", name: "D12", type: "signal", offsetX: -42, offsetY: 38 },
+      { id: "d11", name: "D11~", type: "signal", offsetX: -28, offsetY: 38 },
+      { id: "d10", name: "D10~", type: "signal", offsetX: -14, offsetY: 38 },
+      { id: "d9", name: "D9~", type: "signal", offsetX: 0, offsetY: 38 },
+      { id: "d8", name: "D8", type: "signal", offsetX: 14, offsetY: 38 },
+      { id: "d7", name: "D7", type: "signal", offsetX: 28, offsetY: 38 },
+      { id: "d6", name: "D6~", type: "signal", offsetX: 42, offsetY: 38 },
+      { id: "d5", name: "D5~", type: "signal", offsetX: 56, offsetY: 38 },
     ],
-    width: 80,
-    height: 60,
+    width: 140,
+    height: 85,
   },
   esp32: {
     id: "esp32",
     terminals: [
-      { id: "3v3", name: "3.3V", type: "power", offsetX: -16, offsetY: -24 },
-      { id: "gnd", name: "GND", type: "ground", offsetX: -8, offsetY: -24 },
-      { id: "en", name: "EN", type: "signal", offsetX: 0, offsetY: -24 },
-      { id: "vp", name: "VP", type: "signal", offsetX: 8, offsetY: -24 },
-      { id: "vn", name: "VN", type: "signal", offsetX: 16, offsetY: -24 },
-      { id: "d34", name: "D34", type: "signal", offsetX: -16, offsetY: 24 },
-      { id: "d35", name: "D35", type: "signal", offsetX: -8, offsetY: 24 },
-      { id: "d32", name: "D32", type: "signal", offsetX: 0, offsetY: 24 },
-      { id: "d33", name: "D33", type: "signal", offsetX: 8, offsetY: 24 },
-      { id: "d25", name: "D25", type: "signal", offsetX: 16, offsetY: 24 },
+      // Left side pins (spaced at 14px vertically)
+      { id: "3v3", name: "3.3V", type: "power", offsetX: -38, offsetY: -35 },
+      { id: "gnd", name: "GND", type: "ground", offsetX: -38, offsetY: -21 },
+      { id: "d15", name: "D15", type: "signal", offsetX: -38, offsetY: -7 },
+      { id: "d2", name: "D2", type: "signal", offsetX: -38, offsetY: 7 },
+      { id: "d4", name: "D4", type: "signal", offsetX: -38, offsetY: 21 },
+      { id: "d5", name: "D5", type: "signal", offsetX: -38, offsetY: 35 },
+      // Right side pins (spaced at 14px vertically)
+      { id: "vin", name: "VIN", type: "power", offsetX: 38, offsetY: -35 },
+      { id: "gnd2", name: "GND", type: "ground", offsetX: 38, offsetY: -21 },
+      { id: "d13", name: "D13", type: "signal", offsetX: 38, offsetY: -7 },
+      { id: "d12", name: "D12", type: "signal", offsetX: 38, offsetY: 7 },
+      { id: "d14", name: "D14", type: "signal", offsetX: 38, offsetY: 21 },
+      { id: "d27", name: "D27", type: "signal", offsetX: 38, offsetY: 35 },
     ],
-    width: 48,
-    height: 56,
+    width: 90,
+    height: 90,
   },
   breadboard: {
     id: "breadboard",
@@ -229,24 +244,36 @@ export function findNearestTerminal(
   placedComponents: Array<{ id: string; componentId: string; x: number; y: number; rotation: number }>,
   threshold: number = 32
 ): { componentId: string; terminalId: string; x: number; y: number } | null {
-  let nearest: { componentId: string; terminalId: string; x: number; y: number; distance: number } | null = null;
+  let nearest: { componentId: string; terminalId: string; x: number; y: number; distance: number; isBreadboard: boolean } | null = null;
 
+  // Single pass: find the absolutely closest terminal
+  // Breadboard pins are 8px apart, so we use a threshold that allows clicking anywhere
+  // in the "cell" around a pin (half the spacing = 4px, but we use slightly more for comfort)
   for (const placed of placedComponents) {
     const metadata = componentMetadata[placed.componentId];
     if (!metadata) continue;
+
+    const isBreadboard = placed.componentId === "breadboard";
+    // For breadboard: use the full threshold but always pick the closest pin
+    // For other components: use the provided threshold
+    const effectiveThreshold = threshold;
 
     for (const terminal of metadata.terminals) {
       const pos = getTerminalPosition(placed.x, placed.y, placed.rotation, terminal);
       const distance = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
 
-      if (distance < threshold && (!nearest || distance < nearest.distance)) {
-        nearest = {
-          componentId: placed.id,
-          terminalId: terminal.id,
-          x: pos.x,
-          y: pos.y,
-          distance,
-        };
+      if (distance < effectiveThreshold) {
+        // Always prefer the closer terminal, regardless of type
+        if (!nearest || distance < nearest.distance) {
+          nearest = {
+            componentId: placed.id,
+            terminalId: terminal.id,
+            x: pos.x,
+            y: pos.y,
+            distance,
+            isBreadboard,
+          };
+        }
       }
     }
   }

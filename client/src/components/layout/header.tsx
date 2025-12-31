@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
 
-export function Header() {
+export function Header( { showSearch = true }: { showSearch?: boolean } ) {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -50,17 +51,19 @@ export function Header() {
           <span className="font-semibold text-lg tracking-tight">E-GROOTS</span>
         </Link>
 
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search courses..."
-              className="pl-9 bg-muted/50 border-transparent focus:border-border"
-              data-testid="input-search"
-            />
+        {showSearch && (
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search courses..."
+                className="pl-9 bg-muted/50 border-transparent focus:border-border"
+                data-testid="input-search"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-2">
           <Link href="/about">
@@ -68,6 +71,10 @@ export function Header() {
               About
             </Button>
           </Link>
+
+          <div className="pl-2 border-l border-border">
+            <ThemeToggleSwitch />
+          </div>
 
           {isAuthenticated ? (
             <DropdownMenu>
