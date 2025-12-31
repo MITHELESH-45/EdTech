@@ -1,11 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { registerArduinoRoutes } from "./arduino-routes";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Register Arduino upload routes
+  registerArduinoRoutes(app);
   // Courses API
   app.get("/api/courses", async (_req, res) => {
     try {
