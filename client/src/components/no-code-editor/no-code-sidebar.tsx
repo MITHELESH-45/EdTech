@@ -159,154 +159,155 @@ export function NocodeSidebar({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-r border-border overflow-hidden">
-      <Tabs defaultValue="projects" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="h-full flex flex-col bg-card border-r border-border">
+      <Tabs defaultValue="blocks" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full rounded-none border-b shrink-0">
           <TabsTrigger value="projects" className="flex-1">Projects</TabsTrigger>
           <TabsTrigger value="blocks" className="flex-1">Blocks</TabsTrigger>
         </TabsList>
 
         {/* Projects Tab */}
-        <TabsContent value="projects" className="flex-1 m-0 p-0 min-h-0 flex flex-col">
-          <ScrollArea className="flex-1">
-            <div className="p-4 space-y-4">
-          <button 
-            onClick={onNewProject}
-            className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
-          >
-            <FolderPlus className="h-4 w-4" />
-            <span className="text-sm font-medium">New Project</span>
-          </button>
+        <TabsContent value="projects" className="flex-1 m-0 p-0 min-h-0">
+          
+            <div className="p-4 space-y-3">
+              <button 
+                onClick={onNewProject}
+                className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
+              >
+                <FolderPlus className="h-4 w-4" />
+                <span className="text-sm font-medium">New Project</span>
+              </button>
 
-          <button 
-            onClick={handleOpenProject}
-            className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
-          >
-            <FolderOpen className="h-4 w-4" />
-            <span className="text-sm font-medium">Open project</span>
-          </button>
+              <button 
+                onClick={handleOpenProject}
+                className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="text-sm font-medium">Open project</span>
+              </button>
 
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,application/json"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
-              <span>📁</span>
-              <span>Projects</span>
-            </div>
-            {!projects || projects.length === 0 ? (
-              <div className="pl-6 text-sm text-muted-foreground italic">
-                No projects yet. Create a new project to get started.
-              </div>
-            ) : (
-              projects.map((project) => (
-                <div
-                  key={project.id}
-                  className={cn(
-                    "pl-6 pr-2 flex items-center gap-2 text-sm transition-colors group",
-                    currentProjectId === project.id
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground cursor-pointer"
-                  )}
-                  onClick={() => currentProjectId !== project.id && onLoadProject(project.id)}
-                >
-                  <FileJson className="h-4 w-4 flex-shrink-0" />
-                  {renamingProjectId === project.id ? (
-                    <Input
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onBlur={() => handleRenameSubmit(project.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRenameSubmit(project.id);
-                        if (e.key === 'Escape') handleRenameCancel();
-                      }}
-                      className="flex-1 h-6 text-xs px-2 py-0"
-                      autoFocus
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <>
-                      <span className="flex-1 truncate">{project.name}</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          onClick={(e) => e.stopPropagation()}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
-                        >
-                          <MoreVertical className="h-3 w-3" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            onLoadProject(project.id);
-                          }}>
-                            Open
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            handleRenameStart(project);
-                          }}>
-                            <Edit2 className="h-3 w-3 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            onDownloadProject(project.id);
-                          }}>
-                            <Download className="h-3 w-3 mr-2" />
-                            Download
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
-                                onDeleteProject(project.id);
-                              }
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-3 w-3 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </>
-                  )}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
+                  <span>📁</span>
+                  <span>Projects</span>
                 </div>
-              ))
-            )}
-          </div>
+                {!projects || projects.length === 0 ? (
+                  <div className="pl-6 text-xs text-muted-foreground italic py-2">
+                    No projects yet. Create a new project to get started.
+                  </div>
+                ) : (
+                  projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className={cn(
+                        "pl-6 pr-2 py-1 flex items-center gap-2 text-sm transition-colors group rounded-md",
+                        currentProjectId === project.id
+                          ? "text-foreground font-medium bg-accent"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent/50 cursor-pointer"
+                      )}
+                      onClick={() => currentProjectId !== project.id && onLoadProject(project.id)}
+                    >
+                      <FileJson className="h-4 w-4 flex-shrink-0" />
+                      {renamingProjectId === project.id ? (
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={() => handleRenameSubmit(project.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameSubmit(project.id);
+                            if (e.key === 'Escape') handleRenameCancel();
+                          }}
+                          className="flex-1 h-6 text-xs px-2 py-0"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <>
+                          <span className="flex-1 truncate">{project.name}</span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              onClick={(e) => e.stopPropagation()}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+                            >
+                              <MoreVertical className="h-3 w-3" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                onLoadProject(project.id);
+                              }}>
+                                Open
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                handleRenameStart(project);
+                              }}>
+                                <Edit2 className="h-3 w-3 mr-2" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                onDownloadProject(project.id);
+                              }}>
+                                <Download className="h-3 w-3 mr-2" />
+                                Download
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
+                                    onDeleteProject(project.id);
+                                  }
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
-              <span>📁</span>
-              <span>Examples</span>
-            </div>
-          </div>
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
+                  <span>📁</span>
+                  <span>Examples</span>
+                </div>
+                <div className="pl-6 text-xs text-muted-foreground italic py-2">
+                  No examples available
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
-              <span>📁</span>
-              <span>Board files</span>
-              <span className="ml-auto flex items-center gap-2">
-                <span className="text-xs bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center">0</span>
-                <Download className="h-4 w-4 text-muted-foreground" />
-              </span>
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-yellow-600 dark:text-yellow-500">
+                  <span>📁</span>
+                  <span>Board files</span>
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="text-xs bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                    <Download className="h-4 w-4 text-muted-foreground" />
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-            </div>
-          </ScrollArea>
         </TabsContent>
 
         {/* Blocks Tab */}
-        <TabsContent value="blocks" className="flex-1 m-0 flex flex-col min-h-0 overflow-hidden">
+        <TabsContent value="blocks" className="flex-1 m-0 flex flex-col min-h-0">
           <div className="p-4 border-b border-border shrink-0">
             <h2 className="font-semibold text-sm">Blocks</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -321,14 +322,13 @@ export function NocodeSidebar({
                 type="search"
                 placeholder="Search blocks..."
                 className="pl-9 bg-muted/50 border-transparent focus:border-border"
-                data-testid="input-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
           
-          <ScrollArea className="flex-1 min-h-0">
+          <ScrollArea className="flex-1">
             <div className="p-3">
               {filteredCategories.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
@@ -363,8 +363,10 @@ export function NocodeSidebar({
                                   ? "border-primary bg-primary/5 shadow-sm"
                                   : "border-border bg-background hover:border-primary/50"
                               )}
-                              data-testid={`block-${block.id}`}
-                              style={{ borderLeftColor: selectedBlockId === block.id ? block.color : undefined, borderLeftWidth: selectedBlockId === block.id ? '3px' : undefined }}
+                              style={{ 
+                                borderLeftColor: selectedBlockId === block.id ? block.color : undefined, 
+                                borderLeftWidth: selectedBlockId === block.id ? '3px' : undefined 
+                              }}
                             >
                               <span className="text-xs font-medium text-center leading-tight">
                                 {block.label}
