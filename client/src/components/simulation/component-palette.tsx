@@ -117,6 +117,13 @@ function ComponentIcon({ componentId, className }: { componentId: string; classN
         <line x1="18" y1="28" x2="22" y2="28" />
       </svg>
     ),
+    object: (
+      <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="10" y="10" width="20" height="20" rx="3" fill="currentColor" opacity="0.2" />
+        <rect x="10" y="10" width="20" height="20" rx="3" />
+        <circle cx="20" cy="20" r="6" fill="currentColor" opacity="0.3" />
+      </svg>
+    ),
     arduino: (
       <svg viewBox="0 0 40 40" className={className} fill="none" stroke="currentColor" strokeWidth="1.5">
         <rect x="6" y="10" width="28" height="20" rx="2" />
@@ -173,7 +180,7 @@ export function ComponentPalette({ onSelectComponent, selectedComponent, compone
   }));
 
   return (
-    <div className="h-full flex flex-col bg-card border-r border-border">
+    <div className="flex flex-col bg-card border-r border-border overflow-y-auto">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm">Components</h2>
         <p className="text-xs text-muted-foreground mt-0.5">

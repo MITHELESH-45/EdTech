@@ -209,11 +209,13 @@ const mockComponents: ElectronicComponent[] = [
   { id: "servo", name: "Servo Motor", category: "base", icon: "servo", description: "Rotational actuator with position control" },
   { id: "5v", name: "5V Power", category: "power", icon: "power-5v", description: "5 Volt power supply connection" },
   { id: "gnd", name: "GND", category: "power", icon: "ground", description: "Ground connection" },
+  { id: "object", name: "Object", category: "base", icon: "object", description: "Detectable object for proximity sensors" },
   { id: "arduino-uno", name: "Arduino UNO", category: "boards", icon: "arduino", description: "Arduino UNO microcontroller board" },
   { id: "esp32", name: "ESP32", category: "boards", icon: "esp32", description: "ESP32 WiFi & Bluetooth microcontroller" },
   { id: "breadboard", name: "Breadboard", category: "structure", icon: "breadboard", description: "Solderless breadboard for prototyping" },
   { id: "jumper-wire", name: "Jumper Wire", category: "structure", icon: "wire", description: "Connecting wire for circuits" }
 ];
+
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
