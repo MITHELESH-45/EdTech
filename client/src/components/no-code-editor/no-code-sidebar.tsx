@@ -159,15 +159,17 @@ export function NocodeSidebar({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card border-r border-border">
-      <Tabs defaultValue="projects" className="flex-1 flex flex-col">
-        <TabsList className="w-full rounded-none border-b">
+    <div className="h-full flex flex-col bg-card border-r border-border overflow-hidden">
+      <Tabs defaultValue="projects" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <TabsList className="w-full rounded-none border-b shrink-0">
           <TabsTrigger value="projects" className="flex-1">Projects</TabsTrigger>
           <TabsTrigger value="blocks" className="flex-1">Blocks</TabsTrigger>
         </TabsList>
 
         {/* Projects Tab */}
-        <TabsContent value="projects" className="flex-1 m-0 p-4 space-y-4 overflow-auto">
+        <TabsContent value="projects" className="flex-1 m-0 p-0 min-h-0 flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-4">
           <button 
             onClick={onNewProject}
             className="w-full flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
@@ -299,18 +301,20 @@ export function NocodeSidebar({
               </span>
             </div>
           </div>
+            </div>
+          </ScrollArea>
         </TabsContent>
 
         {/* Blocks Tab */}
-        <TabsContent value="blocks" className="flex-1 m-0 flex flex-col">
-          <div className="p-4 border-b border-border">
+        <TabsContent value="blocks" className="flex-1 m-0 flex flex-col min-h-0 overflow-hidden">
+          <div className="p-4 border-b border-border shrink-0">
             <h2 className="font-semibold text-sm">Blocks</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               Click blocks to add them to your canvas
             </p>
           </div>
           
-          <div className="p-3 border-b border-border">
+          <div className="p-3 border-b border-border shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -324,7 +328,7 @@ export function NocodeSidebar({
             </div>
           </div>
           
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="p-3">
               {filteredCategories.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">

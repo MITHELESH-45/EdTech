@@ -24,25 +24,22 @@ export class CodeGenerator {
       return "# No blocks to generate code from\n";
     }
 
-    // Find all starting blocks (blocks with no incoming connections)
-    const startBlocks = this.findStartBlocks();
-    if (startBlocks.length === 0) {
-      return "# No valid starting blocks found\n";
+    // Order blocks by visual position (Y coordinate), respecting connections
+    const orderedBlocks = this.orderBlocksByVisualPosition();
+    if (orderedBlocks.length === 0) {
+      return "# No valid blocks found\n";
     }
 
     // Track visited blocks to handle loops
     const visited = new Set<string>();
 
-    // Generate code for each starting block chain
-    startBlocks.forEach((startBlock, index) => {
-      const indentStack: number[] = [0];
-      this.generateFromBlock(startBlock.id, lines, visited, indentStack, new Set(), imports);
-      
-      // Add blank line between different block chains (except after the last one)
-      if (index < startBlocks.length - 1 && lines.length > 0) {
-        lines.push('');
+    // Generate code following the ordered sequence
+    for (const block of orderedBlocks) {
+      if (!visited.has(block.id)) {
+        const indentStack: number[] = [0];
+        this.generateFromBlock(block.id, lines, visited, indentStack, new Set(), imports);
       }
-    });
+    }
 
     // Add imports at the top
     const importLines: string[] = [];
@@ -56,51 +53,123 @@ export class CodeGenerator {
     return [...importLines, '', ...lines].join('\n') || "# No code generated\n";
   }
 
-  private findStartBlocks(): PlacedBlock[] {
-    // Find all blocks with no incoming connections
-    const hasIncoming = new Set(
-      this.connections.map(c => c.toBlockId)
-    );
+  /**
+   * Order blocks by visual position (Y coordinate), respecting connections
+   * This ensures blocks appear in the order they're visually arranged
+   */
+  private orderBlocksByVisualPosition(): PlacedBlock[] {
+    // First, sort all blocks by Y position (top to bottom)
+    const sortedByY = Array.from(this.blocks.values()).sort((a, b) => {
+      // Primary sort: Y position (top to bottom)
+      if (a.y !== b.y) {
+        return a.y - b.y;
+      }
+      // Secondary sort: X position (left to right) for blocks at same Y
+      return a.x - b.x;
+    });
 
-    const startBlocks: PlacedBlock[] = [];
+    // Build a map of connections for quick lookup
+    // Separate connections into: nesting (from loops/conditionals) and sequential (from regular blocks)
+    const nestingConnectionMap = new Map<string, string[]>();
+    const sequentialConnectionMap = new Map<string, string[]>();
     
-    // Find blocks with no incoming sequential connections
-    for (const block of this.blocks.values()) {
-      if (!hasIncoming.has(block.id) && !this.hasSequentialIncoming(block.id)) {
-        startBlocks.push(block);
+    for (const conn of this.connections) {
+      const fromBlock = this.blocks.get(conn.fromBlockId);
+      const isNesting = fromBlock && this.shouldNestContent(fromBlock.blockId);
+      
+      if (isNesting) {
+        // This is a nesting connection (loop/conditional to nested block)
+        if (!nestingConnectionMap.has(conn.fromBlockId)) {
+          nestingConnectionMap.set(conn.fromBlockId, []);
+        }
+        nestingConnectionMap.get(conn.fromBlockId)!.push(conn.toBlockId);
+      } else {
+        // This is a sequential connection (regular block to next block)
+        if (!sequentialConnectionMap.has(conn.fromBlockId)) {
+          sequentialConnectionMap.set(conn.fromBlockId, []);
+        }
+        sequentialConnectionMap.get(conn.fromBlockId)!.push(conn.toBlockId);
       }
     }
 
-    // If no clear starts found, sort all blocks by Y position and use topmost ones
-    // that don't have incoming connections from other placed blocks
-    if (startBlocks.length === 0) {
-      const sorted = Array.from(this.blocks.values())
-        .sort((a, b) => a.y - b.y);
+    // Build reverse map (what blocks point to this block) - only for sequential connections
+    const reverseMap = new Map<string, string[]>();
+    for (const conn of this.connections) {
+      const fromBlock = this.blocks.get(conn.fromBlockId);
+      const isNesting = fromBlock && this.shouldNestContent(fromBlock.blockId);
       
-      // Find blocks that are at the start of their chain (no block points to them)
-      const allBlockIds = new Set(this.blocks.keys());
-      const hasIncomingSequential = new Set<string>();
-      
-      for (const block of this.blocks.values()) {
-        if (block.nextBlockId && allBlockIds.has(block.nextBlockId)) {
-          hasIncomingSequential.add(block.nextBlockId);
+      if (!isNesting) {
+        // Only track reverse connections for sequential blocks
+        if (!reverseMap.has(conn.toBlockId)) {
+          reverseMap.set(conn.toBlockId, []);
         }
-      }
-      
-      for (const block of sorted) {
-        if (!hasIncomingSequential.has(block.id)) {
-          startBlocks.push(block);
-        }
+        reverseMap.get(conn.toBlockId)!.push(conn.fromBlockId);
       }
     }
 
-    // Sort by Y position (top to bottom) to maintain consistent ordering
-    return startBlocks.sort((a, b) => a.y - b.y);
-  }
+    // Track which blocks are nested (so we skip them in main ordering)
+    const nestedBlocks = new Set<string>();
+    for (const [fromId, toIds] of nestingConnectionMap.entries()) {
+      for (const toId of toIds) {
+        nestedBlocks.add(toId);
+      }
+    }
 
-  private hasSequentialIncoming(blockId: string): boolean {
-    return Array.from(this.blocks.values())
-      .some(b => b.nextBlockId === blockId);
+    // Order blocks: follow visual order, but respect sequential connections only
+    const ordered: PlacedBlock[] = [];
+    const visited = new Set<string>();
+
+    // Helper to add a block and its sequential connected chain
+    const addBlockAndChain = (block: PlacedBlock) => {
+      if (visited.has(block.id)) return;
+      
+      // Skip nested blocks - they will be processed when we're inside their parent
+      // Don't mark them as visited here, so they can be processed inside their parent
+      if (nestedBlocks.has(block.id)) {
+        return;
+      }
+      
+      visited.add(block.id);
+      ordered.push(block);
+
+      // Only follow SEQUENTIAL connections (not nesting connections)
+      const connectedIds = sequentialConnectionMap.get(block.id) || [];
+      const connectedBlocks = connectedIds
+        .map(id => this.blocks.get(id))
+        .filter((b): b is PlacedBlock => b !== undefined)
+        .filter(b => !nestedBlocks.has(b.id)) // Skip blocks that are nested in loops/conditionals
+        .sort((a, b) => {
+          if (a.y !== b.y) return a.y - b.y;
+          return a.x - b.x;
+        });
+
+      for (const connectedBlock of connectedBlocks) {
+        addBlockAndChain(connectedBlock);
+      }
+    };
+
+    // Process blocks in visual order
+    for (const block of sortedByY) {
+      // Skip nested blocks entirely - they'll be processed inside their parent
+      if (nestedBlocks.has(block.id)) {
+        continue;
+      }
+      
+      // Only process if it's a starting block (no incoming sequential connections) or hasn't been visited
+      const hasIncoming = reverseMap.has(block.id);
+      if (!hasIncoming || !visited.has(block.id)) {
+        addBlockAndChain(block);
+      }
+    }
+
+    // Add any remaining unvisited blocks that aren't nested (shouldn't happen, but safety check)
+    for (const block of sortedByY) {
+      if (!visited.has(block.id) && !nestedBlocks.has(block.id)) {
+        ordered.push(block);
+      }
+    }
+
+    return ordered;
   }
 
   private generateFromBlock(
@@ -145,32 +214,33 @@ export class CodeGenerator {
       const nestedIndent = indent + 4;
       indentStack.push(nestedIndent);
       
+      // Find nested blocks (blocks connected to this one) - sorted by Y position for consistent order
+      const nestedConnections = this.connections.filter(c => c.fromBlockId === block.id);
+      const nestedBlocks = nestedConnections
+        .map(c => this.blocks.get(c.toBlockId))
+        .filter((b): b is PlacedBlock => b !== undefined)
+        .sort((a, b) => {
+          // Sort by Y position (top to bottom), then X (left to right)
+          if (a.y !== b.y) return a.y - b.y;
+          return a.x - b.x;
+        });
+      
       // Generate nested code (inside the loop/if block)
-      if (block.nextBlockId) {
-        this.generateFromBlock(block.nextBlockId, lines, visited, indentStack, loopBlocks, imports);
+      // Process nested blocks - they should always be processed when inside their parent
+      for (const nestedBlock of nestedBlocks) {
+        // Allow nested blocks to be processed even if visited (they're inside a parent)
+        const wasVisited = visited.has(nestedBlock.id);
+        if (!wasVisited) {
+          visited.add(nestedBlock.id);
+        }
+        this.generateFromBlock(nestedBlock.id, lines, visited, indentStack, loopBlocks, imports);
       }
       
       indentStack.pop();
       loopBlocks.delete(blockId);
-      // Don't continue via generateNext for nesting blocks - nextBlockId was used for nesting
+      // Note: Sequential blocks are handled by the visual ordering function,
+      // so we don't need to recursively follow connections here
       return;
-    }
-    
-    // For non-nesting blocks, continue to next block
-    this.generateNext(block, lines, visited, indentStack, loopBlocks, imports);
-  }
-
-  private generateNext(
-    block: PlacedBlock,
-    lines: string[],
-    visited: Set<string>,
-    indentStack: number[],
-    loopBlocks: Set<string>,
-    imports: Set<string>
-  ): void {
-    // Continue to next block at the same indentation level
-    if (block.nextBlockId) {
-      this.generateFromBlock(block.nextBlockId, lines, visited, indentStack, loopBlocks, imports);
     }
   }
 
