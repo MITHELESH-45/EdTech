@@ -599,71 +599,71 @@ void loop() {
   }, []);
 
   return (
-    <div className="max-h-screen bg-background flex flex-col">
-      <Header showSearch={false}/>
-
-      <div className="flex flex-1 overflow-hidden h-[calc(100vh-4rem)]">
-        <div className="w-56 flex-shrink-0 h-full overflow-hidden">
-          <NocodeSidebar
-            onSelectBlock={handleSelectBlock}
-            selectedBlockId={selectedBlockType}
-            currentProjectId={currentProjectId}
-            onNewProject={handleNewProject}
-            onLoadProject={handleLoadProject}
-            onDeleteProject={handleDeleteProject}
-            onRenameProject={handleRenameProject}
-            onDownloadProject={handleDownloadProject}
-            projects={projects}
-          />
-        </div>
-
-        <div className="flex-1 h-full" style={{ minWidth: 0 }}>
-          <BlockCanvas
-            placedBlocks={placedBlocks}
-            connections={connections}
-            selectedBlockId={selectedBlockId}
-            selectedBlockType={selectedBlockType}
-            onPlaceBlock={handlePlaceBlock}
-            onSelectBlock={setSelectedBlockId}
-            onDeleteBlock={handleDeleteBlock}
-            onUpdateBlockValues={handleUpdateBlockValues}
-            onConnectBlocks={handleConnectBlocks}
-            onDeleteConnection={handleDeleteConnection}
-            onMoveBlock={handleMoveBlock}
-          />
-        </div>
-
-        <div className="flex flex-shrink-0 h-full overflow-hidden" style={{ height: '100%' }}>
-          <NocodePanel
-            isRunning={false}
-            ledState={false}
-            errorMessage={null}
-            wireMode={false}
-            onRun={handleRun}
-            onStop={handleStop}
-            onReset={handleReset}
-            onToggleWireMode={() => {}}
-            onToggleDebugPanel={() => {}}
-            showDebugPanel={false}
-            componentCount={placedBlocks.length}
-            wireCount={connections.length}
-            arduinoCode={arduinoCode}
-            onArduinoCodeChange={handleArduinoCodeChange}
-            isUploading={isUploading}
-            onUpload={handleUpload}
-            arduinoStatus={arduinoStatus}
-            selectedPort={selectedPort}
-            availablePorts={availablePorts}
-            manualPort={manualPort}
-            useManualPort={useManualPort}
-            onPortChange={setSelectedPort}
-            onManualPortChange={setManualPort}
-            onUseManualPortChange={setUseManualPort}
-            onRefreshPorts={fetchAvailablePorts}
-            outputContent={outputContent}
-          />
-        </div>
+    <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
+    <Header showSearch={false}/>
+  
+    <div className="flex flex-1 min-h-0 w-full">
+      <div className="w-56 flex-shrink-0 border-r border-border overflow-y-auto">
+        <NocodeSidebar
+          onSelectBlock={handleSelectBlock}
+          selectedBlockId={selectedBlockType}
+          currentProjectId={currentProjectId}
+          onNewProject={handleNewProject}
+          onLoadProject={handleLoadProject}
+          onDeleteProject={handleDeleteProject}
+          onRenameProject={handleRenameProject}
+          onDownloadProject={handleDownloadProject}
+          projects={projects}
+        />
+      </div>
+  
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <BlockCanvas
+          placedBlocks={placedBlocks}
+          connections={connections}
+          selectedBlockId={selectedBlockId}
+          selectedBlockType={selectedBlockType}
+          onPlaceBlock={handlePlaceBlock}
+          onSelectBlock={setSelectedBlockId}
+          onDeleteBlock={handleDeleteBlock}
+          onUpdateBlockValues={handleUpdateBlockValues}
+          onConnectBlocks={handleConnectBlocks}
+          onDeleteConnection={handleDeleteConnection}
+          onMoveBlock={handleMoveBlock}
+        />
+      </div>
+  
+      <div className="w-80 flex-shrink-0 border-l border-border overflow-y-auto">
+        <NocodePanel
+          isRunning={false}
+          ledState={false}
+          errorMessage={null}
+          wireMode={false}
+          onRun={handleRun}
+          onStop={handleStop}
+          onReset={handleReset}
+          onToggleWireMode={() => {}}
+          onToggleDebugPanel={() => {}}
+          showDebugPanel={false}
+          componentCount={placedBlocks.length}
+          wireCount={connections.length}
+          arduinoCode={arduinoCode}
+          onArduinoCodeChange={handleArduinoCodeChange}
+          isUploading={isUploading}
+          onUpload={handleUpload}
+          arduinoStatus={arduinoStatus}
+          selectedPort={selectedPort}
+          availablePorts={availablePorts}
+          manualPort={manualPort}
+          useManualPort={useManualPort}
+          onPortChange={setSelectedPort}
+          onManualPortChange={setManualPort}
+          onUseManualPortChange={setUseManualPort}
+          onRefreshPorts={fetchAvailablePorts}
+          outputContent={outputContent}
+        />
       </div>
     </div>
+  </div>
   );
 }

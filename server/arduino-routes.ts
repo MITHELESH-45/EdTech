@@ -573,11 +573,11 @@ async function uploadSketch(
       };
     }
     
-    // For Arduino Nano with old bootloader, use nano:cpu=atmega328old
+    // For Arduino Nano, try new bootloader first
     let actualFqbn = fqbn;
     if (fqbn === "arduino:avr:nano") {
-      // Try with old bootloader first (most common for clones)
-      actualFqbn = "arduino:avr:nano:cpu=atmega328old";
+      // Try with new bootloader first
+      actualFqbn = "arduino:avr:nano:cpu=atmega328";
     }
     
     const cmd = `${cmdCheck} upload -p ${port} --fqbn ${actualFqbn} "${sketchPath}"`;
@@ -599,12 +599,12 @@ async function uploadSketch(
       errorMessage = `Arduino CLI not found at: ${config.cliPath}\n\nPlease ensure Arduino CLI is installed and either:\n1. Added to your system PATH, or\n2. Restart the server after installation\n\nInstallation:\n• Windows: choco install arduino-cli\n• Or download: https://arduino.github.io/arduino-cli/installation/\n\nAfter installation, restart the server.`;
     }
     
-    // If old bootloader fails, try new bootloader
+    // If new bootloader fails, try old bootloader
     if (error.message.includes("programmer") || error.message.includes("sync")) {
       try {
         const cmdCheck = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
-        const cmd = `${cmdCheck} upload -p ${port} --fqbn arduino:avr:nano:cpu=atmega328 "${sketchPath}"`;
-        console.log(`[Arduino] Retrying with new bootloader: ${cmd}`);
+        const cmd = `${cmdCheck} upload -p ${port} --fqbn arduino:avr:nano:cpu=atmega328old "${sketchPath}"`;
+        console.log(`[Arduino] Retrying with old bootloader: ${cmd}`);
         
         const { stdout, stderr } = await execAsync(cmd, {
           timeout: 120000,
