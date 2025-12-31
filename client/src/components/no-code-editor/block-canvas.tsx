@@ -14,6 +14,7 @@ interface BlockCanvasProps {
   onDeleteBlock: (blockId: string) => void;
   onUpdateBlockValues: (blockId: string, values: Record<string, any>) => void;
   onConnectBlocks: (fromBlockId: string, toBlockId: string) => void;
+  onDeleteConnection?: (connectionId: string) => void;
   onMoveBlock?: (blockId: string, x: number, y: number) => void;
 }
 
@@ -32,6 +33,7 @@ export function BlockCanvas({
   onDeleteBlock,
   onUpdateBlockValues,
   onConnectBlocks,
+  onDeleteConnection,
   onMoveBlock,
 }: BlockCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -39,6 +41,7 @@ export function BlockCanvas({
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   
   // Zoom and pan state
   const [scale, setScale] = useState(1);
@@ -49,12 +52,19 @@ export function BlockCanvas({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedBlockId) {
-        e.preventDefault();
-        onDeleteBlock(selectedBlockId);
+      if ((e.key === "Delete" || e.key === "Backspace")) {
+        if (selectedConnectionId && onDeleteConnection) {
+          e.preventDefault();
+          onDeleteConnection(selectedConnectionId);
+          setSelectedConnectionId(null);
+        } else if (selectedBlockId) {
+          e.preventDefault();
+          onDeleteBlock(selectedBlockId);
+        }
       }
       if (e.key === "Escape") {
         setConnectingFrom(null);
+        setSelectedConnectionId(null);
         onSelectBlock(null);
       }
       if (e.key === " " && !isPanning) {
@@ -102,16 +112,20 @@ export function BlockCanvas({
 
   // Convert screen coordinates to canvas coordinates (accounting for zoom and pan)
   const getMousePosition = useCallback((e: React.MouseEvent) => {
-    if (!canvasRef.current) return { x: 0, y: 0 };
+    if (!canvasRef.current) return { x: 50, y: 50 };
     const rect = canvasRef.current.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
     
-    // Convert to canvas coordinates
+    // Convert to canvas coordinates (accounting for transform)
     const canvasX = (screenX - pan.x) / scale;
     const canvasY = (screenY - pan.y) / scale;
     
-    return { x: canvasX, y: canvasY };
+    // Ensure coordinates are positive and visible
+    return { 
+      x: Math.max(50, canvasX), 
+      y: Math.max(50, canvasY) 
+    };
   }, [scale, pan]);
 
   // Convert canvas coordinates to screen coordinates
@@ -132,13 +146,29 @@ export function BlockCanvas({
       return;
     }
 
-    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-background')) {
-      if (selectedBlockType) {
-        const pos = getMousePosition(e);
-        onPlaceBlock(selectedBlockType, pos.x, pos.y);
-      } else {
-        onSelectBlock(null);
-      }
+    // Check if click is on canvas background (not on a block or button)
+    const target = e.target as HTMLElement;
+    
+    // Don't place if clicking on a block, button, or connector
+    if (target.closest('[data-block-id]') || 
+        target.tagName === 'BUTTON' || 
+        target.closest('button') ||
+        target.closest('svg') ||
+        (target.closest('.rounded-xl') && !target.classList.contains('canvas-background'))) {
+      return;
+    }
+
+    // If we have a selected block type, place it on the canvas
+    if (selectedBlockType) {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = getMousePosition(e);
+      // Ensure blocks are placed at visible coordinates
+      onPlaceBlock(selectedBlockType, Math.max(50, pos.x), Math.max(50, pos.y));
+      setConnectingFrom(null);
+    } else {
+      // Deselect if clicking empty space
+      onSelectBlock(null);
       setConnectingFrom(null);
     }
   };
@@ -178,10 +208,10 @@ export function BlockCanvas({
     }
   };
 
-  // Handle zoom with mouse wheel
+  // Handle zoom with mouse wheel (Ctrl/Cmd + wheel)
   const handleWheel = (e: React.WheelEvent) => {
-    // Allow zoom with Ctrl/Cmd + wheel, or just wheel (when not holding shift)
-    const isZoom = (e.ctrlKey || e.metaKey) || !e.shiftKey;
+    // Only zoom when Ctrl/Cmd is held
+    const isZoom = e.ctrlKey || e.metaKey;
     
     if (isZoom && canvasRef.current) {
       e.preventDefault();
@@ -204,6 +234,11 @@ export function BlockCanvas({
       
       setScale(newScale);
       setPan({ x: newPanX, y: newPanY });
+    }
+    // If not zooming, allow normal canvas scrolling (pan)
+    else if (!isZoom && canvasRef.current) {
+      // Allow normal scrolling on the canvas container
+      // The canvas container has overflow-auto, so scrolling will work naturally
     }
   };
 
@@ -293,7 +328,12 @@ export function BlockCanvas({
   return (
     <div 
       ref={canvasRef}
-      className="flex-1 bg-muted/30 relative overflow-hidden canvas-background"
+      className="flex-1 bg-background relative overflow-auto canvas-background"
+      style={{ 
+        minHeight: '100%', 
+        minWidth: '100%',
+        backgroundColor: 'hsl(var(--background))',
+      }}
       onClick={handleCanvasClick}
       onMouseMove={handleMouseMove}
       onMouseDown={handlePanStart}
@@ -304,26 +344,45 @@ export function BlockCanvas({
     >
       {/* Canvas container with transform */}
       <div
-        className="absolute inset-0"
+        className="relative canvas-background"
         style={{
+          width: '2000px',
+          height: '2000px',
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
           transformOrigin: '0 0',
+          willChange: 'transform',
+          position: 'relative',
+        }}
+        onClick={(e) => {
+          // Allow clicks on the transform container to place blocks
+          // Only if not clicking on a block
+          const target = e.target as HTMLElement;
+          if (selectedBlockType && !target.closest('[data-block-id]') && !target.closest('button')) {
+            e.stopPropagation();
+            const pos = getMousePosition(e);
+            onPlaceBlock(selectedBlockType, Math.max(50, pos.x), Math.max(50, pos.y));
+          }
         }}
       >
         {/* Grid background */}
         <div
-          className="absolute inset-0 opacity-30 canvas-background"
+          className="absolute inset-0 opacity-20 canvas-background pointer-events-none"
           style={{
             backgroundImage: `
               linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
               linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)
             `,
             backgroundSize: `${20 / scale}px ${20 / scale}px`,
+            width: '2000px',
+            height: '2000px',
           }}
         />
 
         {/* Render connections */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{ width: '100%', height: '100%' }}>
+        <svg 
+          className="absolute inset-0 z-0" 
+          style={{ width: '2000px', height: '2000px' }}
+        >
           {placedBlocks.map(block => {
             if (!block.nextBlockId) return null;
             const toBlock = placedBlocks.find(b => b.id === block.nextBlockId);
@@ -335,15 +394,41 @@ export function BlockCanvas({
             const toY = toBlock.y + CONNECTOR_OFFSET_Y;
             const midX = (fromX + toX) / 2;
 
+            // Check if this connection is in the connections array
+            const connectionId = connections.find(c => 
+              c.fromBlockId === block.id && c.toBlockId === block.nextBlockId
+            )?.id;
+            const isSelected = connectionId && selectedConnectionId === connectionId;
+
             return (
-              <path
-                key={`${block.id}-${block.nextBlockId}`}
-                d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth={2 / scale}
-                strokeLinecap="round"
-              />
+              <g key={`${block.id}-${block.nextBlockId}`}>
+                {/* Invisible wider path for easier clicking */}
+                <path
+                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={Math.max(20, 20 / scale)}
+                  strokeLinecap="round"
+                  style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (connectionId) {
+                      setSelectedConnectionId(connectionId);
+                    }
+                    setConnectingFrom(null);
+                    onSelectBlock(null);
+                  }}
+                />
+                {/* Visible path */}
+                <path
+                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  fill="none"
+                  stroke={isSelected ? "#ef4444" : "#3b82f6"}
+                  strokeWidth={(isSelected ? 3 : 2) / scale}
+                  strokeLinecap="round"
+                  style={{ pointerEvents: 'none' }}
+                />
+              </g>
             );
           })}
           
@@ -360,16 +445,35 @@ export function BlockCanvas({
             const toX = toBlock.x;
             const toY = toBlock.y + CONNECTOR_OFFSET_Y;
             const midX = (fromX + toX) / 2;
+            const isSelected = selectedConnectionId === conn.id;
 
             return (
-              <path
-                key={conn.id}
-                d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth={2 / scale}
-                strokeLinecap="round"
-              />
+              <g key={conn.id}>
+                {/* Invisible wider path for easier clicking */}
+                <path
+                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={Math.max(20, 20 / scale)}
+                  strokeLinecap="round"
+                  style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedConnectionId(conn.id);
+                    setConnectingFrom(null);
+                    onSelectBlock(null);
+                  }}
+                />
+                {/* Visible path */}
+                <path
+                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  fill="none"
+                  stroke={isSelected ? "#ef4444" : "#3b82f6"}
+                  strokeWidth={(isSelected ? 3 : 2) / scale}
+                  strokeLinecap="round"
+                  style={{ pointerEvents: 'none' }}
+                />
+              </g>
             );
           })}
 
@@ -396,7 +500,10 @@ export function BlockCanvas({
         {/* Render blocks */}
         {placedBlocks.map(block => {
           const schema = getBlockSchema(block.blockId);
-          if (!schema) return null;
+          if (!schema) {
+            console.warn(`Block schema not found for: ${block.blockId}`);
+            return null;
+          }
 
           const isSelected = selectedBlockId === block.id;
           const height = getBlockHeight(block);
@@ -404,24 +511,39 @@ export function BlockCanvas({
           return (
             <div
               key={block.id}
+              data-block-id={block.id}
               className={cn(
-                "absolute z-10 cursor-move transition-shadow",
+                "absolute z-20 cursor-move transition-shadow",
                 isSelected && "ring-2 ring-primary ring-offset-2"
               )}
               style={{
-                left: block.x,
-                top: block.y,
-                width: BLOCK_WIDTH,
+                left: `${block.x}px`,
+                top: `${block.y}px`,
+                width: `${BLOCK_WIDTH}px`,
+                minHeight: `${height}px`,
+                position: 'absolute',
               }}
               onMouseDown={(e) => {
+                e.stopPropagation();
                 if (!isPanning && !isSpacePressed) {
                   handleBlockMouseDown(e, block.id);
                 }
               }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             >
             <div
-              className="rounded-xl border shadow-lg bg-card"
-              style={{ minHeight: height }}
+              className="rounded-xl border-2 shadow-lg bg-card text-foreground"
+              style={{ 
+                minHeight: `${height}px`,
+                borderColor: schema.color,
+                opacity: 1,
+                position: 'relative',
+                zIndex: 10,
+                backgroundColor: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground))',
+              }}
             >
               {/* Connection points */}
               <div className="absolute left-0 top-0 bottom-0 flex items-start pt-5">
