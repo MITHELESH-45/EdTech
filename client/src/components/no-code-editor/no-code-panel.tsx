@@ -126,7 +126,7 @@ export function NocodePanel({
         >
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-orange-600" />
-            <h2 className="font-semibold text-sm text-foreground">Arduino C++</h2>
+            <h2 className="font-semibold text-sm text-foreground">Embedded</h2>
             <Badge variant="outline" className="text-[9px] px-1">Editable</Badge>
           </div>
           <ChevronDown
