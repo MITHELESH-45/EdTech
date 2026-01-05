@@ -633,7 +633,7 @@ void loop() {
         />
       </div>
   
-      <div className="w-80 flex-shrink-0 border-l border-border overflow-hidden">
+      <div className="flex-shrink-0 border-l border-border ">
         <NocodePanel
           isRunning={false}
           ledState={false}

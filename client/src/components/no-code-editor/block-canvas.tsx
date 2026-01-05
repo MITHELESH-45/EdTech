@@ -479,9 +479,10 @@ export function BlockCanvas({
                 <path
                   d={pathData}
                   fill="none"
-                  stroke={isSelected ? "#ef4444" : "#3b82f6"}
+                  stroke={isSelected ? "#ef4444" : "#9ca3af"}
                   strokeWidth={(isSelected ? 3 : 2) / scale}
                   strokeLinecap="round"
+                  strokeDasharray={isSelected ? "none" : `${4 / scale} ${4 / scale}`}
                   style={{ pointerEvents: 'none' }}
                 />
               </g>
@@ -500,18 +501,19 @@ export function BlockCanvas({
             const fromY = getConnectorY(fromBlock, conn.fromField);
             const toX = toBlock.x;
             const toY = toBlock.y + CONNECTOR_OFFSET_Y;
-            const midX = (fromX + toX) / 2;
+            
+            // Generate path that avoids going through the source and destination blocks
+            const pathData = generatePathAvoidingSource(fromX, fromY, toX, toY, fromBlock);
+            
             const isSelected = selectedConnectionId === conn.id;
-            // Use different colors for true/false paths
-            const strokeColor = conn.fromField === 'true' ? (isSelected ? "#ef4444" : "#22c55e") : 
-                               conn.fromField === 'false' ? (isSelected ? "#ef4444" : "#ef4444") :
-                               (isSelected ? "#ef4444" : "#3b82f6");
+            // Use grey for unselected, red for selected
+            const strokeColor = isSelected ? "#ef4444" : "#9ca3af";
 
             return (
               <g key={conn.id}>
                 {/* Invisible wider path for easier clicking */}
                 <path
-                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  d={pathData}
                   fill="none"
                   stroke="transparent"
                   strokeWidth={Math.max(20, 20 / scale)}
@@ -527,11 +529,12 @@ export function BlockCanvas({
                 />
                 {/* Visible path */}
                 <path
-                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  d={pathData}
                   fill="none"
                   stroke={strokeColor}
                   strokeWidth={(isSelected ? 3 : 2) / scale}
                   strokeLinecap="round"
+                  strokeDasharray={isSelected ? "none" : `${4 / scale} ${4 / scale}`}
                   style={{ pointerEvents: 'none' }}
                 />
               </g>
@@ -545,10 +548,8 @@ export function BlockCanvas({
               if (!fromBlock) return null;
               const fromX = fromBlock.x + BLOCK_WIDTH;
               const fromY = getConnectorY(fromBlock, connectingFromOutput || undefined);
-              // Use different colors for true/false preview
-              const strokeColor = connectingFromOutput === 'true' ? "#22c55e" : 
-                                 connectingFromOutput === 'false' ? "#ef4444" : 
-                                 "#22c55e";
+              // Use grey for preview
+              const strokeColor = "#9ca3af";
               return (
                 <path
                   d={`M ${fromX} ${fromY} L ${mousePos.x} ${mousePos.y}`}

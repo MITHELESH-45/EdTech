@@ -236,7 +236,7 @@ export function NocodePanel({
             <div className="px-4 pb-4 space-y-3">
             {/* Arduino Status */}
             {arduinoStatus && (
-              <div className="space-y-2 text-xs">
+              <div className="flex justify-around items-center space-y-2 text-xs">
                 <div className="flex items-start gap-2">
                   {arduinoStatus.cliInstalled ? (
                     <CheckCircle className="h-3 w-3 text-green-500 mt-0.5" />
@@ -246,11 +246,6 @@ export function NocodePanel({
                   <div className="flex-1">
                     <div className="flex items-center gap-1">
                       <span>Arduino CLI</span>
-                      {arduinoStatus.cliVersion && (
-                        <Badge variant="outline" className="text-[9px] px-1">
-                          {arduinoStatus.cliVersion}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </div>
