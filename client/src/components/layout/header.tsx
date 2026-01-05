@@ -1,5 +1,4 @@
-import { Search, User, ChevronDown, Settings, LogOut, HelpCircle } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { User, ChevronDown, Settings, LogOut, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -13,7 +12,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
 
-export function Header( { showSearch = true }: { showSearch?: boolean } ) {
+export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -51,21 +50,7 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
           <span className="font-semibold text-lg tracking-tight">E-GROOTS</span>
         </Link>
 
-        {showSearch && (
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search courses..."
-                className="pl-9 bg-muted/50 border-transparent focus:border-border"
-                data-testid="input-search"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <Link href="/about">
             <Button variant="ghost" size="sm" data-testid="link-about">
               About
