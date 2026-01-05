@@ -5,6 +5,7 @@ import { CourseCard } from "@/components/dashboard/course-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { GrootModelViewer } from "@/components/dashboard/groot-model";
 import { 
   BookOpen, 
   Zap, 
@@ -199,7 +200,13 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background flex flex-col">
       <Header showSearch={false} />
 
-      <main className="flex-1 overflow-auto">
+      <div className="flex flex-1 overflow-hidden h-[calc(100vh-4rem)]">
+        {/* Baby Groot 3D Model - Static Left Side */}
+        <div className="flex-shrink-0 flex items-center justify-center bg-transparent overflow-visible h-full relative z-10">
+          <GrootModelViewer />
+        </div>
+
+        <main className="flex-1 overflow-y-auto overflow-x-hidden h-full">
         {/* Hero Section with Search */}
         <div className="relative border-b border-border bg-gradient-to-br from-primary/10 via-background to-chart-2/10 overflow-hidden">
           {/* Animated background elements */}
@@ -476,6 +483,7 @@ export default function Dashboard() {
           </motion.section>
         </div>
       </main>
+      </div>
     </div>
   );
 }
