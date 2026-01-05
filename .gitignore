@@ -6,6 +6,7 @@ vite.config.ts.*
 *.tar.gz
 
 # environment & local config
+.env
 .env.*
 !.env.example
 
