@@ -2,9 +2,51 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-
 import dotenv from "dotenv";
-dotenv.config();  
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+
+// Get the directory of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Try multiple possible locations for .env file (root directory first)
+const possibleEnvPaths = [
+  path.join(process.cwd(), ".env"), // project_root/.env (ROOT - PRIORITY)
+  path.join(__dirname, ".env"), // server/.env
+  path.join(__dirname, "..", ".env"), // ../.env (parent of server)
+  path.join(process.cwd(), "server", ".env"), // project_root/server/.env
+];
+
+let envPath: string | undefined;
+for (const envPathCandidate of possibleEnvPaths) {
+  if (fs.existsSync(envPathCandidate)) {
+    envPath = envPathCandidate;
+    break;
+  }
+}
+
+// Load environment variables
+if (envPath) {
+  const result = dotenv.config({ path: envPath, override: true });
+  if (result.error) {
+    console.warn(`[WARN] Failed to load .env from ${envPath}:`, result.error);
+  } else {
+    console.log(`[INFO] Loaded .env from ${envPath}`);
+  }
+} else {
+  console.warn("[WARN] No .env file found in expected locations:", possibleEnvPaths);
+}
+
+// Check if OPENAI_API_KEY is loaded
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  console.error("[ERROR] OPENAI_API_KEY not found in environment variables");
+  console.error("[ERROR] Please ensure .env file exists in root directory or server/ directory with OPENAI_API_KEY");
+} else {
+  console.log(`[INFO] OPENAI_API_KEY loaded (length: ${apiKey.length})`);
+}  
 
 const app = express();
 const httpServer = createServer(app);

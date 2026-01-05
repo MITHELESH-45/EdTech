@@ -1,4 +1,5 @@
-import { Search, User, ChevronDown, Settings, LogOut, HelpCircle } from "lucide-react";
+import { useState } from "react";
+import { Search, User, ChevronDown, Settings, LogOut, HelpCircle, Bot } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,10 +13,12 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
+import { GrootChatModal } from "@/components/groot/GrootChatModal";
 
 export function Header( { showSearch = true }: { showSearch?: boolean } ) {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [grootOpen, setGrootOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -66,6 +69,20 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
         )}
 
         <div className="flex items-center gap-2">
+          {/* Ask GROOT Button - Only show when authenticated */}
+          {isAuthenticated && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setGrootOpen(true)}
+              className="bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:scale-105 transition-transform"
+              data-testid="button-ask-groot"
+            >
+              <span className="mr-1.5 text-base">🌱</span>
+              <span className="font-medium">Ask GROOT</span>
+            </Button>
+          )}
+
           <Link href="/about">
             <Button variant="ghost" size="sm" data-testid="link-about">
               About
@@ -134,6 +151,9 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
           )}
         </div>
       </div>
+
+      {/* GROOT Chat Modal */}
+      <GrootChatModal open={grootOpen} onOpenChange={setGrootOpen} />
     </header>
   );
 }
