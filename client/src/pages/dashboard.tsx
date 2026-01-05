@@ -89,34 +89,9 @@ const additionalCourses: Course[] = [
     progress: 0,
     lessons: [],
     isLocked: false,
+    image: "/Circuit-Design-Basics.png",
   },
-  {
-    id: "advanced-electronics",
-    title: "Advanced Electronics",
-    description: "Dive deep into complex electronic circuits and systems with hands-on simulation.",
-    difficulty: "advanced",
-    progress: 0,
-    lessons: [],
-    isLocked: false,
-  },
-  {
-    id: "iot-fundamentals",
-    title: "IoT Fundamentals",
-    description: "Learn Internet of Things concepts and build connected devices using our IoT Simulation platform.",
-    difficulty: "intermediate",
-    progress: 0,
-    lessons: [],
-    isLocked: false,
-  },
-  {
-    id: "smart-home-systems",
-    title: "Smart Home Systems",
-    description: "Design and simulate smart home automation systems with sensors and actuators.",
-    difficulty: "intermediate",
-    progress: 0,
-    lessons: [],
-    isLocked: false,
-  },
+ 
   {
     id: "block-based-programming",
     title: "Block-Based Programming",
@@ -125,34 +100,9 @@ const additionalCourses: Course[] = [
     progress: 0,
     lessons: [],
     isLocked: false,
+    image: "/block-based-Programming.png",
   },
-  {
-    id: "arduino-advanced",
-    title: "Arduino Advanced Projects",
-    description: "Create complex Arduino projects using the No-Code Editor with advanced blocks and logic.",
-    difficulty: "advanced",
-    progress: 0,
-    lessons: [],
-    isLocked: false,
-  },
-  {
-    id: "sensors-actuators",
-    title: "Sensors & Actuators",
-    description: "Understand how sensors and actuators work in electronic and IoT systems.",
-    difficulty: "intermediate",
-    progress: 0,
-    lessons: [],
-    isLocked: false,
-  },
-  {
-    id: "embedded-systems",
-    title: "Embedded Systems",
-    description: "Learn embedded systems design combining electronics, IoT, and programming concepts.",
-    difficulty: "advanced",
-    progress: 0,
-    lessons: [],
-    isLocked: false,
-  },
+  
 ];
 
 export default function Dashboard() {
