@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import mqtt from 'mqtt';
 import { DashboardLayout } from '../components/iot-simulation/DashboardLayout';
-import { Header } from '../components/iot-simulation/Header';
 import { SensorSidebar } from '../components/iot-simulation/SensorSidebar';
 import { KitVisualization } from '../components/iot-simulation/KitVisualization';
 import { SensorDetailsPanel } from '../components/iot-simulation/SensorDetailsPanel';
@@ -72,10 +71,9 @@ export default function IoTSimulatorPage() {
 
   return (
     <DashboardLayout>
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <SensorSidebar />
-        <main className="flex-1 relative overflow-hidden bg-neutral-950 p-8 flex items-center justify-center">
+        <main className="flex-1 relative overflow-hidden bg-neutral-950 p-8 flex items-center justify-center min-w-0">
           <KitVisualization />
         </main>
         <SensorDetailsPanel />

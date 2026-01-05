@@ -1,4 +1,3 @@
-import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
@@ -82,10 +81,7 @@ const futureVision = [
 
 export default function About() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-      
-      <main className="flex-1">
+    <div className="flex-1">
         {/* Hero Section */}
         <section className="border-b border-border bg-gradient-to-br from-primary/5 via-background to-chart-2/5">
           <div className="max-w-4xl mx-auto px-6 py-16 text-center">
@@ -280,7 +276,6 @@ export default function About() {
             </Link>
           </div>
         </section>
-      </main>
 
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6">

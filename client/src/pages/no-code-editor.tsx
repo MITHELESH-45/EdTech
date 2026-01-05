@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Header } from "@/components/layout/header";
 import { BlockCanvas } from "@/components/no-code-editor/block-canvas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -600,8 +599,6 @@ void loop() {
 
   return (
     <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
-    <Header showSearch={false}/>
-  
     <div className="flex flex-1 min-h-0 w-full">
       <div className="w-56 flex-shrink-0 border-r border-border overflow-y-auto">
         <NocodeSidebar
@@ -664,6 +661,6 @@ void loop() {
         />
       </div>
     </div>
-  </div>
+    </div>
   );
 }

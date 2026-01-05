@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Header } from "@/components/layout/header";
 import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,10 +54,7 @@ export default function Help() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
-      <div className="flex flex-1">
+    <div className="flex flex-1">
         <ToolSidebar />
 
         <main className="flex-1 overflow-auto">
@@ -225,7 +221,6 @@ export default function Help() {
             </Card>
           </div>
         </main>
-      </div>
     </div>
   );
 }

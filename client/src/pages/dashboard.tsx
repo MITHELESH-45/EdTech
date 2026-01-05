@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -196,10 +195,7 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header showSearch={false} />
-
-      <main className="flex-1 overflow-auto">
+    <main className="flex-1 overflow-auto">
         {/* Hero Section with Search */}
         <div className="relative border-b border-border bg-gradient-to-br from-primary/10 via-background to-chart-2/10 overflow-hidden">
           {/* Animated background elements */}
@@ -231,19 +227,19 @@ export default function Dashboard() {
               className="max-w-2xl"
             >
               <DotLottieReact
-  src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
-  loop
-  autoplay
-  style={{
-    width: "350px",
-    height: "350px",
-    position: "absolute",
-    top: "30px",
-    left: "1020px",
-    // left: "100px",
-    zIndex: 1000,
-  }}
-/>
+                src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
+                loop
+                autoplay
+                style={{
+                  width: "350px",
+                  height: "350px",
+                  position: "absolute",
+                  top: "30px",
+                  left: "1020px",
+                  // left: "100px",
+                  zIndex: 1000,
+                }}
+              />
 
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -475,7 +471,6 @@ export default function Dashboard() {
             </div>
           </motion.section>
         </div>
-      </main>
-    </div>
+    </main>
   );
 }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
 import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,9 +42,7 @@ const difficultyConfig: Record<Difficulty, { label: string; className: string }>
 
 function CourseDetailSkeleton() {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-      <div className="flex flex-1">
+    <div className="flex flex-1">
         <ToolSidebar />
         <main className="flex-1 overflow-auto">
           <div className="border-b border-border bg-card">
@@ -71,7 +68,6 @@ function CourseDetailSkeleton() {
           </div>
         </main>
       </div>
-    </div>
   );
 }
 
@@ -172,9 +168,7 @@ export default function CourseDetail() {
 
   if (error || !course) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-2">Course Not Found</h1>
@@ -186,7 +180,6 @@ export default function CourseDetail() {
             </Link>
           </div>
         </div>
-      </div>
     );
   }
 
@@ -195,10 +188,7 @@ export default function CourseDetail() {
   const completedLevels = levels.filter((l) => l.isCompleted).length;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
-      <div className="flex flex-1">
+    <div className="flex flex-1">
         <ToolSidebar />
 
         <main className="flex-1 overflow-auto">
@@ -365,7 +355,6 @@ export default function CourseDetail() {
             </Tabs>
           </div>
         </main>
-      </div>
     </div>
   );
 }
