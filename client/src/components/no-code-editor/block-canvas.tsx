@@ -756,4 +756,3 @@ export function BlockCanvas({
     </div>
   );
 }
-

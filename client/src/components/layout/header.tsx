@@ -11,10 +11,13 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
+import { GrootChatModal } from "@/components/groot/GrootChatModal";
+import { useState } from "react";
 
 export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [grootOpen, setGrootOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -119,6 +122,9 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* GROOT Chat Modal */}
+      <GrootChatModal open={grootOpen} onOpenChange={setGrootOpen} />
     </header>
   );
 }
