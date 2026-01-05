@@ -39,46 +39,6 @@ export default function NocodeEditor() {
   const [placedBlocks, setPlacedBlocks] = useState<PlacedBlock[]>([]);
   const [connections, setConnections] = useState<BlockConnection[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-  
-  // Undo/Redo history
-  type HistoryState = {
-    blocks: PlacedBlock[];
-    connections: BlockConnection[];
-  };
-  const [history, setHistory] = useState<HistoryState[]>([{ blocks: [], connections: [] }]);
-  const [historyIndex, setHistoryIndex] = useState(0);
-  
-  // Save state to history
-  const saveToHistory = useCallback((blocks: PlacedBlock[], conns: BlockConnection[]) => {
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push({ blocks: [...blocks], connections: [...conns] });
-      return newHistory.slice(-50); // Keep last 50 states
-    });
-    setHistoryIndex(prev => Math.min(prev + 1, 49));
-  }, [historyIndex]);
-  
-  // Undo
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      const state = history[newIndex];
-      setPlacedBlocks([...state.blocks]);
-      setConnections([...state.connections]);
-    }
-  }, [history, historyIndex]);
-  
-  // Redo
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      const state = history[newIndex];
-      setPlacedBlocks([...state.blocks]);
-      setConnections([...state.connections]);
-    }
-  }, [history, historyIndex]);
   const [arduinoCode, setArduinoCode] = useState<string>("");
   const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
   const [outputContent, setOutputContent] = useState<string>(">>> Welcome to the No-Code Editor\n>>> Upload code to Arduino to see Serial.print output here");
@@ -122,11 +82,7 @@ export default function NocodeEditor() {
       fieldValues: defaultValues,
     };
     
-    setPlacedBlocks((prev) => {
-      const newBlocks = [...prev, newBlock];
-      saveToHistory(newBlocks, connections);
-      return newBlocks;
-    });
+    setPlacedBlocks((prev) => [...prev, newBlock]);
     setSelectedBlockType(null);
     setSelectedBlockId(newBlock.id);
     
@@ -137,25 +93,20 @@ export default function NocodeEditor() {
       title: "Block placed",
       description: "Block has been added to the canvas.",
     });
-  }, [toast, connections, saveToHistory]);
+  }, [toast]);
 
   const handleDeleteBlock = useCallback((blockId: string) => {
-    setPlacedBlocks((prev) => {
-      const newBlocks = prev.filter((b) => b.id !== blockId);
-      setConnections((prevConns) => {
-        const newConns = prevConns.filter((c) => c.fromBlockId !== blockId && c.toBlockId !== blockId);
-        saveToHistory(newBlocks, newConns);
-        return newConns;
-      });
-      return newBlocks;
-    });
+    setPlacedBlocks((prev) => prev.filter((b) => b.id !== blockId));
+    setConnections((prev) => 
+      prev.filter((c) => c.fromBlockId !== blockId && c.toBlockId !== blockId)
+    );
     setSelectedBlockId(null);
     
     toast({
       title: "Block deleted",
       description: "The block has been removed.",
     });
-  }, [toast, saveToHistory]);
+  }, [toast]);
 
   const handleUpdateBlockValues = useCallback((blockId: string, values: Record<string, any>) => {
     setPlacedBlocks((prev) =>
@@ -169,47 +120,35 @@ export default function NocodeEditor() {
     );
   }, []);
 
-  const handleConnectBlocks = useCallback((fromBlockId: string, toBlockId: string, outputType?: string) => {
+  const handleConnectBlocks = useCallback((fromBlockId: string, toBlockId: string) => {
     // Create a BlockConnection object and add it to the connections array
     const newConnection: BlockConnection = {
       id: `conn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       fromBlockId,
       toBlockId,
-      fromField: outputType, // Store output type (true/false) for if_else blocks
     };
     
-    // Check if connection already exists (with same output type for if_else blocks)
+    // Check if connection already exists
     setConnections((prev) => {
       const exists = prev.some(
-        c => c.fromBlockId === fromBlockId && 
-             c.toBlockId === toBlockId && 
-             c.fromField === outputType
+        c => c.fromBlockId === fromBlockId && c.toBlockId === toBlockId
       );
       if (exists) {
         return prev; // Connection already exists
       }
-      const newConns = [...prev, newConnection];
-      
-      // Only update nextBlockId for backward compatibility if no output type is specified
-      // (for if_else blocks, we don't want to use nextBlockId)
-      if (!outputType) {
-        setPlacedBlocks((prevBlocks) => {
-          const updatedBlocks = prevBlocks.map((b) => (b.id === fromBlockId ? { ...b, nextBlockId: toBlockId } : b));
-          saveToHistory(updatedBlocks, newConns);
-          return updatedBlocks;
-        });
-      } else {
-        saveToHistory(placedBlocks, newConns);
-      }
-      
-      return newConns;
+      return [...prev, newConnection];
     });
+    
+    // Also update nextBlockId for backward compatibility
+    setPlacedBlocks((prev) =>
+      prev.map((b) => (b.id === fromBlockId ? { ...b, nextBlockId: toBlockId } : b))
+    );
     
     toast({
       title: "Blocks connected",
-      description: outputType ? `Blocks connected via ${outputType} path.` : "Blocks have been connected.",
+      description: "Blocks have been connected.",
     });
-  }, [toast, placedBlocks, saveToHistory]);
+  }, [toast]);
 
   // Parse Serial.print/Serial.println statements from Arduino code
   const parseSerialOutput = useCallback((code: string) => {
@@ -691,14 +630,10 @@ void loop() {
           onConnectBlocks={handleConnectBlocks}
           onDeleteConnection={handleDeleteConnection}
           onMoveBlock={handleMoveBlock}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          canUndo={historyIndex > 0}
-          canRedo={historyIndex < history.length - 1}
         />
       </div>
   
-      <div className="w-80 flex-shrink-0 border-l border-border overflow-y-auto">
+      <div className="w-80 flex-shrink-0 border-l border-border overflow-hidden">
         <NocodePanel
           isRunning={false}
           ledState={false}
