@@ -17,7 +17,7 @@ export default function IoTSimulatorPage() {
     const options = {
       clientId: "webclient_" + Math.random().toString(16).substr(2, 8),
       clean: true,
-      connectTimeout: 4000,
+      connectTimeout: 5000,
       reconnectPeriod: 1000
     };
 

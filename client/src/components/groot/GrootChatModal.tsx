@@ -80,21 +80,30 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to get response");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
+      if (!data.response) {
+        throw new Error("Invalid response format from server");
+      }
+      
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response || "Sorry 🌱 I'm having trouble right now." },
+        { role: "assistant", content: data.response },
       ]);
     } catch (error) {
       console.error("Error sending message:", error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Sorry 🌱 I'm having trouble right now. Please try again later.";
+      
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Sorry 🌱 I'm having trouble right now. Please try again later.",
+          content: `Sorry 🌱 ${errorMessage}`,
         },
       ]);
     } finally {
@@ -102,8 +111,8 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !loading) {
       e.preventDefault();
       sendMessage();
     }
@@ -256,7 +265,7 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyDown}
                   placeholder="Ask GROOT about electronics, IoT, Arduino..."
                   disabled={loading}
                   className="flex-1 bg-background border-border/50 focus:border-emerald-500"

@@ -72,21 +72,39 @@ export function registerGrootRoutes(app: Express): void {
 
       if (!openaiResponse.ok) {
         const errorData = await openaiResponse.json().catch(() => ({}));
-        console.error("[GROOT] OpenAI API error:", errorData);
-        return res.status(500).json({
-          error: "Failed to get response from AI service",
+        console.error("[GROOT] OpenAI API error:", {
+          status: openaiResponse.status,
+          statusText: openaiResponse.statusText,
+          error: errorData,
         });
+        
+        // Provide more specific error messages
+        if (openaiResponse.status === 401) {
+          return res.status(500).json({
+            error: "AI service authentication failed. Please check API key configuration.",
+          });
+        } else if (openaiResponse.status === 429) {
+          return res.status(500).json({
+            error: "AI service rate limit exceeded. Please try again later.",
+          });
+        } else {
+          return res.status(500).json({
+            error: `Failed to get response from AI service: ${errorData.error?.message || openaiResponse.statusText}`,
+          });
+        }
       }
 
       const data = await openaiResponse.json();
       const assistantMessage = data.choices?.[0]?.message?.content;
 
       if (!assistantMessage) {
+        console.error("[GROOT] Invalid response structure:", data);
         return res.status(500).json({
           error: "Invalid response from AI service",
         });
       }
 
+      console.log("[GROOT] Successfully generated response");
       res.json({
         response: assistantMessage,
       });

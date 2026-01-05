@@ -30,14 +30,14 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 function CourseCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-6 shadow-sm h-full flex flex-col">
       <div className="flex items-start justify-between gap-2 mb-4">
         <Skeleton className="w-10 h-10 rounded-md" />
         <Skeleton className="w-20 h-5 rounded-full" />
       </div>
       <Skeleton className="h-5 w-3/4 mb-3" />
       <Skeleton className="h-4 w-full mb-2" />
-      <Skeleton className="h-4 w-2/3 mb-4" />
+      <Skeleton className="h-4 w-2/3 mb-4 flex-1" />
       <Skeleton className="h-9 w-full rounded-md" />
     </div>
   );
@@ -399,6 +399,7 @@ export default function Dashboard() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="h-full"
                   >
                     <CourseCard course={course} />
                   </motion.div>
@@ -442,6 +443,7 @@ export default function Dashboard() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.05 }}
+                    className="h-full"
                   >
                     <CourseCard course={course} />
                   </motion.div>
