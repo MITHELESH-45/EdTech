@@ -28,6 +28,7 @@ export interface Course {
   progress: number;
   lessons: Lesson[];
   isLocked: boolean;
+  image?: string; // Optional background image URL
 }
 
 export interface Lesson {
