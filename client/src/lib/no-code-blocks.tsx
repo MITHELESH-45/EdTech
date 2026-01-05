@@ -64,6 +64,14 @@ export const schemaData: {
           "fields": {
             "seconds": { "type": "number", "label": "Seconds", "default": 1 }
           }
+        },
+        {
+          "id": "delay",
+          "label": "Delay",
+          "color": "#a855f7",
+          "fields": {
+            "milliseconds": { "type": "number", "label": "Milliseconds", "default": 1000 }
+          }
         }
       ]
     },
@@ -169,6 +177,23 @@ export const schemaData: {
           "fields": {
             "pin": { "type": "number", "label": "Pin", "default": 4 },
             "value": { "type": "toggle", "label": "Value", "default": true }
+          }
+        },
+        {
+          "id": "digitalwrite",
+          "label": "Digital Write",
+          "color": "#f59e0b",
+          "fields": {
+            "pin": { "type": "number", "label": "Pin", "default": 13 },
+            "value": {
+              "type": "select",
+              "label": "Value",
+              "default": "HIGH",
+              "options": [
+                { "label": "HIGH", "value": "HIGH" },
+                { "label": "LOW", "value": "LOW" }
+              ]
+            }
           }
         },
         {
