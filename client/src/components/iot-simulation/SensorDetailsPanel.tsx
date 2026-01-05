@@ -11,7 +11,7 @@ export const SensorDetailsPanel: React.FC = () => {
   if (!sensor) return null;
 
   return (
-    <div className="w-96 border-l border-border bg-card/30 flex flex-col h-full p-6 overflow-y-auto transition-colors duration-300">
+    <div className="w-96 border-l border-border bg-card/30 flex flex-col h-full min-h-0 p-6 overflow-y-auto transition-colors duration-300">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
            <h2 className="text-2xl font-bold text-foreground">{sensor.name}</h2>

@@ -9,7 +9,6 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -351,8 +350,6 @@ export default function ArduinoCodeEditor() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <Header showSearch={false} />
-
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ════════════════════════════════════════════════════════════════════
             LEFT SIDEBAR - Block Palette

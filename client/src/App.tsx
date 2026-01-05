@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { Loader2 } from "lucide-react";
+import { AppLayout } from "@/components/layout/app-layout";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import ElectronicSimulation from "@/pages/electronic-simulation";
@@ -50,7 +51,11 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
     return <LoadingScreen />;
   }
 
-  return <Component />;
+  return (
+    <AppLayout>
+      <Component />
+    </AppLayout>
+  );
 }
 
 function PublicOnlyRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -109,7 +114,11 @@ function Router() {
       <Route path="/help">
         <ProtectedRoute component={Help} />
       </Route>
-      <Route path="/about" component={About} />
+      <Route path="/about">
+        <AppLayout>
+          <About />
+        </AppLayout>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
 import mqtt from 'mqtt';
 import { DashboardLayout } from '../components/iot-simulation/DashboardLayout';
-import { Header } from '../components/iot-simulation/Header';
 import { SensorSidebar } from '../components/iot-simulation/SensorSidebar';
 import { KitVisualization } from '../components/iot-simulation/KitVisualization';
 import { SensorDetailsPanel } from '../components/iot-simulation/SensorDetailsPanel';
@@ -19,7 +17,7 @@ export default function IoTSimulatorPage() {
     const options = {
       clientId: "webclient_" + Math.random().toString(16).substr(2, 8),
       clean: true,
-      connectTimeout: 5000,
+      connectTimeout: 4000,
       reconnectPeriod: 1000
     };
 
@@ -73,31 +71,10 @@ export default function IoTSimulatorPage() {
 
   return (
     <DashboardLayout>
-      <Header />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <SensorSidebar />
-        <main className="flex-1 relative overflow-hidden bg-neutral-950 p-8 flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-8">
-          {/* Baby Groot Image */}
-          <div className="flex-shrink-0 flex items-center justify-center order-2 lg:order-1">
-            <motion.img
-              src="/groot.png"
-              alt="Baby Groot - E-GROOTS Mascot"
-              className="w-48 lg:w-64 h-auto object-contain drop-shadow-2xl"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              whileHover={{ scale: 1.05 }}
-              onError={(e) => {
-                // Fallback if image doesn't exist
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
-          
-          {/* Kit Visualization */}
-          <div className="flex-1 h-full w-full order-1 lg:order-2">
-            <KitVisualization />
-          </div>
+        <main className="flex-1 relative overflow-hidden bg-neutral-950 p-8 flex items-center justify-center min-w-0">
+          <KitVisualization />
         </main>
         <SensorDetailsPanel />
       </div>

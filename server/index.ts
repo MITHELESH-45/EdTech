@@ -2,18 +2,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+
 import dotenv from "dotenv";
-
-dotenv.config();
-
-const apiKey = process.env.OPENAI_API_KEY;
-const port = process.env.PORT;
-if (!apiKey) {
-  throw new Error("OPENAI_API_KEY environment variable is not set");
-}else{
-  console.log(port);
-  console.log("OPENAI_API_KEY:", apiKey);
-}
+dotenv.config();  
 
 const app = express();
 const httpServer = createServer(app);
@@ -34,16 +25,16 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-// export function log(message: string, source = "express") {
-//   const formattedTime = new Date().toLocaleTimeString("en-US", {
-//     hour: "numeric",
-//     minute: "2-digit",
-//     second: "2-digit",
-//     hour12: true,
-//   });
+export function log(message: string, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
 
-//   // console.log(`${formattedTime} [${source}] ${message}`);
-// }
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -63,7 +54,7 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-      console.log(logLine);
+      log(logLine);
     }
   });
 
@@ -71,7 +62,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await registerRoutes(app);
+  await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -86,16 +77,13 @@ app.use((req, res, next) => {
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
-    await setupVite(app);
+    await setupVite(httpServer, app);
   }
 
   // ✅ Windows-safe server listen
-  const port = parseInt(process.env.PORT || "3000", 10);
-  if (isNaN(port)) {
-    throw new Error("PORT environment variable is not a number");
-  }
+  const port = parseInt(process.env.PORT || "5000", 10);
 
   httpServer.listen(port, () => {
-    console.log(`serving on http://localhost:${port}`);
+    log(`serving on http://localhost:${port}`);
   });
 })();

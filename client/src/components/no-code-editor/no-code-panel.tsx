@@ -137,23 +137,28 @@ export function NocodePanel({
           />
         </button>
         {arduinoExpanded && (
-          <div className="flex-1 flex flex-col bg-card min-h-0 overflow-hidden">
-            <div className="flex-1 flex overflow-auto min-h-0">
-              <div className="w-10 bg-muted border-r border-border py-2 text-right shrink-0 sticky top-0">
+          <div className="flex-1 flex flex-col bg-card min-h-0 overflow-hidden border border-border">
+            <div className="flex-1 overflow-auto flex items-start">
+              {/* Sidebar - Position Sticky keeps numbers visible while scrolling right */}
+              <div className="w-10 bg-muted border-r border-border py-2 text-right shrink-0 sticky left-0 z-10">
                 {arduinoCode.split('\n').map((_, i) => (
                   <div key={i} className="text-xs text-muted-foreground px-2 leading-5">
                     {i + 1}
                   </div>
                 ))}
               </div>
+              
               <textarea
                 value={arduinoCode}
                 onChange={(e) => onArduinoCodeChange?.(e.target.value)}
-                className="flex-1 px-3 py-2 text-xs font-mono text-foreground resize-none focus:outline-none leading-5 bg-background"
+                className="flex-1 px-3 py-2 text-xs font-mono text-foreground resize-none focus:outline-none leading-5 bg-background overflow-hidden"
                 spellCheck={false}
-                style={{ minHeight: '100%' }}
+                rows={arduinoCode.split('\n').length} 
+                style={{ minHeight: '100%', whiteSpace: 'pre' }}
               />
             </div>
+
+            {/* Footer */}
             <div className="px-3 py-1 text-xs text-muted-foreground border-t border-border bg-muted shrink-0">
               {arduinoLines} {arduinoLines === 1 ? 'line' : 'lines'} (Editable - Upload uses this code)
             </div>
@@ -231,7 +236,7 @@ export function NocodePanel({
             <div className="px-4 pb-4 space-y-3">
             {/* Arduino Status */}
             {arduinoStatus && (
-              <div className="space-y-2 text-xs">
+              <div className="flex justify-around items-center space-y-2 text-xs">
                 <div className="flex items-start gap-2">
                   {arduinoStatus.cliInstalled ? (
                     <CheckCircle className="h-3 w-3 text-green-500 mt-0.5" />
@@ -241,11 +246,6 @@ export function NocodePanel({
                   <div className="flex-1">
                     <div className="flex items-center gap-1">
                       <span>Arduino CLI</span>
-                      {arduinoStatus.cliVersion && (
-                        <Badge variant="outline" className="text-[9px] px-1">
-                          {arduinoStatus.cliVersion}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </div>
