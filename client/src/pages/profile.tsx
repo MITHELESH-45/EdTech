@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Header } from "@/components/layout/header";
 import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,10 +51,7 @@ export default function Profile() {
     .slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
-      <div className="flex flex-1">
+    <div className="flex flex-1">
         <ToolSidebar />
 
         <main className="flex-1 overflow-auto">
@@ -172,7 +168,6 @@ export default function Profile() {
             </Card>
           </div>
         </main>
-      </div>
     </div>
   );
 }

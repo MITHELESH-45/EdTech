@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
 import { ComponentPalette } from "@/components/simulation/component-palette";
 import { CircuitCanvas } from "@/components/simulation/circuit-canvas";
 import { ControlPanel } from "@/components/simulation/control-panel";
@@ -945,8 +944,6 @@ export default function ElectronicSimulation() {
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <Header showSearch={false}/>
-      
       {/* Unsaved Changes Warning Dialog */}
       <UnsavedChangesDialog
         open={showUnsavedDialog}

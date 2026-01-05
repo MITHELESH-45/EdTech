@@ -8,7 +8,7 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, className }) => {
   return (
-    <div className={cn("flex flex-col h-screen bg-background text-foreground overflow-hidden transition-colors duration-300", className)}>
+    <div className={cn("flex flex-col h-full min-h-0 bg-background text-foreground transition-colors duration-300", className)}>
       {children}
     </div>
   );

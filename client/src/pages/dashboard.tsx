@@ -1,11 +1,9 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { GrootModelViewer } from "@/components/dashboard/groot-model";
 import { 
   BookOpen, 
   Zap, 
@@ -90,9 +88,34 @@ const additionalCourses: Course[] = [
     progress: 0,
     lessons: [],
     isLocked: false,
-    image: "/Circuit-Design-Basics.png",
   },
- 
+  {
+    id: "advanced-electronics",
+    title: "Advanced Electronics",
+    description: "Dive deep into complex electronic circuits and systems with hands-on simulation.",
+    difficulty: "advanced",
+    progress: 0,
+    lessons: [],
+    isLocked: false,
+  },
+  {
+    id: "iot-fundamentals",
+    title: "IoT Fundamentals",
+    description: "Learn Internet of Things concepts and build connected devices using our IoT Simulation platform.",
+    difficulty: "intermediate",
+    progress: 0,
+    lessons: [],
+    isLocked: false,
+  },
+  {
+    id: "smart-home-systems",
+    title: "Smart Home Systems",
+    description: "Design and simulate smart home automation systems with sensors and actuators.",
+    difficulty: "intermediate",
+    progress: 0,
+    lessons: [],
+    isLocked: false,
+  },
   {
     id: "block-based-programming",
     title: "Block-Based Programming",
@@ -101,35 +124,42 @@ const additionalCourses: Course[] = [
     progress: 0,
     lessons: [],
     isLocked: false,
-    image: "/block-based-Programming.png",
   },
-  
+  {
+    id: "arduino-advanced",
+    title: "Arduino Advanced Projects",
+    description: "Create complex Arduino projects using the No-Code Editor with advanced blocks and logic.",
+    difficulty: "advanced",
+    progress: 0,
+    lessons: [],
+    isLocked: false,
+  },
+  {
+    id: "sensors-actuators",
+    title: "Sensors & Actuators",
+    description: "Understand how sensors and actuators work in electronic and IoT systems.",
+    difficulty: "intermediate",
+    progress: 0,
+    lessons: [],
+    isLocked: false,
+  },
+  {
+    id: "embedded-systems",
+    title: "Embedded Systems",
+    description: "Learn embedded systems design combining electronics, IoT, and programming concepts.",
+    difficulty: "advanced",
+    progress: 0,
+    lessons: [],
+    isLocked: false,
+  },
 ];
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const mainContentRef = useRef<HTMLElement>(null);
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
-
-  // Set up scroll listener
-  useEffect(() => {
-    const mainElement = mainContentRef.current;
-    if (!mainElement) return;
-
-    const handleScroll = () => {
-      const scrollTop = mainElement.scrollTop;
-      const scrollHeight = mainElement.scrollHeight - mainElement.clientHeight;
-      const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
-      setScrollProgress(progress);
-    };
-
-    mainElement.addEventListener('scroll', handleScroll, { passive: true });
-    return () => mainElement.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Combine original courses with additional courses and enable all
   const allCourses = useMemo(() => {
@@ -165,26 +195,9 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
-      <Header showSearch={false} />
-
-      {/* MAIN LAYOUT */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* LEFT — STATIC GROOT */}
-        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12">
-          <div className="h-full w-full flex items-center justify-center">
-            <GrootModelViewer scrollProgress={scrollProgress} />
-          </div>
-        </div>
-
-        {/* RIGHT — SCROLLABLE CONTENT */}
-        <main 
-          ref={mainContentRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
-        >
+    <main className="flex-1 overflow-auto">
         {/* Hero Section with Search */}
-        <div className="relative border-b border-border overflow-hidden">
+        <div className="relative border-b border-border bg-gradient-to-br from-primary/10 via-background to-chart-2/10 overflow-hidden">
           {/* Animated background elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-pulse" />
@@ -214,19 +227,19 @@ export default function Dashboard() {
               className="max-w-2xl"
             >
               <DotLottieReact
-  src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
-  loop
-  autoplay
-  style={{
-    width: "350px",
-    height: "350px",
-    position: "absolute",
-    top: "30px",
-    left: "875px",
-    // left: "100px",
-    zIndex: 1000,
-  }}
-/>
+                src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
+                loop
+                autoplay
+                style={{
+                  width: "350px",
+                  height: "350px",
+                  position: "absolute",
+                  top: "30px",
+                  left: "1020px",
+                  // left: "100px",
+                  zIndex: 1000,
+                }}
+              />
 
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -458,8 +471,6 @@ export default function Dashboard() {
             </div>
           </motion.section>
         </div>
-      </main>
-      </div>
-    </div>
+    </main>
   );
 }

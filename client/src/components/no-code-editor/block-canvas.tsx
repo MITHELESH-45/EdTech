@@ -13,7 +13,7 @@ interface BlockCanvasProps {
   onSelectBlock: (blockId: string | null) => void;
   onDeleteBlock: (blockId: string) => void;
   onUpdateBlockValues: (blockId: string, values: Record<string, any>) => void;
-  onConnectBlocks: (fromBlockId: string, toBlockId: string) => void;
+  onConnectBlocks: (fromBlockId: string, toBlockId: string, outputType?: string) => void;
   onDeleteConnection?: (connectionId: string) => void;
   onMoveBlock?: (blockId: string, x: number, y: number) => void;
 }
@@ -41,6 +41,7 @@ export function BlockCanvas({
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [connectingFromOutput, setConnectingFromOutput] = useState<string | null>(null); // "true" or "false" for if_else blocks
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   
   // Zoom and pan state
@@ -64,6 +65,7 @@ export function BlockCanvas({
       }
       if (e.key === "Escape") {
         setConnectingFrom(null);
+        setConnectingFromOutput(null);
         setSelectedConnectionId(null);
         onSelectBlock(null);
       }
@@ -294,14 +296,21 @@ export function BlockCanvas({
     }
   };
 
-  const handleConnectorClick = (e: React.MouseEvent, blockId: string, isOutput: boolean) => {
+  const handleConnectorClick = (e: React.MouseEvent, blockId: string, isOutput: boolean, outputType?: string) => {
     e.stopPropagation();
     
     if (isOutput) {
       setConnectingFrom(blockId);
+      setConnectingFromOutput(outputType || null);
     } else if (connectingFrom && connectingFrom !== blockId) {
-      onConnectBlocks(connectingFrom, blockId);
+      // Pass output type to connection handler if it exists
+      if (connectingFromOutput) {
+        onConnectBlocks(connectingFrom, blockId, connectingFromOutput);
+      } else {
+        onConnectBlocks(connectingFrom, blockId);
+      }
       setConnectingFrom(null);
+      setConnectingFromOutput(null);
     }
   };
 
@@ -323,6 +332,50 @@ export function BlockCanvas({
     
     // Header (40px) + padding (16px top + 16px bottom) + fields (~28px each with spacing)
     return Math.max(BLOCK_MIN_HEIGHT, 40 + 32 + fieldCount * 28);
+  };
+
+  // Get connector Y position based on block type and output type
+  const getConnectorY = (block: PlacedBlock, outputType?: string) => {
+    if (block.blockId === 'if_else' && outputType) {
+      // For if_else blocks, true is at top, false is lower
+      const height = getBlockHeight(block);
+      if (outputType === 'true') {
+        return block.y + CONNECTOR_OFFSET_Y;
+      } else if (outputType === 'false') {
+        return block.y + height - CONNECTOR_OFFSET_Y;
+      }
+    }
+    // Default connector position
+    return block.y + CONNECTOR_OFFSET_Y;
+  };
+
+  // Generate path that avoids going through the source block
+  const generatePathAvoidingSource = (
+    fromX: number, fromY: number,
+    toX: number, toY: number,
+    sourceBlock: PlacedBlock
+  ): string => {
+    const sourceHeight = getBlockHeight(sourceBlock);
+    const sourceTop = sourceBlock.y;
+    const sourceBottom = sourceBlock.y + sourceHeight;
+    const sourceRight = sourceBlock.x + BLOCK_WIDTH;
+    
+    // Check if the vertical segment would pass through the source block
+    const midX = (fromX + toX) / 2;
+    const wouldPassThrough = midX >= sourceBlock.x && midX <= sourceRight &&
+                              ((fromY >= sourceTop && fromY <= sourceBottom) ||
+                               (toY >= sourceTop && toY <= sourceBottom) ||
+                               (fromY < sourceTop && toY > sourceBottom) ||
+                               (fromY > sourceBottom && toY < sourceTop));
+    
+    if (wouldPassThrough) {
+      // Add horizontal offset to get away from the block first
+      const offsetX = sourceRight + 20; // 20px offset from block edge
+      return `M ${fromX} ${fromY} L ${offsetX} ${fromY} L ${offsetX} ${toY} L ${toX} ${toY}`;
+    } else {
+      // Normal path
+      return `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`;
+    }
   };
 
   return (
@@ -366,11 +419,11 @@ export function BlockCanvas({
       >
         {/* Grid background */}
         <div
-          className="absolute inset-0 opacity-20 canvas-background pointer-events-none"
+          className="absolute inset-0 opacity-30 canvas-background pointer-events-none"
           style={{
             backgroundImage: `
-              linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
-              linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)
+              linear-gradient(to right, hsl(var(--border)) 2px, transparent 2px),
+              linear-gradient(to bottom, hsl(var(--border)) 2px, transparent 2px)
             `,
             backgroundSize: `${20 / scale}px ${20 / scale}px`,
             width: '2000px',
@@ -392,7 +445,9 @@ export function BlockCanvas({
             const fromY = block.y + CONNECTOR_OFFSET_Y;
             const toX = toBlock.x;
             const toY = toBlock.y + CONNECTOR_OFFSET_Y;
-            const midX = (fromX + toX) / 2;
+            
+            // Generate path that avoids going through the source block
+            const pathData = generatePathAvoidingSource(fromX, fromY, toX, toY, block);
 
             // Check if this connection is in the connections array
             const connectionId = connections.find(c => 
@@ -404,7 +459,7 @@ export function BlockCanvas({
               <g key={`${block.id}-${block.nextBlockId}`}>
                 {/* Invisible wider path for easier clicking */}
                 <path
-                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  d={pathData}
                   fill="none"
                   stroke="transparent"
                   strokeWidth={Math.max(20, 20 / scale)}
@@ -416,16 +471,18 @@ export function BlockCanvas({
                       setSelectedConnectionId(connectionId);
                     }
                     setConnectingFrom(null);
+                    setConnectingFromOutput(null);
                     onSelectBlock(null);
                   }}
                 />
                 {/* Visible path */}
                 <path
-                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  d={pathData}
                   fill="none"
-                  stroke={isSelected ? "#ef4444" : "#3b82f6"}
+                  stroke={isSelected ? "#ef4444" : "#9ca3af"}
                   strokeWidth={(isSelected ? 3 : 2) / scale}
                   strokeLinecap="round"
+                  strokeDasharray={isSelected ? "none" : `${4 / scale} ${4 / scale}`}
                   style={{ pointerEvents: 'none' }}
                 />
               </g>
@@ -437,21 +494,26 @@ export function BlockCanvas({
             const fromBlock = placedBlocks.find(b => b.id === conn.fromBlockId);
             const toBlock = placedBlocks.find(b => b.id === conn.toBlockId);
             if (!fromBlock || !toBlock) return null;
-            // Skip if already rendered via nextBlockId
-            if (fromBlock.nextBlockId === conn.toBlockId) return null;
+            // Skip if already rendered via nextBlockId (unless it has a specific output type)
+            if (fromBlock.nextBlockId === conn.toBlockId && !conn.fromField) return null;
 
             const fromX = fromBlock.x + BLOCK_WIDTH;
-            const fromY = fromBlock.y + CONNECTOR_OFFSET_Y;
+            const fromY = getConnectorY(fromBlock, conn.fromField);
             const toX = toBlock.x;
             const toY = toBlock.y + CONNECTOR_OFFSET_Y;
-            const midX = (fromX + toX) / 2;
+            
+            // Generate path that avoids going through the source and destination blocks
+            const pathData = generatePathAvoidingSource(fromX, fromY, toX, toY, fromBlock);
+            
             const isSelected = selectedConnectionId === conn.id;
+            // Use grey for unselected, red for selected
+            const strokeColor = isSelected ? "#ef4444" : "#9ca3af";
 
             return (
               <g key={conn.id}>
                 {/* Invisible wider path for easier clicking */}
                 <path
-                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  d={pathData}
                   fill="none"
                   stroke="transparent"
                   strokeWidth={Math.max(20, 20 / scale)}
@@ -461,16 +523,18 @@ export function BlockCanvas({
                     e.stopPropagation();
                     setSelectedConnectionId(conn.id);
                     setConnectingFrom(null);
+                    setConnectingFromOutput(null);
                     onSelectBlock(null);
                   }}
                 />
                 {/* Visible path */}
                 <path
-                  d={`M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`}
+                  d={pathData}
                   fill="none"
-                  stroke={isSelected ? "#ef4444" : "#3b82f6"}
+                  stroke={strokeColor}
                   strokeWidth={(isSelected ? 3 : 2) / scale}
                   strokeLinecap="round"
+                  strokeDasharray={isSelected ? "none" : `${4 / scale} ${4 / scale}`}
                   style={{ pointerEvents: 'none' }}
                 />
               </g>
@@ -483,12 +547,14 @@ export function BlockCanvas({
               const fromBlock = placedBlocks.find(b => b.id === connectingFrom);
               if (!fromBlock) return null;
               const fromX = fromBlock.x + BLOCK_WIDTH;
-              const fromY = fromBlock.y + CONNECTOR_OFFSET_Y;
+              const fromY = getConnectorY(fromBlock, connectingFromOutput || undefined);
+              // Use grey for preview
+              const strokeColor = "#9ca3af";
               return (
                 <path
                   d={`M ${fromX} ${fromY} L ${mousePos.x} ${mousePos.y}`}
                   fill="none"
-                  stroke="#22c55e"
+                  stroke={strokeColor}
                   strokeWidth={2 / scale}
                   strokeDasharray={`${4 / scale} ${4 / scale}`}
                 />
@@ -558,17 +624,43 @@ export function BlockCanvas({
                 />
               </div>
 
-              <div className="absolute right-0 top-0 bottom-0 flex items-start pt-5">
-                <button
-                  onClick={(e) => handleConnectorClick(e, block.id, true)}
-                  className={cn(
-                    "w-3 h-3 rounded-full border-2 bg-background transition-all",
-                    connectingFrom === block.id ? "border-green-500 scale-125" : "border-muted-foreground/50 hover:border-blue-500"
-                  )}
-                  style={{ marginRight: -CONNECTOR_SIZE / 2 }}
-                  title="Connect to here"
-                />
-              </div>
+              {/* Output connectors - two for if_else blocks, one for others */}
+              {block.blockId === 'if_else' ? (
+                <div className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-start pt-5 gap-8">
+                  {/* True output (top) */}
+                  <button
+                    onClick={(e) => handleConnectorClick(e, block.id, true, 'true')}
+                    className={cn(
+                      "w-3 h-3 rounded-full border-2 bg-background transition-all",
+                      connectingFrom === block.id && connectingFromOutput === 'true' ? "border-green-500 scale-125" : "border-green-500/70 hover:border-green-500"
+                    )}
+                    style={{ marginRight: -CONNECTOR_SIZE / 2 }}
+                    title="True path (condition is true)"
+                  />
+                  {/* False output (bottom) */}
+                  <button
+                    onClick={(e) => handleConnectorClick(e, block.id, true, 'false')}
+                    className={cn(
+                      "w-3 h-3 rounded-full border-2 bg-background transition-all",
+                      connectingFrom === block.id && connectingFromOutput === 'false' ? "border-red-500 scale-125" : "border-red-500/70 hover:border-red-500"
+                    )}
+                    style={{ marginRight: -CONNECTOR_SIZE / 2 }}
+                    title="False path (condition is false)"
+                  />
+                </div>
+              ) : (
+                <div className="absolute right-0 top-0 bottom-0 flex items-start pt-5">
+                  <button
+                    onClick={(e) => handleConnectorClick(e, block.id, true)}
+                    className={cn(
+                      "w-3 h-3 rounded-full border-2 bg-background transition-all",
+                      connectingFrom === block.id ? "border-green-500 scale-125" : "border-muted-foreground/50 hover:border-blue-500"
+                    )}
+                    style={{ marginRight: -CONNECTOR_SIZE / 2 }}
+                    title="Connect to here"
+                  />
+                </div>
+              )}
 
               {/* Block header */}
               <div
