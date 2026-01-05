@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { CourseCard } from "@/components/dashboard/course-card";
@@ -109,9 +109,27 @@ const additionalCourses: Course[] = [
 export default function Dashboard() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const mainContentRef = useRef<HTMLElement>(null);
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
+
+  // Set up scroll listener
+  useEffect(() => {
+    const mainElement = mainContentRef.current;
+    if (!mainElement) return;
+
+    const handleScroll = () => {
+      const scrollTop = mainElement.scrollTop;
+      const scrollHeight = mainElement.scrollHeight - mainElement.clientHeight;
+      const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+      setScrollProgress(progress);
+    };
+
+    mainElement.addEventListener('scroll', handleScroll, { passive: true });
+    return () => mainElement.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Combine original courses with additional courses and enable all
   const allCourses = useMemo(() => {
@@ -147,18 +165,26 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
       <Header showSearch={false} />
 
-      <div className="flex flex-1 overflow-hidden h-[calc(100vh-4rem)]">
-        {/* Baby Groot 3D Model - Static Left Side */}
-        <div className="flex-shrink-0 flex items-center justify-center bg-transparent overflow-visible h-full relative z-10">
-          <GrootModelViewer />
+      {/* MAIN LAYOUT */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* LEFT — STATIC GROOT */}
+        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12">
+          <div className="h-full w-full flex items-center justify-center">
+            <GrootModelViewer scrollProgress={scrollProgress} />
+          </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden h-full">
+        {/* RIGHT — SCROLLABLE CONTENT */}
+        <main 
+          ref={mainContentRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
+        >
         {/* Hero Section with Search */}
-        <div className="relative border-b border-border bg-gradient-to-br from-primary/10 via-background to-chart-2/10 overflow-hidden">
+        <div className="relative border-b border-border overflow-hidden">
           {/* Animated background elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-pulse" />
@@ -196,7 +222,7 @@ export default function Dashboard() {
     height: "350px",
     position: "absolute",
     top: "30px",
-    left: "1020px",
+    left: "875px",
     // left: "100px",
     zIndex: 1000,
   }}
