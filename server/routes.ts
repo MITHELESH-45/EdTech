@@ -1,13 +1,11 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { registerArduinoRoutes } from "./arduino-routes";
 import { registerGrootRoutes } from "./groot-routes";
 
 export async function registerRoutes(
-  httpServer: Server,
   app: Express
-): Promise<Server> {
+): Promise<void> {
   // Register Arduino upload routes
   registerArduinoRoutes(app);
   // Register GROOT chat routes
@@ -73,5 +71,4 @@ export async function registerRoutes(
     }
   });
 
-  return httpServer;
 }
