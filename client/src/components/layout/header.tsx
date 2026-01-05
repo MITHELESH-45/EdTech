@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
 import { GrootChatModal } from "@/components/groot/GrootChatModal";
 import { useState } from "react";
+import GrootSvg from "@/components/ui/groot";
 
 export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -54,6 +55,19 @@ export function Header() {
         </Link>
 
         <div className="flex items-center gap-2 ml-auto">
+          {/* Ask GROOT Button - Only show when authenticated */}
+          {isAuthenticated && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setGrootOpen(true)}
+              className="bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:scale-105 transition-transform"
+              data-testid="button-ask-groot"
+            >
+              <GrootSvg width={28} height={28} fill="#6B4F2A" className="mr-1.5" />
+              <span className="font-medium">Ask GROOT</span>
+            </Button>
+          )}
           <Link href="/about">
             <Button variant="ghost" size="sm" data-testid="link-about">
               About
@@ -86,6 +100,7 @@ export function Header() {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
+                
                 <Link href="/profile">
                   <DropdownMenuItem data-testid="menu-item-profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />

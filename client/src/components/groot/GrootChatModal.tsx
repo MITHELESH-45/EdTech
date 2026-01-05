@@ -11,6 +11,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import GrootSvg from "@/components/ui/groot";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -123,18 +124,10 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
       <DialogContent className="max-w-4xl h-[600px] p-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-gradient-to-r from-emerald-500/10 to-green-500/10">
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              <span className="text-2xl">🌱</span>
+            <DialogTitle className="flex items-center text-xl font-bold">
+              <GrootSvg width={48} height={48} fill="#6B4F2A" />
               <span>Ask GROOT</span>
             </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
@@ -160,9 +153,9 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
-                className="text-8xl mb-4"
+                className="mb-4 flex items-center justify-center"
               >
-                🌱
+                <GrootSvg width={240} height={240} fill="#6B4F2A" />
               </motion.div>
               <h3 className="text-2xl font-bold text-foreground mb-2 bg-gradient-to-r from-emerald-600 to-green-600 dark:from-emerald-400 dark:to-green-400 bg-clip-text text-transparent">
                 I am GROOT
