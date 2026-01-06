@@ -19,6 +19,10 @@ import Signup from "@/pages/signup";
 import Profile from "@/pages/profile";
 import Help from "@/pages/help";
 import NocodeEditor from "./pages/no-code-editor";
+import CodingLearning from "@/pages/coding-learning";
+import CodingLearnTopic from "@/pages/coding-learn-topic";
+import CodeEditorPage from "@/pages/code-editor";
+import RoboticsHelper from "./pages/robotics-helper";
 import CodingPlayground from "@/pages/coding-playground";
 import Settings from "@/pages/settings";
 
@@ -33,7 +37,7 @@ function LoadingScreen() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
+function ProtectedRoute({ component: Component, useLayout = true }: { component: () => JSX.Element; useLayout?: boolean }) {
   const { isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -53,11 +57,15 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
     return <LoadingScreen />;
   }
 
-  return (
-    <AppLayout>
-      <Component />
-    </AppLayout>
-  );
+  if (useLayout) {
+    return (
+      <AppLayout>
+        <Component />
+      </AppLayout>
+    );
+  }
+
+  return <Component />;
 }
 
 function PublicOnlyRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -107,8 +115,16 @@ function Router() {
       <Route path="/no-code-editor">
         <ProtectedRoute component={NocodeEditor} />
       </Route>
+      <Route path="/robotics-helper">
+        <ProtectedRoute component={RoboticsHelper} />
       <Route path="/coding">
-        <ProtectedRoute component={CodingPlayground} />
+        <ProtectedRoute component={CodingLearning} />
+      </Route>
+      <Route path="/coding/learn/:topic">
+        <ProtectedRoute component={CodingLearnTopic} />
+      </Route>
+      <Route path="/code-editor">
+        <ProtectedRoute component={CodeEditorPage} />
       </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />

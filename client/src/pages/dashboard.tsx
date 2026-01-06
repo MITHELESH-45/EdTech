@@ -262,11 +262,11 @@ export default function Dashboard() {
                   hoverColorClass: "group-hover:text-chart-4"
                 },
                 {
-                  href: "/iot-simulation",
+                  href: "/robotics-helper",
                   icon: "/icons/wifi.png",
-                  iconAlt: "Wifi",
-                  title: "IoT Simulation",
-                  description: "Connect devices",
+                  iconAlt: "Robot",
+                  title: "Project GPT",
+                  description: "Get ideas for your projects",
                   hoverColorClass: "group-hover:text-chart-1"
                 },
                 {

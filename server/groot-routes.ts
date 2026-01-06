@@ -1,5 +1,20 @@
 import type { Express, Request, Response } from "express";
 
+// Global OpenAI configuration
+const OPENAI_API_BASE = "https://api.openai.com/v1";
+const OPENAI_CHAT_COMPLETIONS_URL = `${OPENAI_API_BASE}/chat/completions`;
+const OPENAI_IMAGE_GENERATIONS_URL = `${OPENAI_API_BASE}/images/generations`;
+
+// Model configuration with per-route fallbacks
+// Chat with GROOT
+const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-3.5-turbo";
+// Vision / image analysis
+const VISION_MODEL = process.env.OPENAI_VISION_MODEL || "gpt-4o";
+// Image generation
+const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
+// Structured project analysis (can be overridden separately)
+const PROJECT_MODEL = process.env.OPENAI_PROJECT_MODEL || CHAT_MODEL;
+
 const GROOT_SYSTEM_PROMPT = `You are GROOT, the AI learning assistant for the E-GROOTS platform.
 
 You help students learn:
@@ -47,14 +62,14 @@ export function registerGrootRoutes(app: Express): void {
       }
 
       // Call OpenAI API
-      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      const openaiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-3.5-turbo",
+          model: CHAT_MODEL,
           messages: [
             {
               role: "system",
@@ -141,18 +156,15 @@ export function registerGrootRoutes(app: Express): void {
       // Extract base64 data (remove data:image/...;base64, prefix if present)
       const base64Image = image.includes(",") ? image.split(",")[1] : image;
 
-      // Use gpt-4o if available, fallback to gpt-4-vision-preview
-      const visionModel = process.env.OPENAI_VISION_MODEL || "gpt-4o";
-
       // Call OpenAI Vision API (using gpt-4o or gpt-4-vision-preview)
-      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      const openaiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: visionModel,
+          model: VISION_MODEL,
           messages: [
             {
               role: "system",
@@ -250,14 +262,14 @@ export function registerGrootRoutes(app: Express): void {
       const enhancedPrompt = `Educational illustration: ${prompt}. Style: clean, technical, educational diagram or schematic style suitable for electronics learning.`;
 
       // Call OpenAI DALL-E API
-      const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
+      const openaiResponse = await fetch(OPENAI_IMAGE_GENERATIONS_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "dall-e-3",
+          model: IMAGE_MODEL,
           prompt: enhancedPrompt,
           n: 1,
           size: "1024x1024",
@@ -321,12 +333,24 @@ export function registerGrootRoutes(app: Express): void {
       if (!text || typeof text !== "string" || text.trim().length === 0) {
         return res.status(400).json({
           error: "Text is required",
+  // POST /api/groot/analyze-project - Analyze robotics/IoT project and return structured data
+  // ==========================================================================
+  app.post("/api/groot/analyze-project", async (req: Request, res: Response) => {
+    try {
+      const { description } = req.body;
+
+      if (!description || typeof description !== "string" || description.trim().length === 0) {
+        return res.status(400).json({
+          error: "Project description is required",
         });
       }
 
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
         console.error("[GROOT] OPENAI_API_KEY not found for TTS");
+
+      if (!apiKey) {
+        console.error("[GROOT] OPENAI_API_KEY not found in environment variables");
         return res.status(500).json({
           error: "AI service is not configured. Please contact support.",
         });
@@ -372,5 +396,118 @@ export function registerGrootRoutes(app: Express): void {
       });
     }
   });
+      const ROBOTICS_SYSTEM_PROMPT = `You are a Robotics and IoT expert assistant. Your task is to analyze project descriptions and provide structured JSON responses.
+
+You must respond ONLY with valid JSON in this exact format:
+{
+  "resources": [
+    {
+      "name": "Component Name",
+      "description": "Detailed description of what this component is and how it's used in the project"
+    }
+  ],
+  "steps": [
+    {
+      "instruction": "Main step instruction",
+      "subSteps": ["Optional sub-step 1", "Optional sub-step 2"]
+    }
+  ],
+  "code": "Complete, ready-to-use code for the project (Arduino/ESP8266/C++ format)"
 }
 
+Rules:
+- Be specific and technical
+- Provide all necessary components with clear descriptions
+- Break down steps logically
+- Include complete, working code
+- Use proper formatting and comments in code
+- Focus on robotics, IoT, embedded systems, and electronics
+- Ensure code is production-ready and well-commented`;
+
+      // Call OpenAI API
+      const openaiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: PROJECT_MODEL,
+          messages: [
+            {
+              role: "system",
+              content: ROBOTICS_SYSTEM_PROMPT,
+            },
+            {
+              role: "user",
+              content: `Analyze this robotics/IoT project and provide the required components, step-by-step instructions, and complete embedded C code:\n\n${description.trim()}`,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (!openaiResponse.ok) {
+        const errorData = await openaiResponse.json().catch(() => ({}));
+        console.error("[GROOT] OpenAI API error:", {
+          status: openaiResponse.status,
+          statusText: openaiResponse.statusText,
+          error: errorData,
+        });
+        
+        if (openaiResponse.status === 401) {
+          return res.status(500).json({
+            error: "AI service authentication failed. Please check API key configuration.",
+          });
+        } else if (openaiResponse.status === 429) {
+          return res.status(500).json({
+            error: "AI service rate limit exceeded. Please try again later.",
+          });
+        } else {
+          return res.status(500).json({
+            error: `Failed to analyze project: ${errorData.error?.message || openaiResponse.statusText}`,
+          });
+        }
+      }
+
+      const data = await openaiResponse.json();
+      const assistantMessage = data.choices?.[0]?.message?.content;
+
+      if (!assistantMessage) {
+        console.error("[GROOT] Invalid response structure:", data);
+        return res.status(500).json({
+          error: "Invalid response from AI service",
+        });
+      }
+
+      // Parse JSON response
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(assistantMessage);
+      } catch (parseError) {
+        console.error("[GROOT] Failed to parse JSON response:", parseError);
+        return res.status(500).json({
+          error: "Invalid JSON response from AI service",
+        });
+      }
+
+      // Validate response structure
+      if (!parsedResponse.resources || !parsedResponse.steps || !parsedResponse.code) {
+        console.error("[GROOT] Invalid response structure:", parsedResponse);
+        return res.status(500).json({
+          error: "Invalid response format from AI service",
+        });
+      }
+
+      console.log("[GROOT] Successfully analyzed project");
+      res.json(parsedResponse);
+    } catch (error: any) {
+      console.error("[GROOT] Error processing project analysis request:", error);
+      res.status(500).json({
+        error: "An error occurred while analyzing your project",
+      });
+    }
+  });
+}
