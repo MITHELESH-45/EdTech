@@ -193,12 +193,93 @@ export default function ElectronicSimulation() {
     []
   );
 
+  // Helper function to check if two wires are duplicates
+  const areWiresDuplicate = useCallback((w1: ExtendedWire, w2: ExtendedWire): boolean => {
+    // Both wires must have terminals to be considered duplicates
+    if (!w1.startTerminal || !w1.endTerminal || !w2.startTerminal || !w2.endTerminal) {
+      return false;
+    }
+    
+    const sameDirection = 
+      w1.startTerminal.componentId === w2.startTerminal.componentId &&
+      w1.startTerminal.terminalId === w2.startTerminal.terminalId &&
+      w1.endTerminal.componentId === w2.endTerminal.componentId &&
+      w1.endTerminal.terminalId === w2.endTerminal.terminalId;
+    
+    const reversed = 
+      w1.startTerminal.componentId === w2.endTerminal.componentId &&
+      w1.startTerminal.terminalId === w2.endTerminal.terminalId &&
+      w1.endTerminal.componentId === w2.startTerminal.componentId &&
+      w1.endTerminal.terminalId === w2.startTerminal.terminalId;
+    
+    return sameDirection || reversed;
+  }, []);
+
+  // Clean up duplicate wires - run once on mount and when component moves
+  const cleanupDuplicates = useCallback(() => {
+    setWires((prev) => {
+      const uniqueWires: ExtendedWire[] = [];
+      
+      for (const wire of prev) {
+        // Check if this wire is a duplicate of any wire we've already added
+        let isDuplicate = false;
+        for (const uniqueWire of uniqueWires) {
+          if (areWiresDuplicate(wire, uniqueWire)) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        
+        // Only add if not a duplicate
+        if (!isDuplicate) {
+          uniqueWires.push(wire);
+        }
+      }
+      
+      // Only update if duplicates were found
+      if (uniqueWires.length !== prev.length) {
+        return uniqueWires;
+      }
+      return prev;
+    });
+  }, [areWiresDuplicate]);
+
+  // Clean up duplicates on mount
+  useEffect(() => {
+    cleanupDuplicates();
+  }, []); // Only run on mount
+
   const handleAddWire = useCallback((wire: Omit<ExtendedWire, "id">) => {
-    const newWire: ExtendedWire = {
-      ...wire,
-      id: `wire-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    };
-    setWires((prev) => [...prev, newWire]);
+    // Check for duplicate wires (same start and end terminals)
+    setWires((prev) => {
+      // Check if a wire with the same terminals already exists
+      const isDuplicate = prev.some((w) => {
+        const sameStart = 
+          w.startTerminal?.componentId === wire.startTerminal?.componentId &&
+          w.startTerminal?.terminalId === wire.startTerminal?.terminalId;
+        const sameEnd = 
+          w.endTerminal?.componentId === wire.endTerminal?.componentId &&
+          w.endTerminal?.terminalId === wire.endTerminal?.terminalId;
+        const reversed = 
+          w.startTerminal?.componentId === wire.endTerminal?.componentId &&
+          w.startTerminal?.terminalId === wire.endTerminal?.terminalId &&
+          w.endTerminal?.componentId === wire.startTerminal?.componentId &&
+          w.endTerminal?.terminalId === wire.startTerminal?.terminalId;
+        
+        return (sameStart && sameEnd) || reversed;
+      });
+      
+      if (isDuplicate) {
+        // Wire already exists, don't add duplicate
+        return prev;
+      }
+      
+      const newWire: ExtendedWire = {
+        ...wire,
+        id: `wire-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      };
+      return [...prev, newWire];
+    });
     setIsDirty(true); // Mark as dirty
   }, []);
 
@@ -265,7 +346,7 @@ export default function ElectronicSimulation() {
 
       // Update wire endpoints connected to this moved component
       setWires((prevWires) => {
-        return prevWires.map((w) => {
+        const updatedWires = prevWires.map((w) => {
           let startX = w.startX;
           let startY = w.startY;
           let endX = w.endX;
@@ -303,6 +384,23 @@ export default function ElectronicSimulation() {
           }
           return w;
         });
+        
+        // Remove duplicates after updating wire positions
+        const uniqueWires: ExtendedWire[] = [];
+        for (const wire of updatedWires) {
+          let isDuplicate = false;
+          for (const uniqueWire of uniqueWires) {
+            if (areWiresDuplicate(wire, uniqueWire)) {
+              isDuplicate = true;
+              break;
+            }
+          }
+          if (!isDuplicate) {
+            uniqueWires.push(wire);
+          }
+        }
+        
+        return uniqueWires;
       });
 
       // Update component itself
@@ -311,7 +409,7 @@ export default function ElectronicSimulation() {
       );
     });
     setIsDirty(true); // Mark as dirty
-  }, []);
+  }, [areWiresDuplicate]);
 
   const handleDeleteSelectedWire = useCallback(() => {
     if (!selectedWireId) return;
