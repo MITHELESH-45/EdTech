@@ -685,7 +685,7 @@ export default function ArduinoCodeEditor() {
                     <>
                       <XCircle className="h-3 w-3 text-red-500" />
                       <Button
-                        variant="link"
+                        variant="outline"
                         size="sm"
                         className="h-auto p-0 text-xs"
                         onClick={installArduinoCore}

@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { Search, User, ChevronDown, Settings, LogOut, HelpCircle, Bot } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { User, ChevronDown, Settings, LogOut, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,8 +12,10 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
 import { GrootChatModal } from "@/components/groot/GrootChatModal";
+import { useState } from "react";
+import GrootSvg from "@/components/ui/groot";
 
-export function Header( { showSearch = true }: { showSearch?: boolean } ) {
+export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [grootOpen, setGrootOpen] = useState(false);
@@ -54,21 +54,7 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
           <span className="font-semibold text-lg tracking-tight">E-GROOTS</span>
         </Link>
 
-        {showSearch && (
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search courses..."
-                className="pl-9 bg-muted/50 border-transparent focus:border-border"
-                data-testid="input-search"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           {/* Ask GROOT Button - Only show when authenticated */}
           {isAuthenticated && (
             <Button
@@ -78,11 +64,10 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
               className="bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:scale-105 transition-transform"
               data-testid="button-ask-groot"
             >
-              <span className="mr-1.5 text-base">🌱</span>
+              <GrootSvg width={28} height={28} fill="#6B4F2A" className="mr-1.5" />
               <span className="font-medium">Ask GROOT</span>
             </Button>
           )}
-
           <Link href="/about">
             <Button variant="ghost" size="sm" data-testid="link-about">
               About
@@ -115,6 +100,7 @@ export function Header( { showSearch = true }: { showSearch?: boolean } ) {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
+                
                 <Link href="/profile">
                   <DropdownMenuItem data-testid="menu-item-profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />

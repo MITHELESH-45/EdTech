@@ -943,7 +943,7 @@ export default function ElectronicSimulation() {
   }, []);
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-full bg-background flex flex-col overflow-hidden">
       {/* Unsaved Changes Warning Dialog */}
       <UnsavedChangesDialog
         open={showUnsavedDialog}
@@ -1013,8 +1013,8 @@ export default function ElectronicSimulation() {
             />
           </div>
 
-          <div className="flex flex-shrink-0 h-full">
-            <div className="h-full overflow-y-auto scrollbar-hide">
+          <div className="flex flex-shrink-0 min-h-0">
+            <div className="h-full min-h-0 overflow-y-auto scrollbar-hide">
               <ControlPanel
                 isRunning={isRunning}
                 ledState={ledActive}
