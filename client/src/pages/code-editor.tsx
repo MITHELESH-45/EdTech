@@ -22,7 +22,7 @@ interface RunResponse {
   error?: string;
 }
 
-export default function CodingPlayground() {
+export default function CodeEditorPage() {
   const [language, setLanguage] = useState<CodingLanguage>("python");
   const [code, setCode] = useState<string>(
     languageOptions.find((l) => l.value === "python")?.template ?? "",
@@ -122,7 +122,7 @@ export default function CodingPlayground() {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Coding Playground</h1>
+          <h1 className="text-2xl font-bold">Code Editor</h1>
           <p className="text-sm text-muted-foreground">
             Run code in multiple languages, see errors instantly, and get help
             from Groot.
@@ -226,5 +226,4 @@ export default function CodingPlayground() {
     </div>
   );
 }
-
 
