@@ -19,6 +19,7 @@ import Signup from "@/pages/signup";
 import Profile from "@/pages/profile";
 import Help from "@/pages/help";
 import NocodeEditor from "./pages/no-code-editor";
+import RoboticsHelper from "./pages/robotics-helper";
 
 function LoadingScreen() {
   return (
@@ -31,7 +32,7 @@ function LoadingScreen() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
+function ProtectedRoute({ component: Component, useLayout = true }: { component: () => JSX.Element; useLayout?: boolean }) {
   const { isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -51,11 +52,15 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
     return <LoadingScreen />;
   }
 
-  return (
-    <AppLayout>
-      <Component />
-    </AppLayout>
-  );
+  if (useLayout) {
+    return (
+      <AppLayout>
+        <Component />
+      </AppLayout>
+    );
+  }
+
+  return <Component />;
 }
 
 function PublicOnlyRoute({ component: Component }: { component: () => JSX.Element }) {
@@ -104,6 +109,9 @@ function Router() {
       </Route>
       <Route path="/no-code-editor">
         <ProtectedRoute component={NocodeEditor} />
+      </Route>
+      <Route path="/robotics-helper">
+        <ProtectedRoute component={RoboticsHelper} />
       </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />
