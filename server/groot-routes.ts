@@ -310,5 +310,67 @@ export function registerGrootRoutes(app: Express): void {
       });
     }
   });
+
+  // ==========================================================================
+  // POST /api/groot/tts - Convert text to speech using OpenAI TTS
+  // ==========================================================================
+  app.post("/api/groot/tts", async (req: Request, res: Response) => {
+    try {
+      const { text } = req.body as { text?: string };
+
+      if (!text || typeof text !== "string" || text.trim().length === 0) {
+        return res.status(400).json({
+          error: "Text is required",
+        });
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        console.error("[GROOT] OPENAI_API_KEY not found for TTS");
+        return res.status(500).json({
+          error: "AI service is not configured. Please contact support.",
+        });
+      }
+
+      const ttsResponse = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+          voice: process.env.OPENAI_TTS_VOICE || "alloy",
+          input: text,
+        }),
+      });
+
+      if (!ttsResponse.ok) {
+        const errorData = await ttsResponse.json().catch(() => ({}));
+        console.error("[GROOT] OpenAI TTS API error:", {
+          status: ttsResponse.status,
+          statusText: ttsResponse.statusText,
+          error: errorData,
+        });
+        return res.status(500).json({
+          error:
+            (errorData as any)?.error?.message ||
+            `Failed to synthesize speech: ${ttsResponse.statusText}`,
+        });
+      }
+
+      const audioArrayBuffer = await ttsResponse.arrayBuffer();
+      const audioBuffer = Buffer.from(audioArrayBuffer);
+
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Length", audioBuffer.length.toString());
+      return res.send(audioBuffer);
+    } catch (error: any) {
+      console.error("[GROOT] Error processing TTS request:", error);
+      return res.status(500).json({
+        error: "An error occurred while generating speech",
+      });
+    }
+  });
 }
 

@@ -20,6 +20,7 @@ import Profile from "@/pages/profile";
 import Help from "@/pages/help";
 import NocodeEditor from "./pages/no-code-editor";
 import CodingPlayground from "@/pages/coding-playground";
+import Settings from "@/pages/settings";
 
 function LoadingScreen() {
   return (
@@ -114,6 +115,9 @@ function Router() {
       </Route>
       <Route path="/profile">
         <ProtectedRoute component={Profile} />
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute component={Settings} />
       </Route>
       <Route path="/help">
         <ProtectedRoute component={Help} />

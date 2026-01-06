@@ -105,10 +105,12 @@ export function Header() {
                     Profile
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem data-testid="menu-item-settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
+                <Link href="/settings">
+                  <DropdownMenuItem data-testid="menu-item-settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
                 <Link href="/help">
                   <DropdownMenuItem data-testid="menu-item-help" className="cursor-pointer">
                     <HelpCircle className="mr-2 h-4 w-4" />

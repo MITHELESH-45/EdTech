@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Send, Bot, User, Loader2, Image as ImageIcon, Upload, XCircle } from "lucide-react";
+import { X, Send, Bot, User, Loader2, Image as ImageIcon, Upload, XCircle, Volume2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,6 +40,8 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [speaking, setSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -195,6 +197,67 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
       ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    setSpeaking(false);
+  };
+
+  const speakLastAssistant = async () => {
+    if (speaking) {
+      stopSpeaking();
+      return;
+    }
+
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && m.content);
+    const text = lastAssistant?.content;
+    if (!text) return;
+
+    try {
+      setSpeaking(true);
+      const response = await fetch("/api/groot/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        console.error("TTS request failed");
+        setSpeaking(false);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        setSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => {
+        setSpeaking(false);
+        URL.revokeObjectURL(url);
+      };
+
+      await audio.play();
+    } catch (e) {
+      console.error("Error playing TTS audio", e);
+      setSpeaking(false);
     }
   };
 
@@ -418,9 +481,17 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
                     <Send className="h-4 w-4" />
                   )}
                 </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={speakLastAssistant}
+                  title={speaking ? "Stop speaking" : "Read latest reply"}
+                >
+                  {speaking ? <Square className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                Press Enter to send • ESC to close • Upload images or ask to generate images
+                Press Enter to send • ESC to close • Upload images or ask to generate images • Tap speaker to hear Groot
               </p>
             </div>
           </div>

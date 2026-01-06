@@ -5,9 +5,10 @@ import * as THREE from "three";
 
 interface GrootModelProps {
   scrollProgress: number;
+  onClick?: () => void;
 }
 
-function GrootModel({ scrollProgress }: GrootModelProps) {
+function GrootModel({ scrollProgress, onClick }: GrootModelProps) {
   const { scene } = useGLTF("/groot.glb");
   const groupRef = useRef<THREE.Group>(null);
   const eyeMeshesRef = useRef<THREE.Mesh[]>([]);
@@ -141,7 +142,7 @@ function GrootModel({ scrollProgress }: GrootModelProps) {
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} onClick={onClick}>
       <primitive
         object={cloned}
         scale={2.8}
@@ -159,6 +160,27 @@ interface GrootModelViewerProps {
 }
 
 export function GrootModelViewer({ scrollProgress }: GrootModelViewerProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Initialize audio element once
+    if (!audioRef.current) {
+      audioRef.current = new Audio("/grootvoice.mp3");
+    }
+  }, []);
+
+  const handleGrootClick = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    try {
+      audio.currentTime = 0;
+      void audio.play();
+    } catch {
+      // Ignore play errors (e.g., autoplay restrictions)
+    }
+  };
+
   return (
     <div className="h-screen w-full">
       <Canvas
@@ -172,7 +194,7 @@ export function GrootModelViewer({ scrollProgress }: GrootModelViewerProps) {
         <pointLight position={[0, 5, 5]} intensity={0.8} />
 
         <Suspense fallback={null}>
-          <GrootModel scrollProgress={scrollProgress} />
+          <GrootModel scrollProgress={scrollProgress} onClick={handleGrootClick} />
         </Suspense>
 
         <OrbitControls
