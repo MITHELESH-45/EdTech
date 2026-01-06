@@ -20,6 +20,7 @@ import Profile from "@/pages/profile";
 import Help from "@/pages/help";
 import NocodeEditor from "./pages/no-code-editor";
 import RoboticsHelper from "./pages/robotics-helper";
+import CodingPlayground from "@/pages/coding-playground";
 
 function LoadingScreen() {
   return (
@@ -112,6 +113,8 @@ function Router() {
       </Route>
       <Route path="/robotics-helper">
         <ProtectedRoute component={RoboticsHelper} />
+      <Route path="/coding">
+        <ProtectedRoute component={CodingPlayground} />
       </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />
