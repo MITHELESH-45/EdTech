@@ -270,11 +270,11 @@ export default function Dashboard() {
                   hoverColorClass: "group-hover:text-chart-1"
                 },
                 {
-                  href: "/no-code-editor",
+                  href: "/coding",
                   icon: "/icons/code.png",
                   iconAlt: "Code",
-                  title: "No-Code Editor",
-                  description: "Visual programming",
+                  title: "Coding Playground",
+                  description: "Run code with AI help",
                   hoverColorClass: "group-hover:text-chart-4"
                 },
                 {

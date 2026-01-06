@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { registerArduinoRoutes } from "./arduino-routes";
 import { registerGrootRoutes } from "./groot-routes";
+import { registerCodingRoutes } from "./coding-routes";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -72,6 +73,9 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch component" });
     }
   });
+
+  // Coding playground API (code runner)
+  registerCodingRoutes(app);
 
   return httpServer;
 }

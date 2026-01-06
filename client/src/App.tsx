@@ -19,6 +19,7 @@ import Signup from "@/pages/signup";
 import Profile from "@/pages/profile";
 import Help from "@/pages/help";
 import NocodeEditor from "./pages/no-code-editor";
+import CodingPlayground from "@/pages/coding-playground";
 
 function LoadingScreen() {
   return (
@@ -104,6 +105,9 @@ function Router() {
       </Route>
       <Route path="/no-code-editor">
         <ProtectedRoute component={NocodeEditor} />
+      </Route>
+      <Route path="/coding">
+        <ProtectedRoute component={CodingPlayground} />
       </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />
