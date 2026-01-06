@@ -222,93 +222,95 @@ export default function Dashboard() {
                   position: "absolute",
                   top: "30px",
                   left: "875px",
-                  // zIndex: 100,
+                  zIndex: 1,
+                  pointerEvents: "none",
                 }}
               />
 
             </motion.div>
             
-
-
             {/* Quick Access Tools */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-8 flex flex-wrap gap-4"
+              className="mt-8 max-w-2xl grid grid-cols-3 gap-4 relative z-10"
             >
-              <Link href="/electronic-simulation">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                >
-                  {/* ICON */}
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <img
-                      src="/icons/technology.png"
-                      alt="Technology"
-                      className="h-6 w-6"
-                    />
-                  </div>
-
-                  {/* TEXT */}
-                  <div>
-                    <div className="font-semibold text-foreground">
-                      Electronic Simulation
+              {[
+                {
+                  href: "/electronic-simulation",
+                  icon: "/icons/technology.png",
+                  iconAlt: "Technology",
+                  title: "Electronic Simulation",
+                  description: "Build circuits visually",
+                  hoverColorClass: "group-hover:text-primary"
+                },
+                {
+                  href: "/iot-simulation",
+                  icon: "/icons/wifi.png",
+                  iconAlt: "Wifi",
+                  title: "IoT Simulation",
+                  description: "Connect devices",
+                  hoverColorClass: "group-hover:text-chart-1"
+                },
+                {
+                  href: "/no-code-editor",
+                  icon: "/icons/code.png",
+                  iconAlt: "Code",
+                  title: "No-Code Editor",
+                  description: "Visual programming",
+                  hoverColorClass: "group-hover:text-chart-4"
+                },
+                {
+                  href: "/iot-simulation",
+                  icon: "/icons/wifi.png",
+                  iconAlt: "Wifi",
+                  title: "IoT Simulation",
+                  description: "Connect devices",
+                  hoverColorClass: "group-hover:text-chart-1"
+                },
+                {
+                  href: "/no-code-editor",
+                  icon: "/icons/code.png",
+                  iconAlt: "Code",
+                  title: "No-Code Editor",
+                  description: "Visual programming",
+                  hoverColorClass: "group-hover:text-chart-4"
+                },
+                {
+                  href: "/no-code-editor",
+                  icon: "/icons/code.png",
+                  iconAlt: "Code",
+                  title: "No-Code Editor",
+                  description: "Visual programming",
+                  hoverColorClass: "group-hover:text-chart-4"
+                }
+              ].map((tool, index) => (
+                <Link key={`${tool.href}-${index}`} href={tool.href}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <img
+                        src={tool.icon}
+                        alt={tool.iconAlt}
+                        className="h-6 w-6"
+                      />
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      Build circuits visually
+                    <div>
+                      <div className="font-semibold text-foreground">
+                        {tool.title}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {tool.description}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* ARROW */}
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                </motion.div>
-              </Link>
-
-
-              <Link href="/iot-simulation">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <img
-                      src="/icons/wifi.png"
-                      alt="Wifi"
-                      className="h-6 w-6"
-                    />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">IoT Simulation</div>
-                    <div className="text-xs text-muted-foreground">Connect devices</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-chart-1 group-hover:translate-x-1 transition-all" />
-                </motion.div>
-              </Link>
-
-              <Link href="/no-code-editor">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <img
-                      src="/icons/code.png"
-                      alt="Code"
-                      className="h-6 w-6"
-                    />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">No-Code Editor</div>
-                    <div className="text-xs text-muted-foreground">Visual programming</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-chart-4 group-hover:translate-x-1 transition-all" />
-                </motion.div>
-              </Link>
+                    <ArrowRight className={`h-4 w-4 text-muted-foreground ${tool.hoverColorClass} group-hover:translate-x-1 transition-all`} />
+                  </motion.div>
+                </Link>
+              ))}
             </motion.div>
           </div>
         </div>
