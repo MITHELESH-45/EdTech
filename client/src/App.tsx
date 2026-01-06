@@ -23,7 +23,6 @@ import CodingLearning from "@/pages/coding-learning";
 import CodingLearnTopic from "@/pages/coding-learn-topic";
 import CodeEditorPage from "@/pages/code-editor";
 import RoboticsHelper from "./pages/robotics-helper";
-import CodingPlayground from "@/pages/coding-playground";
 
 function LoadingScreen() {
   return (
@@ -116,6 +115,7 @@ function Router() {
       </Route>
       <Route path="/robotics-helper">
         <ProtectedRoute component={RoboticsHelper} />
+      </Route>
       <Route path="/coding">
         <ProtectedRoute component={CodingLearning} />
       </Route>
