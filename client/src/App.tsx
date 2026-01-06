@@ -24,6 +24,7 @@ import CodingLearnTopic from "@/pages/coding-learn-topic";
 import CodeEditorPage from "@/pages/code-editor";
 import RoboticsHelper from "./pages/robotics-helper";
 import CodingPlayground from "@/pages/coding-playground";
+import Settings from "@/pages/settings";
 
 function LoadingScreen() {
   return (
@@ -130,6 +131,9 @@ function Router() {
       </Route>
       <Route path="/profile">
         <ProtectedRoute component={Profile} />
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute component={Settings} />
       </Route>
       <Route path="/help">
         <ProtectedRoute component={Help} />
