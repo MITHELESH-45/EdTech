@@ -212,19 +212,18 @@ export default function Dashboard() {
               className="max-w-2xl"
             >
               <DotLottieReact
-  src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
-  loop
-  autoplay
-  style={{
-    width: "350px",
-    height: "350px",
-    position: "absolute",
-    top: "30px",
-    left: "875px",
-    // left: "100px",
-    zIndex: 1000,
-  }}
-/>
+                src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
+                loop
+                autoplay
+                style={{
+                  width: "350px",
+                  height: "350px",
+                  position: "absolute",
+                  top: "30px",
+                  left: "875px",
+                  // zIndex: 100,
+                }}
+              />
 
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

@@ -146,7 +146,7 @@ function GrootModel({ scrollProgress }: GrootModelProps) {
         object={cloned}
         scale={2.8}
         position={[0, -1.6, 0]}
-        rotation={[0, Math.PI / 6, 0]}
+        rotation={[0, -1, 0]}
       />
     </group>
   );
@@ -162,7 +162,7 @@ export function GrootModelViewer({ scrollProgress }: GrootModelViewerProps) {
   return (
     <div className="h-screen w-full">
       <Canvas
-        camera={{ position: [0, 1.8, 7], fov: 45 }}
+        camera={{ position: [0, 1.8, 6], fov: 50 }}
         gl={{ preserveDrawingBuffer: true }}
       >
         {/* Lighting */}

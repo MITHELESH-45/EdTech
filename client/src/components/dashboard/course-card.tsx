@@ -37,6 +37,7 @@ export function CourseCard({ course }: CourseCardProps) {
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
+      className="h-full"
     >
       <Card
         className={cn(

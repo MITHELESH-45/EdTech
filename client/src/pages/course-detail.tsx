@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
 import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +43,6 @@ const difficultyConfig: Record<Difficulty, { label: string; className: string }>
 function CourseDetailSkeleton() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
       <div className="flex flex-1">
         <ToolSidebar />
         <main className="flex-1 overflow-auto">
@@ -173,7 +171,6 @@ export default function CourseDetail() {
   if (error || !course) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Header />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -196,8 +193,6 @@ export default function CourseDetail() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
       <div className="flex flex-1">
         <ToolSidebar />
 
