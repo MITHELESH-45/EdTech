@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Send, Bot, User, Loader2 } from "lucide-react";
+import { X, Send, Bot, User, Loader2, Image as ImageIcon, Upload, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,9 @@ import GrootSvg from "@/components/ui/groot";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
+  imageBase64?: string;
+  isGenerated?: boolean;
 }
 
 interface GrootChatModalProps {
@@ -32,8 +35,11 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -63,21 +69,89 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
     return () => window.removeEventListener("keydown", handleEsc);
   }, [open, onOpenChange]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file");
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image size must be less than 10MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setUploadedImage(base64);
+      setImagePreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setUploadedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && !uploadedImage) || loading) return;
 
     const userMessage = input.trim();
+    const userImage = uploadedImage;
+    
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setUploadedImage(null);
+    setImagePreview(null);
+    
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: userMessage || "Analyze this image",
+        imageBase64: userImage || undefined,
+      },
+    ]);
     setLoading(true);
 
     try {
-      const response = await fetch("/api/groot/chat", {
+      // Determine which endpoint to use
+      let endpoint = "/api/groot/chat";
+      let body: any = { message: userMessage || "What do you see in this image?" };
+
+      // If image is uploaded, use image analysis endpoint
+      if (userImage) {
+        endpoint = "/api/groot/analyze-image";
+        body = {
+          message: userMessage || "Analyze this image and explain what you see. Focus on any electronics components, circuits, or IoT devices.",
+          image: userImage,
+        };
+      } else if (userMessage && (
+                 userMessage.toLowerCase().includes("generate") || 
+                 userMessage.toLowerCase().includes("create") || 
+                 userMessage.toLowerCase().includes("draw") ||
+                 userMessage.toLowerCase().includes("make an image") ||
+                 userMessage.toLowerCase().includes("show me") ||
+                 userMessage.toLowerCase().startsWith("image of"))) {
+        // If user wants to generate an image, use image generation endpoint
+        endpoint = "/api/groot/generate-image";
+        body = { prompt: userMessage };
+      }
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -86,14 +160,26 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
       }
 
       const data = await response.json();
-      if (!data.response) {
+      
+      // Handle image generation response
+      if (data.imageUrl) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.response || "Here's the image I generated for you!",
+            imageUrl: data.imageUrl,
+            isGenerated: true,
+          },
+        ]);
+      } else if (data.response) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: data.response },
+        ]);
+      } else {
         throw new Error("Invalid response format from server");
       }
-      
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.response },
-      ]);
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage = error instanceof Error 
@@ -221,9 +307,30 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
                         whileHover={{ scale: 1.02 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {message.content}
-                        </p>
+                        {/* Display image if present */}
+                        {message.imageUrl && (
+                          <div className="mb-3 rounded-lg overflow-hidden">
+                            <img
+                              src={message.imageUrl}
+                              alt="Generated by GROOT"
+                              className="max-w-full h-auto rounded-lg"
+                            />
+                          </div>
+                        )}
+                        {message.imageBase64 && (
+                          <div className="mb-3 rounded-lg overflow-hidden">
+                            <img
+                              src={message.imageBase64}
+                              alt="Uploaded image"
+                              className="max-w-full h-auto rounded-lg max-h-64 object-contain"
+                            />
+                          </div>
+                        )}
+                        {message.content && (
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                            {message.content}
+                          </p>
+                        )}
                       </motion.div>
                       {message.role === "user" && (
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -253,7 +360,43 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
 
             {/* Input Area */}
             <div className="border-t border-border p-4 bg-gradient-to-t from-muted/50 to-background">
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="mb-3 relative inline-block">
+                  <div className="relative rounded-lg overflow-hidden border-2 border-emerald-500">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="max-w-xs max-h-32 object-contain"
+                    />
+                    <button
+                      onClick={removeImage}
+                      className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading}
+                  variant="outline"
+                  size="icon"
+                  className="flex-shrink-0"
+                  title="Upload image"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
                 <Input
                   ref={inputRef}
                   value={input}
@@ -265,7 +408,7 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
                 />
                 <Button
                   onClick={sendMessage}
-                  disabled={!input.trim() || loading}
+                  disabled={(!input.trim() && !uploadedImage) || loading}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg transition-all"
                   size="icon"
                 >
@@ -277,7 +420,7 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                Press Enter to send • ESC to close
+                Press Enter to send • ESC to close • Upload images or ask to generate images
               </p>
             </div>
           </div>

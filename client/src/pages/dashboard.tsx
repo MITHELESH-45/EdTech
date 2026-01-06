@@ -63,7 +63,8 @@ function StatCard({
       transition={{ duration: 0.5, delay }}
     >
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-lg transition-all duration-300 hover:scale-105">
-        <CardContent className="p-6">
+      <CardContent className="px-2 py-1 pz-0">
+
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
               <Icon className="h-6 w-6 text-white" />
@@ -225,16 +226,6 @@ export default function Dashboard() {
                 }}
               />
 
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search courses by name, description, or difficulty..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-14 text-base bg-card/80 backdrop-blur-sm border-border/50 focus:border-primary shadow-lg"
-                />
-              </div>
             </motion.div>
             
 
@@ -252,16 +243,30 @@ export default function Dashboard() {
                   whileTap={{ scale: 0.95 }}
                   className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
                 >
+                  {/* ICON */}
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <Cpu className="h-5 w-5 text-primary" />
+                    <img
+                      src="/icons/technology.png"
+                      alt="Technology"
+                      className="h-6 w-6"
+                    />
                   </div>
+
+                  {/* TEXT */}
                   <div>
-                    <div className="font-semibold text-foreground">Electronic Simulation</div>
-                    <div className="text-xs text-muted-foreground">Build circuits visually</div>
+                    <div className="font-semibold text-foreground">
+                      Electronic Simulation
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Build circuits visually
+                    </div>
                   </div>
+
+                  {/* ARROW */}
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </motion.div>
               </Link>
+
 
               <Link href="/iot-simulation">
                 <motion.div
@@ -269,8 +274,12 @@ export default function Dashboard() {
                   whileTap={{ scale: 0.95 }}
                   className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-chart-1/10 flex items-center justify-center group-hover:bg-chart-1/20 transition-colors">
-                    <Wifi className="h-5 w-5 text-chart-1" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <img
+                      src="/icons/wifi.png"
+                      alt="Wifi"
+                      className="h-6 w-6"
+                    />
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">IoT Simulation</div>
@@ -286,8 +295,12 @@ export default function Dashboard() {
                   whileTap={{ scale: 0.95 }}
                   className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-chart-4/10 flex items-center justify-center group-hover:bg-chart-4/20 transition-colors">
-                    <Code className="h-5 w-5 text-chart-4" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <img
+                      src="/icons/code.png"
+                      alt="Code"
+                      className="h-6 w-6"
+                    />
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">No-Code Editor</div>
@@ -329,38 +342,10 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <Card className="border-border/50 bg-card/50 backdrop-blur-sm h-full">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-chart-5/10 flex items-center justify-center">
-                      <BarChart3 className="h-6 w-6 text-chart-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground">By Difficulty</div>
-                    </div>
-                  </div>
-                  <div className="h-32">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={coursesByDifficulty}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={20}
-                          outerRadius={40}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {coursesByDifficulty.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+              
+                  
+                 
+               
             </motion.div>
           </div>
 
@@ -375,6 +360,25 @@ export default function Dashboard() {
               <p className="text-destructive">Failed to load courses. Please try again.</p>
             </motion.div>
           )}
+
+          {/* Search Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-8"
+          >
+            <div className="relative max-w-2xl">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search courses by name, description, or difficulty..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-14 text-base bg-card/80 backdrop-blur-sm border-border/50 focus:border-primary shadow-lg"
+              />
+            </div>
+          </motion.div>
 
           {/* Continue Learning Section */}
           {!isLoading && inProgressCourses.length > 0 && (
