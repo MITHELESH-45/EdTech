@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,8 +54,6 @@ export default function Profile() {
 
   return (
     <div className="flex flex-1">
-        <ToolSidebar />
-
         <main className="flex-1 overflow-auto bg-gradient-to-br from-background via-background to-muted/20">
           <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
             {/* Header */}

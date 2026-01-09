@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { CareerPathways } from "@/components/career/career-pathways";
 import { SkillsMatrix } from "@/components/career/skills-matrix";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +82,6 @@ export default function CareerPage() {
   if (!user) {
     return (
       <div className="flex flex-1">
-        <ToolSidebar />
         <main className="flex-1 overflow-auto flex items-center justify-center">
           <Card className="max-w-md">
             <CardHeader>
@@ -98,7 +96,6 @@ export default function CareerPage() {
 
   return (
     <div className="flex flex-1">
-      <ToolSidebar />
       <main className="flex-1 overflow-auto bg-gradient-to-br from-background via-background to-muted/20">
         <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
           {/* Header */}
@@ -215,7 +212,7 @@ export default function CareerPage() {
                 <CardContent>
                   {userCareer?.achievements && userCareer.achievements.length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {userCareer.achievements.map((achievement) => (
+                      {userCareer.achievements.map((achievement: any) => (
                         <Card key={achievement.id} className="border-border/50">
                           <CardContent className="pt-6">
                             <div className="text-4xl mb-2">{achievement.icon}</div>

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,8 +57,6 @@ export default function Help() {
 
   return (
     <div className="flex flex-1">
-        <ToolSidebar />
-
         <main className="flex-1 overflow-auto bg-gradient-to-br from-background via-background to-muted/20">
           <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
             {/* Header */}

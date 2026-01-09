@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -47,7 +46,6 @@ function CourseDetailSkeleton() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1">
-        <ToolSidebar />
         <main className="flex-1 overflow-auto">
           <div className="border-b border-border bg-card">
             <div className="max-w-4xl mx-auto px-6 py-6">
@@ -288,7 +286,6 @@ export default function CourseDetail() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1">
-        <ToolSidebar />
 
         <main className="flex-1 overflow-auto">
           <div className="border-b border-border bg-card">

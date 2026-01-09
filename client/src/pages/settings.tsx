@@ -1,4 +1,3 @@
-import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -13,8 +12,6 @@ export default function Settings() {
 
   return (
     <div className="flex flex-1">
-      <ToolSidebar />
-
       <main className="flex-1 overflow-auto bg-gradient-to-br from-background via-background to-muted/20">
         <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
           {/* Header */}
