@@ -6,8 +6,10 @@
  */
 
 import { MongoClient, Db, ServerApiVersion } from "mongodb";
+import dotenv from "dotenv";
+dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://tridev:Edtech12@info-edtech.05d39mj.mongodb.net/?appName=info-edtech";
+const MONGODB_URI = process.env.MONGODB_URI;
 const DB_NAME = "users";
 const COLLECTION_NAME = "login";
 
@@ -25,7 +27,7 @@ export async function connectToMongoDB(): Promise<Db> {
   try {
     if (!client) {
       // Create a MongoClient with a MongoClientOptions object to set the Stable API version
-      client = new MongoClient(MONGODB_URI, {
+      client = new MongoClient(MONGODB_URI || "", {
         serverApi: {
           version: ServerApiVersion.v1,
           strict: true,
@@ -58,7 +60,7 @@ export async function connectToMongoDB(): Promise<Db> {
     return db;
   } catch (error: any) {
     console.error("[MongoDB] Connection error:", error);
-    console.error("[MongoDB] Connection string:", MONGODB_URI.replace(/:[^:@]+@/, ":****@"));
+    console.error("[MongoDB] Connection string:", MONGODB_URI?.replace(/:[^:@]+@/, ":****@"));
     
     // Reset client on error
     client = null;
