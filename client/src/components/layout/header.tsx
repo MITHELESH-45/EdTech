@@ -22,7 +22,7 @@ export function Header() {
 
   const handleLogout = () => {
     logout();
-    setLocation("/login");
+    setLocation("/about");
   };
 
   const initials = user?.name
