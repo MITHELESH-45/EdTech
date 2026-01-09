@@ -5,6 +5,8 @@ import { useSensorStore } from './store';
 export const Header: React.FC = () => {
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const isSimulating = useSensorStore(state => state.isSimulating);
+  const mqttConnected = useSensorStore(state => state.mqttConnected);
+  const sensorStatus = useSensorStore(state => state.sensorStatus);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,6 +29,33 @@ export const Header: React.FC = () => {
         </div>
       </div>
       <div className="flex items-center gap-6">
+        {/* MQTT Connection Status */}
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+          mqttConnected 
+            ? 'bg-emerald-500/10 border-emerald-500/20' 
+            : 'bg-red-500/10 border-red-500/20'
+        }`}>
+          <div className={`w-2 h-2 rounded-full ${mqttConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className={`text-xs font-medium ${mqttConnected ? 'text-emerald-500' : 'text-red-500'}`}>
+            {mqttConnected ? '✅ Connected to MQTT' : '❌ MQTT Error'}
+          </span>
+        </div>
+
+        {/* Sensor Status */}
+        {sensorStatus && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+            sensorStatus === 'OK'
+              ? 'bg-emerald-500/10 border-emerald-500/20' 
+              : 'bg-red-500/10 border-red-500/20'
+          }`}>
+            <span className={`text-xs font-medium ${
+              sensorStatus === 'OK' ? 'text-emerald-500' : 'text-red-500'
+            }`}>
+              {sensorStatus === 'OK' ? 'SENSOR OK' : 'SENSOR FAIL'}
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <div className={`w-2 h-2 rounded-full ${isSimulating ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
           <span className="text-xs font-medium text-emerald-500">
@@ -39,7 +68,7 @@ export const Header: React.FC = () => {
           <span className="text-sm font-mono">{time}</span>
         </div>
         
-        <Wifi className="w-5 h-5 text-blue-500" />
+        <Wifi className={`w-5 h-5 ${mqttConnected ? 'text-emerald-500' : 'text-red-500'}`} />
       </div>
     </header>
   );

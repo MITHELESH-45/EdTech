@@ -8,16 +8,19 @@ import { useSensorStore } from '../components/iot-simulation/store';
 
 export default function IoTSimulatorPage() {
   const updateSensorValues = useSensorStore(state => state.updateSensorValues);
-  const updateTemperatureFromMQTT = useSensorStore(state => state.updateTemperatureFromMQTT);
-  const updateUltrasonicDistanceFromMQTT = useSensorStore(state => state.updateUltrasonicDistanceFromMQTT);
+  const updateAllSensorsFromMQTT = useSensorStore(state => state.updateAllSensorsFromMQTT);
+  const setMqttConnected = useSensorStore(state => state.setMqttConnected);
+  const setSensorStatus = useSensorStore(state => state.setSensorStatus);
 
   useEffect(() => {
-    // MQTT Connection for Temperature and Ultrasonic Distance Sensors
+    // MQTT Connection Configuration
     const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
+    const topic = "esp32/multisensor/data";
+    
     const options = {
       clientId: "webclient_" + Math.random().toString(16).substr(2, 8),
       clean: true,
-      connectTimeout: 5000,
+      connectTimeout: 4000,
       reconnectPeriod: 1000
     };
 
@@ -25,40 +28,47 @@ export default function IoTSimulatorPage() {
 
     client.on("connect", function() {
       console.log("MQTT Connected");
-      // Subscribe only to esp32/dht/temperature (same topic provides both temperature and distance)
-      client.subscribe("esp32/dht/temperature");
+      setMqttConnected(true);
+      client.subscribe(topic);
     });
 
     client.on("message", function(topic, message) {
       try {
         const data = JSON.parse(message.toString());
-        console.log(data);
+        console.log("MQTT Data:", data);
 
-        // Handle both temperature and distance from the same message (like HTML code)
-        if (data.status === "fail") {
-          // Sensor read failed - don't update values
-          return;
-        }
-
-        // Update temperature if present
-        if (data.temperature !== undefined && typeof data.temperature === 'number') {
-          updateTemperatureFromMQTT(data.temperature);
-        }
-
-        // Update distance if present
-        if (data.distance_cm !== undefined && typeof data.distance_cm === 'number') {
-          updateUltrasonicDistanceFromMQTT(data.distance_cm);
-        }
+        // Update all sensors from MQTT payload
+        updateAllSensorsFromMQTT({
+          status: data.status,
+          temperature: data.temperature,
+          humidity: data.humidity,
+          distance_cm: data.distance_cm,
+          touch_count: data.touch_count,
+          servo_angle: data.servo_angle,
+          ir_sensor: data.ir_sensor,
+          ldr: data.ldr
+        });
       } catch (error) {
         console.error("Error parsing MQTT message:", error);
       }
     });
 
     client.on("error", function(error) {
-      console.log("MQTT Error:", error);
+      console.error("MQTT Error:", error);
+      setMqttConnected(false);
     });
 
-    // Update other sensors (not Temperature, not Ultrasonic Distance) every second
+    client.on("offline", function() {
+      console.log("MQTT Offline");
+      setMqttConnected(false);
+    });
+
+    client.on("reconnect", function() {
+      console.log("MQTT Reconnecting...");
+      setMqttConnected(false);
+    });
+
+    // Update sensors that don't have MQTT data (fallback simulation)
     const interval = setInterval(() => {
       updateSensorValues();
     }, 1000);
@@ -66,8 +76,10 @@ export default function IoTSimulatorPage() {
     return () => {
       client.end();
       clearInterval(interval);
+      setMqttConnected(false);
+      setSensorStatus(null);
     };
-  }, [updateSensorValues, updateTemperatureFromMQTT, updateUltrasonicDistanceFromMQTT]);
+  }, [updateSensorValues, updateAllSensorsFromMQTT, setMqttConnected, setSensorStatus]);
 
   return (
     <DashboardLayout>
