@@ -6,8 +6,9 @@ import { Info, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const SensorDetailsPanel: React.FC = () => {
-  const { sensors, selectedSensorId } = useSensorStore();
+  const { sensors, selectedSensorId, sensorStatus } = useSensorStore();
   const sensor = sensors.find(s => s.id === selectedSensorId);
+  const isSensorOK = sensorStatus === 'OK';
 
   if (!sensor) return null;
 
@@ -33,15 +34,19 @@ export const SensorDetailsPanel: React.FC = () => {
             <div className="p-4 rounded-xl bg-card border border-border">
               <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Temperature</div>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-foreground">{sensor.value}</span>
-                <span className="text-sm text-muted-foreground">{sensor.unit}</span>
+                <span className="text-3xl font-bold text-foreground">
+                  {isSensorOK ? sensor.value : '----'}
+                </span>
+                {isSensorOK && <span className="text-sm text-muted-foreground">{sensor.unit}</span>}
               </div>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Humidity</div>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-foreground">{sensor.secondaryValue ?? '--'}</span>
-                <span className="text-sm text-muted-foreground">{sensor.secondaryUnit}</span>
+                <span className="text-3xl font-bold text-foreground">
+                  {isSensorOK ? (sensor.secondaryValue ?? '--') : '----'}
+                </span>
+                {isSensorOK && <span className="text-sm text-muted-foreground">{sensor.secondaryUnit}</span>}
               </div>
             </div>
           </>
@@ -50,10 +55,12 @@ export const SensorDetailsPanel: React.FC = () => {
             <div className="p-4 rounded-xl bg-card border border-border">
               <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Current Value</div>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-foreground">{sensor.value}</span>
-                <span className="text-sm text-muted-foreground">{sensor.unit}</span>
+                <span className="text-3xl font-bold text-foreground">
+                  {isSensorOK ? sensor.value : '----'}
+                </span>
+                {isSensorOK && <span className="text-sm text-muted-foreground">{sensor.unit}</span>}
               </div>
-              {sensor.type === 'IR Sensor' && (
+              {isSensorOK && sensor.type === 'IR Sensor' && (
                 <div className="mt-2">
                   <div className={cn(
                     "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium",
@@ -67,12 +74,12 @@ export const SensorDetailsPanel: React.FC = () => {
                   </div>
                 </div>
               )}
-              {sensor.type === 'Touch Sensor' && (
+              {isSensorOK && sensor.type === 'Touch Sensor' && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   Touch count: {sensor.value}
                 </div>
               )}
-              {sensor.type === 'Servo Motor' && (
+              {isSensorOK && sensor.type === 'Servo Motor' && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   Current angle: {sensor.value}°
                 </div>
