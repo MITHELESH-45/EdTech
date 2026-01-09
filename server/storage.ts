@@ -175,289 +175,21 @@ const mockComponents: ElectronicComponent[] = [
   { id: "breadboard", name: "Breadboard", category: "structure", icon: "breadboard", description: "Solderless breadboard for prototyping" },
   { id: "jumper-wire", name: "Jumper Wire", category: "structure", icon: "wire", description: "Connecting wire for circuits" }
 ];
-
-export interface Testcase {
-  input: string;
-  expectedOutput: string;
-}
-
-export interface CodingQuestion {
-  id: string;
-  component: 'conditionals' | 'loops' | 'arrays' | 'strings' | 'functions';
-  title: string;
-  description: string;
-  testcases: Testcase[];
-}
-
-export interface CodingComponent {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-}
-
-const mockCodingComponents: CodingComponent[] = [
-  { id: "conditionals", name: "Conditionals", description: "Learn how to make decisions in your code using if-else statements", icon: "if" },
-  { id: "loops", name: "Loops", description: "Master repetition and iteration to execute code multiple times efficiently", icon: "loop" },
-  { id: "arrays", name: "Arrays", description: "Work with collections of data using arrays and lists", icon: "array" },
-  { id: "strings", name: "Strings", description: "Manipulate and work with text data using string operations", icon: "string" },
-  { id: "functions", name: "Functions", description: "Create reusable code blocks with functions and methods", icon: "function" },
-];
-
-const mockQuestions: CodingQuestion[] = [
-  // Conditionals - 3 questions
-  {
-    id: "cond-1",
-    component: "conditionals",
-    title: "Check Even or Odd",
-    description: "Write a program to check if a number is even or odd. If the number is even, print 'Even', otherwise print 'Odd'.",
-    testcases: [
-      { input: "6", expectedOutput: "Even" },
-      { input: "7", expectedOutput: "Odd" },
-      { input: "0", expectedOutput: "Even" },
-      { input: "15", expectedOutput: "Odd" },
-      { input: "100", expectedOutput: "Even" },
-      { input: "1", expectedOutput: "Odd" },
-    ],
-  },
-  {
-    id: "cond-2",
-    component: "conditionals",
-    title: "Find Largest of Two Numbers",
-    description: "Find the largest of two numbers. Read two integers and print the larger one.",
-    testcases: [
-      { input: "15\n23", expectedOutput: "23" },
-      { input: "42\n17", expectedOutput: "42" },
-      { input: "10\n10", expectedOutput: "10" },
-      { input: "99\n1", expectedOutput: "99" },
-      { input: "5\n8", expectedOutput: "8" },
-      { input: "100\n50", expectedOutput: "100" },
-    ],
-  },
-  {
-    id: "cond-3",
-    component: "conditionals",
-    title: "Determine Grade",
-    description: "Determine the grade based on score. If score >= 90, print 'A'; if score >= 80, print 'B'; if score >= 70, print 'C'; otherwise print 'F'.",
-    testcases: [
-      { input: "85", expectedOutput: "B" },
-      { input: "95", expectedOutput: "A" },
-      { input: "75", expectedOutput: "C" },
-      { input: "65", expectedOutput: "F" },
-      { input: "90", expectedOutput: "A" },
-      { input: "80", expectedOutput: "B" },
-    ],
-  },
-  // Loops - 3 questions
-  {
-    id: "loop-1",
-    component: "loops",
-    title: "Print Numbers 1 to N",
-    description: "Print all numbers from 1 to N. Read an integer N and print numbers from 1 to N, each on a new line.",
-    testcases: [
-      { input: "5", expectedOutput: "1\n2\n3\n4\n5" },
-      { input: "3", expectedOutput: "1\n2\n3" },
-      { input: "10", expectedOutput: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10" },
-      { input: "1", expectedOutput: "1" },
-      { input: "7", expectedOutput: "1\n2\n3\n4\n5\n6\n7" },
-      { input: "15", expectedOutput: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15" },
-    ],
-  },
-  {
-    id: "loop-2",
-    component: "loops",
-    title: "Multiplication Table",
-    description: "Print the multiplication table of a number. Read a number and print its multiplication table from 1 to 10.",
-    testcases: [
-      { input: "7", expectedOutput: "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70" },
-      { input: "5", expectedOutput: "5 x 1 = 5\n5 x 2 = 10\n5 x 3 = 15\n5 x 4 = 20\n5 x 5 = 25\n5 x 6 = 30\n5 x 7 = 35\n5 x 8 = 40\n5 x 9 = 45\n5 x 10 = 50" },
-      { input: "3", expectedOutput: "3 x 1 = 3\n3 x 2 = 6\n3 x 3 = 9\n3 x 4 = 12\n3 x 5 = 15\n3 x 6 = 18\n3 x 7 = 21\n3 x 8 = 24\n3 x 9 = 27\n3 x 10 = 30" },
-      { input: "9", expectedOutput: "9 x 1 = 9\n9 x 2 = 18\n9 x 3 = 27\n9 x 4 = 36\n9 x 5 = 45\n9 x 6 = 54\n9 x 7 = 63\n9 x 8 = 72\n9 x 9 = 81\n9 x 10 = 90" },
-      { input: "2", expectedOutput: "2 x 1 = 2\n2 x 2 = 4\n2 x 3 = 6\n2 x 4 = 8\n2 x 5 = 10\n2 x 6 = 12\n2 x 7 = 14\n2 x 8 = 16\n2 x 9 = 18\n2 x 10 = 20" },
-      { input: "11", expectedOutput: "11 x 1 = 11\n11 x 2 = 22\n11 x 3 = 33\n11 x 4 = 44\n11 x 5 = 55\n11 x 6 = 66\n11 x 7 = 77\n11 x 8 = 88\n11 x 9 = 99\n11 x 10 = 110" },
-    ],
-  },
-  {
-    id: "loop-3",
-    component: "loops",
-    title: "Sum of First N Natural Numbers",
-    description: "Calculate the sum of first N natural numbers. Read N and calculate 1 + 2 + 3 + ... + N.",
-    testcases: [
-      { input: "10", expectedOutput: "55" },
-      { input: "5", expectedOutput: "15" },
-      { input: "100", expectedOutput: "5050" },
-      { input: "1", expectedOutput: "1" },
-      { input: "20", expectedOutput: "210" },
-      { input: "50", expectedOutput: "1275" },
-    ],
-  },
-  // Arrays - 3 questions
-  {
-    id: "array-1",
-    component: "arrays",
-    title: "Sum of Array Elements",
-    description: "Calculate the sum of all elements in an array. Read N, then N integers, and print their sum.",
-    testcases: [
-      { input: "5\n10 20 30 40 50", expectedOutput: "150" },
-      { input: "3\n1 2 3", expectedOutput: "6" },
-      { input: "4\n5 10 15 20", expectedOutput: "50" },
-      { input: "6\n1 1 1 1 1 1", expectedOutput: "6" },
-      { input: "3\n100 200 300", expectedOutput: "600" },
-      { input: "5\n-5 10 -3 7 1", expectedOutput: "10" },
-    ],
-  },
-  {
-    id: "array-2",
-    component: "arrays",
-    title: "Find Maximum Element",
-    description: "Find the maximum element in an array. Read N, then N integers, and print the largest number.",
-    testcases: [
-      { input: "5\n34 12 78 45 23", expectedOutput: "78" },
-      { input: "3\n10 20 15", expectedOutput: "20" },
-      { input: "4\n1 1 1 1", expectedOutput: "1" },
-      { input: "6\n100 50 200 150 75 300", expectedOutput: "300" },
-      { input: "3\n-5 -10 -3", expectedOutput: "-3" },
-      { input: "5\n5 4 3 2 1", expectedOutput: "5" },
-    ],
-  },
-  {
-    id: "array-3",
-    component: "arrays",
-    title: "Reverse Array",
-    description: "Print array elements in reverse order. Read N, then N integers, and print them in reverse.",
-    testcases: [
-      { input: "5\n1 2 3 4 5", expectedOutput: "5 4 3 2 1" },
-      { input: "3\n10 20 30", expectedOutput: "30 20 10" },
-      { input: "4\n1 2 3 4", expectedOutput: "4 3 2 1" },
-      { input: "6\n6 5 4 3 2 1", expectedOutput: "1 2 3 4 5 6" },
-      { input: "3\n100 200 300", expectedOutput: "300 200 100" },
-      { input: "5\n5 4 3 2 1", expectedOutput: "1 2 3 4 5" },
-    ],
-  },
-  // Strings - 3 questions
-  {
-    id: "string-1",
-    component: "strings",
-    title: "Reverse a String",
-    description: "Reverse a string. Read a string and print it in reverse order.",
-    testcases: [
-      { input: "Hello", expectedOutput: "olleH" },
-      { input: "world", expectedOutput: "dlrow" },
-      { input: "abc", expectedOutput: "cba" },
-      { input: "12345", expectedOutput: "54321" },
-      { input: "A", expectedOutput: "A" },
-      { input: "Programming", expectedOutput: "gnimmargorP" },
-    ],
-  },
-  {
-    id: "string-2",
-    component: "strings",
-    title: "Count Vowels",
-    description: "Count the number of vowels in a string. Read a string and count how many vowels (a, e, i, o, u) it contains (case-insensitive).",
-    testcases: [
-      { input: "Programming", expectedOutput: "3" },
-      { input: "Hello", expectedOutput: "2" },
-      { input: "AEIOU", expectedOutput: "5" },
-      { input: "bcdfg", expectedOutput: "0" },
-      { input: "a", expectedOutput: "1" },
-      { input: "Education", expectedOutput: "5" },
-    ],
-  },
-  {
-    id: "string-3",
-    component: "strings",
-    title: "Check Palindrome",
-    description: "Check if a string is a palindrome. Read a string and print 'Yes' if it reads the same forwards and backwards, otherwise print 'No'.",
-    testcases: [
-      { input: "racecar", expectedOutput: "Yes" },
-      { input: "hello", expectedOutput: "No" },
-      { input: "madam", expectedOutput: "Yes" },
-      { input: "level", expectedOutput: "Yes" },
-      { input: "python", expectedOutput: "No" },
-      { input: "a", expectedOutput: "Yes" },
-    ],
-  },
-  // Functions - 3 questions
-  {
-    id: "func-1",
-    component: "functions",
-    title: "Add Two Numbers",
-    description: "Write a function to add two numbers. Create a function that takes two integers and returns their sum. Then call it with 15 and 27.",
-    testcases: [
-      { input: "", expectedOutput: "42" },
-      { input: "", expectedOutput: "42" },
-      { input: "", expectedOutput: "42" },
-      { input: "", expectedOutput: "42" },
-      { input: "", expectedOutput: "42" },
-      { input: "", expectedOutput: "42" },
-    ],
-  },
-  {
-    id: "func-2",
-    component: "functions",
-    title: "Check Prime Number",
-    description: "Write a function to check if a number is prime. Create a function that takes an integer and returns true if it's prime, false otherwise. Test with 17.",
-    testcases: [
-      { input: "", expectedOutput: "Prime" },
-      { input: "", expectedOutput: "Prime" },
-      { input: "", expectedOutput: "Prime" },
-      { input: "", expectedOutput: "Prime" },
-      { input: "", expectedOutput: "Prime" },
-      { input: "", expectedOutput: "Prime" },
-    ],
-  },
-  {
-    id: "func-3",
-    component: "functions",
-    title: "Find Maximum of Two",
-    description: "Write a function to find the maximum of two numbers. Create a function that takes two integers and returns the larger one. Test with 34 and 67.",
-    testcases: [
-      { input: "", expectedOutput: "67" },
-      { input: "", expectedOutput: "67" },
-      { input: "", expectedOutput: "67" },
-      { input: "", expectedOutput: "67" },
-      { input: "", expectedOutput: "67" },
-      { input: "", expectedOutput: "67" },
-    ],
-  },
-];
-
-
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
   getCourses(): Promise<ExtendedCourse[]>;
   getCourse(id: string): Promise<ExtendedCourse | undefined>;
-  updateCourseProgress(id: string, progress: number): Promise<ExtendedCourse | undefined>;
-  
   getComponents(): Promise<ElectronicComponent[]>;
   getComponent(id: string): Promise<ElectronicComponent | undefined>;
-  
-  getCodingComponents(): Promise<CodingComponent[]>;
-  getCodingComponent(id: string): Promise<CodingComponent | undefined>;
-  getQuestionsByComponent(componentId: string): Promise<CodingQuestion[]>;
-  getQuestion(id: string): Promise<CodingQuestion | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
-  private courses: Map<string, ExtendedCourse>;
-  private components: Map<string, ElectronicComponent>;
 
   constructor() {
     this.users = new Map();
-    this.courses = new Map();
-    this.components = new Map();
-    
-    mockCourses.forEach(course => {
-      this.courses.set(course.id, course);
-    });
-    
-    mockComponents.forEach(component => {
-      this.components.set(component.id, component);
-    });
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -478,45 +210,19 @@ export class MemStorage implements IStorage {
   }
 
   async getCourses(): Promise<ExtendedCourse[]> {
-    return Array.from(this.courses.values());
+    return mockCourses;
   }
 
   async getCourse(id: string): Promise<ExtendedCourse | undefined> {
-    return this.courses.get(id);
-  }
-
-  async updateCourseProgress(id: string, progress: number): Promise<ExtendedCourse | undefined> {
-    const course = this.courses.get(id);
-    if (course) {
-      const updatedCourse = { ...course, progress };
-      this.courses.set(id, updatedCourse);
-      return updatedCourse;
-    }
-    return undefined;
+    return mockCourses.find((course) => course.id === id);
   }
 
   async getComponents(): Promise<ElectronicComponent[]> {
-    return Array.from(this.components.values());
+    return mockComponents;
   }
 
   async getComponent(id: string): Promise<ElectronicComponent | undefined> {
-    return this.components.get(id);
-  }
-
-  async getCodingComponents(): Promise<CodingComponent[]> {
-    return mockCodingComponents;
-  }
-
-  async getCodingComponent(id: string): Promise<CodingComponent | undefined> {
-    return mockCodingComponents.find(c => c.id === id);
-  }
-
-  async getQuestionsByComponent(componentId: string): Promise<CodingQuestion[]> {
-    return mockQuestions.filter(q => q.component === componentId);
-  }
-
-  async getQuestion(id: string): Promise<CodingQuestion | undefined> {
-    return mockQuestions.find(q => q.id === id);
+    return mockComponents.find((component) => component.id === id);
   }
 }
 

@@ -19,7 +19,7 @@ export default function Settings() {
             <div>
               <h1 className="text-2xl font-bold">Settings</h1>
               <p className="text-sm text-muted-foreground">
-                Manage your account, appearance, and coding tools.
+                Manage your account, appearance, and tools.
               </p>
             </div>
             {user && (
@@ -83,7 +83,7 @@ export default function Settings() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Tip: Dark mode is recommended when spending long time in the
-                  coding playground or simulators.
+                  simulators or simulators.
                 </p>
               </CardContent>
             </Card>
@@ -92,10 +92,10 @@ export default function Settings() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Code2 className="h-4 w-4" />
-                  Coding tools
+                  tools
                 </CardTitle>
                 <CardDescription>
-                  How the coding playground behaves.
+                  How the simulators behaves.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
@@ -104,13 +104,7 @@ export default function Settings() {
                   <li>Runs your code safely in an online sandbox (Piston).</li>
                   <li>Shows program output and full error messages.</li>
                   <li>Monaco editor with dark theme, word wrap, and line numbers.</li>
-                </ul>
-                <Link href="/coding">
-                  <Button size="sm" variant="outline" className="mt-2">
-                    Open coding playground
-                  </Button>
-                </Link>
-              </CardContent>
+                </ul></CardContent>
             </Card>
 
             <Card>
@@ -130,7 +124,7 @@ export default function Settings() {
                     button in the header to chat about electronics and IoT.
                   </li>
                   <li>
-                    In the coding playground, click{" "}
+                    In the simulators, click{" "}
                     <span className="font-medium">Ask Groot</span> under the
                     output panel to get explanations for errors and suggestions
                     to fix your code.

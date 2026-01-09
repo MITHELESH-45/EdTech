@@ -10,7 +10,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const DB_NAME = "users";
+const DB_NAME = "users"; // Database for user authentication
 const COLLECTION_NAME = "login";
 
 let client: MongoClient | null = null;

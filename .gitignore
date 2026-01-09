@@ -30,3 +30,6 @@ Thumbs.db
 dist-ssr
 coverage
 .cache
+
+# code execution temp files
+temp_code_execution/

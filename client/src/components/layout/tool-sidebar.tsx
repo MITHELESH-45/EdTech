@@ -37,14 +37,6 @@ const tools: ToolItem[] = [
     isActive: true,
     comingSoon: false,
   },
-  {
-    id: "coding-playground",
-    name: "Coding Playground",
-    icon: Code,
-    path: "/coding-playground",
-    isActive: true,
-    comingSoon: false,
-  },
 ];
 
 export function ToolSidebar() {

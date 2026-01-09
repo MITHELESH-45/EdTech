@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { registerArduinoRoutes } from "./arduino-routes";
 import { registerGrootRoutes } from "./groot-routes";
-import { registerCodingRoutes } from "./coding-routes";
 import { registerAuthRoutes } from "./routes/auth";
 
 export async function registerRoutes(
@@ -77,8 +76,5 @@ export async function registerRoutes(
     }
   });
 
-  // Coding playground API (code runner)
-  registerCodingRoutes(app);
-
-  return httpServer;
+return httpServer;
 }

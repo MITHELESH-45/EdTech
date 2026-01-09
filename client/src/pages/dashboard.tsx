@@ -279,16 +279,7 @@ export default function Dashboard() {
                   description: "Get ideas for your projects",
                   hoverColorClass: "group-hover:text-chart-1"
                 },
-                {
-                  href: "/coding",
-                  icon: "/icons/code.png",
-                  iconAlt: "Code",
-                  title: "Coding Playground",
-                  description: "Run code with AI help",
-                  hoverColorClass: "group-hover:text-chart-4"
-                },
-                
-              ].map((tool, index) => (
+].map((tool, index) => (
                 <Link key={`${tool.href}-${index}`} href={tool.href}>
                   <motion.div
                     whileHover={{ scale: 1.05 }}
