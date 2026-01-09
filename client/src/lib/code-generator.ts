@@ -194,7 +194,7 @@ export class CodeGenerator {
     const schemaBlock = this.getBlockSchema(block.blockId);
     if (!schemaBlock) {
       lines.push(`${indentStr}# Unknown block: ${block.blockId}`);
-      this.generateNext(block, lines, visited, indentStack, loopBlocks, imports);
+      // Continue to next block if this one is unknown
       return;
     }
 
