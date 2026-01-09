@@ -59,18 +59,13 @@ export function Header() {
           {isAuthenticated && (
             <div
               onClick={() => setGrootOpen(true)}
-              className="flex items-center justify-center cursor-pointer px-3 py-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:hover:bg-emerald-500/30 border border-emerald-500/30 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:shadow-md transition-all duration-200 hover:scale-105"
+              className="flex items-center justify-center cursor-pointer px-3 py-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 border border-blue-500/30 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:shadow-md transition-all duration-200 hover:scale-105"
               data-testid="button-ask-groot"
             >
               <span className="font-medium text-xs mr-1.5">Ask GROOT</span>
               <GrootSvg width={20} height={20} fill="#6B4F2A" className="dark:fill-emerald-400" />
             </div>
           )}
-          <Link href="/about">
-            <Button variant="ghost" size="sm" data-testid="link-about">
-              About
-            </Button>
-          </Link>
 
           <div className="pl-2 border-l border-border">
             <ThemeToggleSwitch />

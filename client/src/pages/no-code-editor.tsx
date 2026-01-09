@@ -598,7 +598,7 @@ void loop() {
   }, []);
 
   return (
-    <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-full w-full bg-background flex flex-col overflow-hidden">
     <div className="flex flex-1 min-h-0 w-full">
       <div className="w-56 flex-shrink-0 border-r border-border overflow-y-auto">
         <NocodeSidebar
