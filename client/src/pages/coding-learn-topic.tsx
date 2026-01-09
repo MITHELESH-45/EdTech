@@ -177,8 +177,14 @@ export default function CodingLearnTopic() {
               <CardContent className="space-y-6">
                 {topic.questions.map((question, index) => (
                   <div key={index} className="border-l-4 border-primary pl-4 space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 justify-between flex-wrap">
                       <Badge variant="outline">Question {index + 1}</Badge>
+                      <Link href={`/code-editor?topic=${encodeURIComponent(topicId)}&question=${index}`}>
+                        <Button size="sm" variant="outline" className="gap-2">
+                          <Play className="h-4 w-4" />
+                          Practice in Code Editor
+                        </Button>
+                      </Link>
                     </div>
                     <p className="font-medium text-foreground">{question.problem}</p>
                     <div className="space-y-2">

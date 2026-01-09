@@ -327,9 +327,49 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
       });
     }
     
-      console.log(`[Arduino] Upload request - Board: ${selectedBoard}, FQBN: ${fqbn}, Port: ${uploadPort}`);
+    console.log(`[Arduino] Upload request - Board: ${selectedBoard}, FQBN: ${fqbn}, Port: ${uploadPort}`);
+    
+    // Check if required core is installed before attempting upload
+    const isESP32 = fqbn.includes("esp32");
+    const isAVR = fqbn.includes("arduino:avr");
     
     try {
+      // Re-detect CLI path before checking cores
+      const cliPath = await findArduinoCli();
+      config.cliPath = cliPath;
+      
+      // Check if Arduino CLI is available
+      const cliInstalled = await checkArduinoCli();
+      if (!cliInstalled) {
+        return res.status(400).json({
+          error: "Arduino CLI not found",
+          details: `Arduino CLI is not installed or not found in PATH.\n\nPlease install Arduino CLI:\n• Windows: choco install arduino-cli\n• Or download: https://arduino.github.io/arduino-cli/installation/\n\nAfter installation, restart the server.`,
+        });
+      }
+      
+      // Check if required core is installed
+      if (isESP32) {
+        const esp32CoreInstalled = await checkESP32Core();
+        if (!esp32CoreInstalled) {
+          return res.status(400).json({
+            error: "ESP32 core not installed",
+            details: `The ESP32 core is required but not installed.\n\nPlease install it using the "Install" button next to "ESP32 Core" in the upload panel, or run:\narduino-cli core install esp32:esp32\n\nAfter installation, try uploading again.`,
+            requiresCoreInstall: true,
+            coreType: "esp32",
+          });
+        }
+      } else if (isAVR) {
+        const avrCoreInstalled = await checkArduinoCore();
+        if (!avrCoreInstalled) {
+          return res.status(400).json({
+            error: "Arduino AVR core not installed",
+            details: `The Arduino AVR core is required but not installed.\n\nPlease install it using the "Install" button next to "AVR Core" in the upload panel, or run:\narduino-cli core install arduino:avr\n\nAfter installation, try uploading again.`,
+            requiresCoreInstall: true,
+            coreType: "avr",
+          });
+        }
+      }
+      
       // Step 0: Close any active serial monitor on this port before upload
       if (serialMonitors.has(uploadPort)) {
         console.log(`[Arduino] Closing serial monitor on ${uploadPort} before upload...`);
@@ -493,6 +533,19 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
     const coreName = core === "esp32" ? "ESP32" : "Arduino AVR";
     
     try {
+      // Re-detect CLI path before installing
+      const cliPath = await findArduinoCli();
+      config.cliPath = cliPath;
+      
+      // Check if Arduino CLI is available
+      const cliInstalled = await checkArduinoCli();
+      if (!cliInstalled) {
+        return res.status(400).json({
+          error: "Arduino CLI not found",
+          details: `Arduino CLI is not installed or not found in PATH.\n\nPlease install Arduino CLI:\n• Windows: choco install arduino-cli\n• Or download: https://arduino.github.io/arduino-cli/installation/\n\nAfter installation, restart the server.`,
+        });
+      }
+      
       console.log(`[Arduino] Installing ${coreName} core...`);
       const cmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
       const { stdout, stderr } = await execAsync(
@@ -500,15 +553,25 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
         { timeout: 300000 } // 5 minutes for ESP32 (it's large)
       );
       
+      // Verify installation was successful
+      const output = (stdout || stderr || "").toLowerCase();
+      if (output.includes("error") && !output.includes("already installed")) {
+        return res.status(500).json({
+          error: `Failed to install ${coreName} core`,
+          details: stdout || stderr || "Unknown error during installation",
+        });
+      }
+      
       res.json({
         success: true,
         message: `${coreName} core installed successfully`,
         output: stdout || stderr,
       });
     } catch (error: any) {
+      const errorOutput = error.stdout || error.stderr || error.message || "Unknown error";
       res.status(500).json({
         error: `Failed to install ${coreName} core`,
-        details: error.message,
+        details: errorOutput,
       });
     }
   });
@@ -977,9 +1040,12 @@ async function compileSketch(
     const errorOutput = error.stdout || "";
     
     // Check if it's a core not found error
-    if (errorMessage.includes("platform") && errorMessage.includes("not found")) {
+    if (errorMessage.includes("platform") && errorMessage.includes("not found") ||
+        errorMessage.includes("platform") && errorMessage.includes("not installed") ||
+        errorMessage.includes("no platform") ||
+        errorOutput.toLowerCase().includes("platform") && errorOutput.toLowerCase().includes("not found")) {
       const isESP32 = fqbn.includes("esp32");
-      errorMessage = `${isESP32 ? "ESP32" : "Arduino"} core not found.\n\nPlease install the core:\narduino-cli core install ${isESP32 ? "esp32:esp32" : "arduino:avr"}\n\nThen restart the server.`;
+      errorMessage = `${isESP32 ? "ESP32" : "Arduino"} core not found.\n\nPlease install the core using the "Install" button in the upload panel, or run:\narduino-cli core install ${isESP32 ? "esp32:esp32" : "arduino:avr"}\n\nAfter installation, try uploading again.`;
     }
     // Check if it's a CLI not found error
     else if (errorMessage.includes("not recognized") || errorMessage.includes("not found") || errorMessage.includes("command not found")) {
@@ -1015,6 +1081,76 @@ async function compileSketch(
       output: combinedOutput.substring(0, 1000) || stdoutOutput.substring(0, 1000),
       error: errorMessage.substring(0, 500),
     };
+  }
+}
+
+/**
+ * Automatically reset ESP32 into boot mode using DTR/RTS pins
+ * This eliminates the need for manual boot button pressing
+ * 
+ * @param port - Serial port (e.g., COM10, /dev/ttyUSB0)
+ */
+async function resetESP32ToBootMode(port: string): Promise<void> {
+  let serialPort: SerialPort | null = null;
+  try {
+    console.log(`[ESP32] Attempting automatic ESP32 reset to boot mode on ${port}...`);
+    
+    // Open serial port with auto-open disabled
+    serialPort = new SerialPort({
+      path: port,
+      baudRate: 115200,
+      autoOpen: false,
+    });
+    
+    // Open the port
+    await new Promise<void>((resolve, reject) => {
+      serialPort!.open((err) => {
+        if (err) {
+          console.log(`[ESP32] Could not open port for reset (may be in use): ${err.message}`);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+    
+    // ESP32 WROOM 32 boot mode entry sequence:
+    // DTR controls EN (reset pin): low = reset, high = run
+    // RTS controls GPIO0 (boot pin): low = boot mode, high = normal mode
+    // Sequence: Hold BOOT (RTS low) -> Press RESET (DTR low) -> Release RESET (DTR high) -> Keep BOOT low during upload
+    
+    console.log(`[ESP32] Step 1: Setting RTS low (GPIO0 low = boot mode)...`);
+    serialPort.set({ rts: false }); // RTS low = GPIO0 low = boot mode
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    console.log(`[ESP32] Step 2: Setting DTR low (EN low = reset)...`);
+    serialPort.set({ dtr: false }); // DTR low = EN low = reset
+    await new Promise(resolve => setTimeout(resolve, 100)); // Hold reset for 100ms
+    
+    console.log(`[ESP32] Step 3: Setting DTR high (EN high = release reset)...`);
+    serialPort.set({ dtr: true }); // DTR high = EN high = release reset
+    await new Promise(resolve => setTimeout(resolve, 100)); // Wait for ESP32 to enter boot mode
+    
+    // Keep RTS low (boot mode) - arduino-cli/esptool will handle releasing it
+    console.log(`[ESP32] ESP32 should now be in boot mode (RTS kept low)`);
+    
+  } catch (error: any) {
+    // If we can't reset automatically, that's okay - arduino-cli will try anyway
+    console.log(`[ESP32] Automatic reset failed (will proceed anyway): ${error.message}`);
+  } finally {
+    // Close the port - IMPORTANT: must close before arduino-cli uses it
+    if (serialPort && serialPort.isOpen) {
+      await new Promise<void>((resolve) => {
+        serialPort!.close((err) => {
+          if (err) console.log(`[ESP32] Error closing port: ${err.message}`);
+          else console.log(`[ESP32] Port closed successfully`);
+          resolve();
+        });
+      });
+    }
+    // Give port time to be fully released and ESP32 to stabilize
+    console.log(`[ESP32] Waiting for port to be released...`);
+    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
   }
 }
 
@@ -1058,19 +1194,264 @@ async function uploadSketch(
     // Ensure port is properly formatted (uppercase, no spaces)
     const portFormatted = port.trim().toUpperCase();
     
-    const cmd = `${cmdCheck} upload ${verboseFlag} -p ${portFormatted} --fqbn ${actualFqbn} "${sketchPath}"`.trim();
-    console.log(`[Arduino] Running upload command: ${cmd}`);
-    console.log(`[Arduino] Port: ${portFormatted}, FQBN: ${actualFqbn}, ESP32: ${isESP32}`);
+    // For ESP32 boards, automatically reset to boot mode before upload
+    if (isESP32) {
+      console.log(`[ESP32] Preparing ESP32 for upload...`);
+      await resetESP32ToBootMode(portFormatted);
+      // Small delay to ensure port is ready
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
     
-    const { stdout, stderr } = await execAsync(cmd, {
-      timeout: timeout,
-    });
+    // Try upload with retry for ESP32
+    const uploadAttempts = isESP32 ? 3 : 1; // 3 attempts for ESP32
+    let lastError: any = null;
     
+    for (let attempt = 1; attempt <= uploadAttempts; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`[ESP32] Retry attempt ${attempt}/${uploadAttempts}...`);
+          // Try automatic reset again on retry
+          if (isESP32) {
+            console.log(`[ESP32] Attempting automatic ESP32 reset again...`);
+            await resetESP32ToBootMode(portFormatted);
+            // Small delay after reset
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+        
+        const cmd = `${cmdCheck} upload ${verboseFlag} -p ${portFormatted} --fqbn ${actualFqbn} "${sketchPath}"`.trim();
+        console.log(`[Arduino] Running upload command (attempt ${attempt}/${uploadAttempts}): ${cmd}`);
+        console.log(`[Arduino] Port: ${portFormatted}, FQBN: ${actualFqbn}, ESP32: ${isESP32}`);
+        
+        const { stdout, stderr } = await execAsync(cmd, {
+          timeout: timeout,
+        });
+        
+        // Combine all output
+        const stdoutStr = stdout ? String(stdout) : "";
+        const stderrStr = stderr ? String(stderr) : "";
+        const output = (stdoutStr + "\n" + stderrStr).trim();
+        
+        // Check if this was successful
+        // ESP32 successful upload indicators:
+        // - "Hash of data verified" (appears multiple times)
+        // - "Hard resetting via RTS pin..."
+        // - "New upload port: COM10 (serial)"
+        // - "Wrote X bytes" with 100.0%
+        // - No "error" or "failed" messages
+        
+        const hasError = /error:/i.test(output) ||
+          /\bfatal error\b/i.test(output) ||
+          /\bError\b/i.test(output) ||
+          /upload failed/i.test(output) ||
+          /failed to connect/i.test(output) ||
+          /wrong boot/i.test(output) ||
+          /boot mode detected/i.test(output);
+        
+        const hasSuccess = /hash of data verified/i.test(output) ||  // ESP32 success indicator
+          /hard resetting/i.test(output) ||                           // ESP32 success indicator
+          /new upload port/i.test(output) ||                          // ESP32 success indicator
+          /wrote.*100\.0%/i.test(output) ||                           // 100% completion
+          /connected to esp32/i.test(output) ||                       // ESP32 connected
+          /successfully/i.test(output) ||
+          /done uploading/i.test(output) ||
+          /uploaded/i.test(output);
+        
+        // If successful, break out of retry loop
+        if (hasSuccess && !hasError) {
+          console.log(`[Arduino] ✓ Success on attempt ${attempt}`);
+          return {
+            success: true,
+            output: output || "Upload completed successfully",
+          };
+        }
+        
+        // Special case: ESP32 often shows success even if command exits with code
+        // Check for multiple success indicators
+        const successIndicators = [
+          /hash of data verified/i,
+          /hard resetting/i,
+          /new upload port/i,
+          /wrote.*100\.0%/i,
+          /connected to esp32/i,
+        ];
+        const successCount = successIndicators.filter(regex => regex.test(output)).length;
+        
+        // If we have 2+ success indicators and no errors, consider it successful
+        if (successCount >= 2 && !hasError) {
+          console.log(`[Arduino] ✓ Success detected (${successCount} indicators) on attempt ${attempt}`);
+          return {
+            success: true,
+            output: output || "Upload completed successfully",
+          };
+        }
+        
+        // Even with 1 strong indicator (Hash verified + Hard reset), it's success
+        const hasHashAndReset = /hash of data verified/i.test(output) && /hard resetting/i.test(output);
+        if (hasHashAndReset && !hasError) {
+          console.log(`[Arduino] ✓ Success detected (Hash verified + Hard reset) on attempt ${attempt}`);
+          return {
+            success: true,
+            output: output || "Upload completed successfully",
+          };
+        }
+        
+        // If this is the last attempt, throw error to be caught below
+        if (attempt === uploadAttempts) {
+          lastError = { stdout, stderr, output };
+          throw new Error(output || "Upload failed");
+        }
+        
+        // Otherwise, continue to retry
+        console.log(`[Arduino] Attempt ${attempt} failed, will retry...`);
+        
+      } catch (uploadError: any) {
+        // IMPORTANT: ESP32 uploads can succeed even if execAsync throws
+        // Check the error output for success indicators before treating as failure
+        let errorOutput = "";
+        if (uploadError.stdout) errorOutput += String(uploadError.stdout);
+        if (uploadError.stderr) errorOutput += (errorOutput ? "\n" : "") + String(uploadError.stderr);
+        if (uploadError.message) errorOutput += (errorOutput ? "\n" : "") + String(uploadError.message);
+        
+        const combinedOutput = errorOutput || uploadError.message || "";
+        
+        // Check for ESP32 success indicators in error output
+        const hasHashVerified = /hash of data verified/i.test(combinedOutput);
+        const hasHardReset = /hard resetting/i.test(combinedOutput);
+        const hasNewPort = /new upload port/i.test(combinedOutput);
+        const has100Percent = /100\.0%/i.test(combinedOutput);
+        
+        // If we see multiple success indicators, it's actually a success!
+        const successInError = (hasHashVerified && hasHardReset) ||
+          (hasHashVerified && hasNewPort) ||
+          (hasHashVerified && has100Percent && hasHardReset);
+        
+        if (successInError && !/fatal error/i.test(combinedOutput) && !/wrong boot/i.test(combinedOutput)) {
+          console.log(`[Arduino] ✓ Success detected in error output (ESP32 completed upload)`);
+          return {
+            success: true,
+            output: combinedOutput || "Upload completed successfully",
+          };
+        }
+        
+        // If this is the last attempt, handle the error
+        if (attempt === uploadAttempts) {
+          lastError = uploadError;
+          break; // Exit retry loop to handle error below
+        }
+        // Otherwise, continue to next retry
+        console.log(`[Arduino] Attempt ${attempt} failed, will retry...`);
+        lastError = uploadError;
+      }
+    }
+    
+    // Handle final error after all retries
+    if (lastError) {
+      // Capture ALL possible error information
+      let errorOutput = "";
+      let errorMessage = lastError.message || "Unknown error";
+      
+      // Try to get stdout/stderr from error object
+      if (lastError.stdout) {
+        errorOutput += String(lastError.stdout);
+      }
+      if (lastError.stderr) {
+        errorOutput += (errorOutput ? "\n" : "") + String(lastError.stderr);
+      }
+      if (lastError.output) {
+        errorOutput += (errorOutput ? "\n" : "") + String(lastError.output);
+      }
+      
+      // If no output captured, use the error message
+      if (!errorOutput.trim()) {
+        errorOutput = errorMessage;
+      }
+      
+      // Combine all error info
+      const fullErrorOutput = errorOutput.trim() || errorMessage;
+      
+      // CRITICAL: Check if upload actually succeeded despite error being thrown
+      // ESP32 uploads can succeed even if execAsync throws (some tools exit with non-zero codes)
+      const hasHashVerified = /hash of data verified/i.test(fullErrorOutput);
+      const hasHardReset = /hard resetting/i.test(fullErrorOutput);
+      const hasNewPort = /new upload port/i.test(fullErrorOutput);
+      const has100Percent = /100\.0%/i.test(fullErrorOutput);
+      const hasConnected = /connected to esp32/i.test(fullErrorOutput);
+      
+      // If we see multiple strong success indicators, it's actually a success!
+      const strongSuccessIndicators = [
+        hasHashVerified && hasHardReset,
+        hasHashVerified && hasNewPort,
+        hasHashVerified && has100Percent && hasHardReset,
+        hasConnected && hasHashVerified && hasHardReset,
+      ].filter(Boolean).length;
+      
+      // Check for actual fatal errors
+      const hasFatalError = /fatal error/i.test(fullErrorOutput) ||
+        /wrong boot/i.test(fullErrorOutput) ||
+        /failed to connect/i.test(fullErrorOutput);
+      
+      // If we have strong success indicators and no fatal errors, it's a success!
+      if (strongSuccessIndicators >= 1 && !hasFatalError) {
+        console.log(`[Arduino] ✓ Success detected in final error handler (ESP32 upload completed)`);
+        return {
+          success: true,
+          output: fullErrorOutput || "Upload completed successfully",
+        };
+      }
+      
+      console.error(`[Arduino] All attempts failed`);
+      console.error(`[Arduino] Message: ${errorMessage}`);
+      console.error(`[Arduino] Output: ${fullErrorOutput.substring(0, 500)}`);
+      
+      // Provide helpful error messages based on common issues
+      let helpfulMessage = "Upload failed";
+      const errorLower = fullErrorOutput.toLowerCase();
+      
+      if (errorLower.includes("timeout") || errorLower.includes("timed out")) {
+        helpfulMessage = "Upload timeout - try pressing RESET button on board right before uploading";
+      } else if (errorLower.includes("access") || errorLower.includes("permission") || errorLower.includes("denied")) {
+        helpfulMessage = "Permission denied - close Arduino IDE and other programs using the port";
+      } else if (errorLower.includes("not found") || errorLower.includes("no such file") || errorLower.includes("cannot find")) {
+        helpfulMessage = "Port not found - verify board is connected and port name is correct";
+      } else if (errorLower.includes("boot mode") || errorLower.includes("download mode") || errorLower.includes("wrong boot")) {
+        helpfulMessage = "ESP32 boot mode error - Automatic reset failed. Try: 1) Unplug and replug USB cable, 2) Click Upload again. If still failing, manually hold BOOT button while clicking Upload.";
+      } else if (errorLower.includes("cannot open") || errorLower.includes("busy")) {
+        helpfulMessage = "Port is busy - close other programs (Arduino IDE, serial monitors) using this port";
+      } else if (errorLower.includes("programmer") || errorLower.includes("stk500")) {
+        helpfulMessage = "Programmer error - verify board type is correct and try pressing RESET";
+      }
+      
+      // Check if it's a CLI not found error
+      if (errorMessage.includes("not recognized") || errorMessage.includes("not found") || errorMessage.includes("command not found")) {
+        helpfulMessage = `Arduino CLI not found at: ${config.cliPath}\n\nPlease ensure Arduino CLI is installed and either:\n1. Added to your system PATH, or\n2. Restart the server after installation\n\nInstallation:\n• Windows: choco install arduino-cli\n• Or download: https://arduino.github.io/arduino-cli/installation/\n\nAfter installation, restart the server.`;
+      }
+      // ESP32-specific error handling
+      else if (isESP32) {
+        if (errorMessage.includes("Connecting") && errorMessage.includes("timed out") || errorMessage.includes("timeout")) {
+          helpfulMessage = `ESP32 upload failed: Could not connect to board.\n\nTroubleshooting:\n1. Hold the BOOT button on your ESP32\n2. Press and release the RESET button (while holding BOOT)\n3. Release the BOOT button\n4. Try uploading again\n\nOr check:\n- Is the correct COM port selected?\n- Are the USB drivers installed?\n- Is another program using the serial port?`;
+        } else if (errorMessage.includes("A fatal error occurred") || errorMessage.includes("Failed to connect")) {
+          helpfulMessage = `ESP32 upload failed: Connection error.\n\n${errorMessage}\n\nTry:\n1. Put ESP32 in bootloader mode (hold BOOT, press RESET, release BOOT)\n2. Check COM port selection\n3. Close other programs using the serial port`;
+        } else if (errorMessage.includes("Permission denied") || errorMessage.includes("Access is denied")) {
+          helpfulMessage = `ESP32 upload failed: Port access denied.\n\nClose other programs using COM${port} and try again.`;
+        }
+      }
+      
+      return {
+        success: false,
+        output: fullErrorOutput,
+        error: helpfulMessage,
+      };
+    }
+    
+    // Fallback (shouldn't reach here)
     return {
-      success: true,
-      output: stdout + (stderr ? `\n${stderr}` : ""),
+      success: false,
+      output: "No error details available",
+      error: "Upload failed - unknown error",
     };
   } catch (error: any) {
+    // Handle non-retry errors (e.g., CLI not found)
     let errorMessage = error.stderr || error.message || "Unknown error";
     const errorOutput = error.stdout || "";
     const isESP32 = fqbn.includes("esp32");
@@ -1122,16 +1503,16 @@ async function uploadSketch(
     // If error message is generic or truncated, try to get more details from output
     if ((errorMessage === "Unknown error" || errorMessage.length > 500) && combinedOutput) {
       // Look for the actual error in the output (skip command lines)
-      const lines = combinedOutput.split('\n');
+      const lines = combinedOutput.split("\n");
       for (const line of lines) {
         const lowerLine = line.toLowerCase();
-        if ((lowerLine.includes('error') || 
-             lowerLine.includes('failed') ||
-             lowerLine.includes('denied') ||
-             lowerLine.includes('cannot')) &&
-            !lowerLine.includes('esptool') &&
-            !lowerLine.includes('arduino-cli') &&
-            line.length < 300) {
+        if ((lowerLine.includes("error") ||
+          lowerLine.includes("failed") ||
+          lowerLine.includes("denied") ||
+          lowerLine.includes("cannot")) &&
+          !lowerLine.includes("esptool") &&
+          !lowerLine.includes("arduino-cli") &&
+          line.length < 300) {
           errorMessage = line.trim();
           break;
         }
