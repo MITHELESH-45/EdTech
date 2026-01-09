@@ -117,6 +117,7 @@ function Router() {
       </Route>
       <Route path="/robotics-helper">
         <ProtectedRoute component={RoboticsHelper} />
+      </Route>
       <Route path="/coding">
         <ProtectedRoute component={CodingLearning} />
       </Route>

@@ -104,6 +104,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize MongoDB connection
+  try {
+    const { connectToMongoDB } = await import("./utils/mongodb");
+    await connectToMongoDB();
+    console.log("[SERVER] MongoDB initialized successfully");
+  } catch (error: any) {
+    console.error("[SERVER] Failed to connect to MongoDB:", error.message);
+    console.error("[SERVER] Server will continue but authentication features may not work");
+    console.error("[SERVER] Please check:");
+    console.error("  1. MongoDB connection string is correct");
+    console.error("  2. Network connectivity to MongoDB");
+    console.error("  3. MongoDB server is running and accessible");
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
