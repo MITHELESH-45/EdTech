@@ -78,6 +78,8 @@ export function registerAuthRoutes(app: Express): void {
         name: name.trim(),
         joinedDate,
         createdAt: new Date(),
+        courses: [], // Array to store user's enrolled courses and progress
+        activityPoints: 0, // Points earned from learning activities (for gamification)
       };
 
       // Insert into login collection
@@ -154,6 +156,22 @@ export function registerAuthRoutes(app: Express): void {
 
       console.log(`[AUTH] User logged in: ${email}`);
 
+      // Ensure courses and activityPoints exist (for existing users who registered before these fields were added)
+      if (user.courses === undefined || user.activityPoints === undefined) {
+        await loginCollection.updateOne(
+          { userId: user.userId },
+          {
+            $set: {
+              courses: user.courses ?? [],
+              activityPoints: user.activityPoints ?? 0,
+            },
+          }
+        );
+        // Update local user object
+        user.courses = user.courses ?? [];
+        user.activityPoints = user.activityPoints ?? 0;
+      }
+
       // Return user data (without password)
       res.json({
         success: true,
@@ -195,6 +213,22 @@ export function registerAuthRoutes(app: Express): void {
           success: false,
           error: "User not found",
         });
+      }
+
+      // Ensure courses and activityPoints exist (for existing users)
+      if (user.courses === undefined || user.activityPoints === undefined) {
+        await loginCollection.updateOne(
+          { userId: user.userId },
+          {
+            $set: {
+              courses: user.courses ?? [],
+              activityPoints: user.activityPoints ?? 0,
+            },
+          }
+        );
+        // Update local user object
+        user.courses = user.courses ?? [];
+        user.activityPoints = user.activityPoints ?? 0;
       }
 
       res.json({

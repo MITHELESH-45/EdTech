@@ -278,28 +278,28 @@ export default function Dashboard() {
                 },
                 
               ].map((tool, index) => (
-                <Link key={`${tool.href}-${index}`} href={tool.href}>
+                <Link key={`${tool.href}-${index}`} href={tool.href} className="h-full">
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
+                    className="h-full flex items-center gap-3 px-6 py-4 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
                       <img
                         src={tool.icon}
                         alt={tool.iconAlt}
                         className="h-6 w-6"
                       />
                     </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-foreground mb-1">
                         {tool.title}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {tool.description}
                       </div>
                     </div>
-                    <ArrowRight className={`h-4 w-4 text-muted-foreground ${tool.hoverColorClass} group-hover:translate-x-1 transition-all`} />
+                    <ArrowRight className={`h-4 w-4 text-muted-foreground ${tool.hoverColorClass} group-hover:translate-x-1 transition-all flex-shrink-0`} />
                   </motion.div>
                 </Link>
               ))}
