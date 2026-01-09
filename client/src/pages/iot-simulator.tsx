@@ -8,16 +8,23 @@ import { useSensorStore } from '../components/iot-simulation/store';
 
 export default function IoTSimulatorPage() {
   const updateSensorValues = useSensorStore(state => state.updateSensorValues);
-  const updateTemperatureFromMQTT = useSensorStore(state => state.updateTemperatureFromMQTT);
-  const updateUltrasonicDistanceFromMQTT = useSensorStore(state => state.updateUltrasonicDistanceFromMQTT);
+  const updateAllSensorsFromMQTT = useSensorStore(state => state.updateAllSensorsFromMQTT);
+  const setMqttConnected = useSensorStore(state => state.setMqttConnected);
+  const setSensorStatus = useSensorStore(state => state.setSensorStatus);
+  const clearSensorValues = useSensorStore(state => state.clearSensorValues);
+
+  // Sensor timeout constant (5 seconds)
+  const SENSOR_TIMEOUT = 5000;
 
   useEffect(() => {
-    // MQTT Connection for Temperature and Ultrasonic Distance Sensors
+    // MQTT Connection Configuration
     const brokerUrl = "wss://broker.hivemq.com:8884/mqtt";
+    const topic = "esp32/multisensor/data";
+    
     const options = {
       clientId: "webclient_" + Math.random().toString(16).substr(2, 8),
       clean: true,
-      connectTimeout: 5000,
+      connectTimeout: 4000,
       reconnectPeriod: 1000
     };
 
@@ -25,49 +32,81 @@ export default function IoTSimulatorPage() {
 
     client.on("connect", function() {
       console.log("MQTT Connected");
-      // Subscribe only to esp32/dht/temperature (same topic provides both temperature and distance)
-      client.subscribe("esp32/dht/temperature");
+      setMqttConnected(true);
+      client.subscribe(topic);
     });
 
     client.on("message", function(topic, message) {
+      // Only process messages from the correct topic
+      if (topic !== "esp32/multisensor/data") return;
+
       try {
         const data = JSON.parse(message.toString());
-        console.log(data);
+        console.log("MQTT Data:", data);
 
-        // Handle both temperature and distance from the same message (like HTML code)
-        if (data.status === "fail") {
-          // Sensor read failed - don't update values
-          return;
-        }
-
-        // Update temperature if present
-        if (data.temperature !== undefined && typeof data.temperature === 'number') {
-          updateTemperatureFromMQTT(data.temperature);
-        }
-
-        // Update distance if present
-        if (data.distance_cm !== undefined && typeof data.distance_cm === 'number') {
-          updateUltrasonicDistanceFromMQTT(data.distance_cm);
-        }
+        // Update all sensors from MQTT payload (this also updates lastMessageTime)
+        updateAllSensorsFromMQTT({
+          status: data.status,
+          temperature: data.temperature,
+          humidity: data.humidity,
+          distance_cm: data.distance_cm,
+          touch_count: data.touch_count,
+          servo_angle: data.servo_angle,
+          ir_sensor: data.ir_sensor,
+          ldr: data.ldr
+        });
       } catch (error) {
         console.error("Error parsing MQTT message:", error);
       }
     });
 
     client.on("error", function(error) {
-      console.log("MQTT Error:", error);
+      console.error("MQTT Error:", error);
+      setMqttConnected(false);
     });
 
-    // Update other sensors (not Temperature, not Ultrasonic Distance) every second
-    const interval = setInterval(() => {
-      updateSensorValues();
+    client.on("offline", function() {
+      console.log("MQTT Offline");
+      setMqttConnected(false);
+    });
+
+    client.on("reconnect", function() {
+      console.log("MQTT Reconnecting...");
+      setMqttConnected(false);
+    });
+
+    // Watchdog: Check for sensor timeout and clear values if no message received
+    // Access store state directly inside the interval to get latest values
+    const watchdogInterval = setInterval(() => {
+      const state = useSensorStore.getState();
+      const currentTime = Date.now();
+      const timeSinceLastMessage = currentTime - state.lastMessageTime;
+      
+      // If MQTT is connected but no message received for timeout period, clear values
+      if (state.mqttConnected && state.lastMessageTime > 0 && timeSinceLastMessage > SENSOR_TIMEOUT) {
+        console.log("Sensor timeout - clearing values");
+        clearSensorValues();
+        setSensorStatus('FAIL');
+      }
+    }, 1000);
+
+    // Simulation mode: Only run when MQTT is NOT connected
+    // This allows demo/simulation when MQTT is unavailable
+    const simulationInterval = setInterval(() => {
+      const state = useSensorStore.getState();
+      if (!state.mqttConnected) {
+        updateSensorValues();
+      }
     }, 1000);
 
     return () => {
       client.end();
-      clearInterval(interval);
+      clearInterval(watchdogInterval);
+      clearInterval(simulationInterval);
+      setMqttConnected(false);
+      setSensorStatus(null);
     };
-  }, [updateSensorValues, updateTemperatureFromMQTT, updateUltrasonicDistanceFromMQTT]);
+  }, [updateSensorValues, updateAllSensorsFromMQTT, setMqttConnected, setSensorStatus, clearSensorValues]);
 
   return (
     <DashboardLayout>
