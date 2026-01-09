@@ -3,10 +3,13 @@ import { storage } from "./storage";
 import { registerArduinoRoutes } from "./arduino-routes";
 import { registerGrootRoutes } from "./groot-routes";
 import { registerCodingRoutes } from "./coding-routes";
+import { registerAuthRoutes } from "./routes/auth";
 
 export async function registerRoutes(
   app: Express
-): Promise<void> {
+): Promise<Server> {
+  // Register Authentication routes
+  registerAuthRoutes(app);
   // Register Arduino upload routes
   registerArduinoRoutes(app);
   // Register GROOT chat routes
