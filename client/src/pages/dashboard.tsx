@@ -111,36 +111,25 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [scrollProgress, setScrollProgress] = useState(0);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLElement>(null);
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
 
-  // Set up scroll listener on AppLayout's scroll container
+  // Set up scroll listener on the main content area
   useEffect(() => {
-    // Find the AppLayout's scroll container (parent with overflow-auto)
-    const findScrollContainer = (element: HTMLElement | null): HTMLElement | null => {
-      if (!element) return null;
-      const parent = element.parentElement;
-      if (!parent) return null;
-      const style = window.getComputedStyle(parent);
-      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-        return parent;
-      }
-      return findScrollContainer(parent);
-    };
-
-    const scrollContainer = findScrollContainer(dashboardRef.current);
-    if (!scrollContainer) return;
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
 
     const handleScroll = () => {
-      const scrollTop = scrollContainer.scrollTop;
-      const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      const scrollTop = mainContent.scrollTop;
+      const scrollHeight = mainContent.scrollHeight - mainContent.clientHeight;
       const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
       setScrollProgress(progress);
     };
 
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    mainContent.addEventListener('scroll', handleScroll, { passive: true });
+    return () => mainContent.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Combine original courses with additional courses and enable all
@@ -177,20 +166,20 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div ref={dashboardRef} className="h-full w-full bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
+    <div ref={dashboardRef} className="h-full w-full bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col overflow-hidden">
 
       {/* MAIN LAYOUT */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
 
         {/* LEFT — STATIC GROOT */}
-        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12 flex-shrink-0">
+        <div className="fixed left-0 top-16 bottom-0 w-[320px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center flex-shrink-0 pointer-events-none z-10">
           <div className="h-full w-full flex items-center justify-center">
             <GrootModelViewer scrollProgress={scrollProgress} />
           </div>
         </div>
 
         {/* RIGHT — CONTENT */}
-        <main className="flex-1 bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
+        <main ref={mainContentRef} className="flex-1 bg-gradient-to-br from-primary/10 via-background to-chart-2/10 ml-[320px] overflow-y-auto scrollbar-hide"
         >
         {/* Hero Section with Search */}
         <div className="relative border-b border-border overflow-hidden">
@@ -346,11 +335,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              
-                  
-                 
-               
+            >         
             </motion.div>
           </div>
 
@@ -374,7 +359,7 @@ export default function Dashboard() {
             className="mb-8"
           >
             <div className="relative max-w-2xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
               <Input
                 type="search"
                 placeholder="Search courses by name, description, or difficulty..."
