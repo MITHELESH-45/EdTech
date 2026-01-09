@@ -8,8 +8,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Register Arduino upload routes
-  registerArduinoRoutes(app);
+  // Register Arduino upload routes (pass httpServer for WebSocket support)
+  registerArduinoRoutes(app, httpServer);
   // Register GROOT chat routes
   registerGrootRoutes(app);
   // Courses API

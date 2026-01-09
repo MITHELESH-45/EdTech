@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, ChevronDown, Terminal, Info, Upload, Cpu, RefreshCw, Loader2, XCircle, Usb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -45,6 +45,9 @@ interface ControlPanelProps {
   onUseManualPortChange?: (use: boolean) => void;
   onRefreshPorts?: () => void;
   outputContent?: string;
+  selectedBoard?: string;
+  availableBoards?: Array<{ id: string; name: string }>;
+  onBoardChange?: (board: string) => void;
 }
 
 export function NocodePanel({
@@ -74,17 +77,32 @@ export function NocodePanel({
   onUseManualPortChange,
   onRefreshPorts,
   outputContent: propOutputContent = '>>> Welcome to the No-Code Editor\n>>> Serial.print output will appear here',
+  selectedBoard = "nano",
+  availableBoards = [],
+  onBoardChange,
+  onInstallCore,
+  isSerialMonitorActive = false,
+  onStartSerialMonitor,
+  onStopSerialMonitor,
 }: ControlPanelProps) {
   const [arduinoExpanded, setArduinoExpanded] = useState(true);
   const [outputExpanded, setOutputExpanded] = useState(false);
   const [circuitExpanded, setCircuitExpanded] = useState(true);
   const [arduinoExpandedSection, setArduinoExpandedSection] = useState(false);
   const [outputContent, setOutputContent] = useState(propOutputContent);
+  const outputTextareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Update output content when prop changes
   useEffect(() => {
     setOutputContent(propOutputContent);
   }, [propOutputContent]);
+
+  // Auto-scroll to bottom when output content changes and monitor is active
+  useEffect(() => {
+    if (isSerialMonitorActive && outputTextareaRef.current) {
+      outputTextareaRef.current.scrollTop = outputTextareaRef.current.scrollHeight;
+    }
+  }, [outputContent, isSerialMonitorActive]);
 
   const expandedCount = [arduinoExpanded, outputExpanded, circuitExpanded, arduinoExpandedSection].filter(Boolean).length;
   
@@ -109,7 +127,9 @@ export function NocodePanel({
           ) : (
             <>
               <Upload className="h-4 w-4 mr-2" />
-              Upload to Arduino
+              {availableBoards.find((b) => b.id === selectedBoard)?.name
+                ? `Upload to ${availableBoards.find((b) => b.id === selectedBoard)?.name}`
+                : "Upload to Arduino"}
             </>
           )}
         </Button>
@@ -171,21 +191,47 @@ export function NocodePanel({
         "border-b border-border flex flex-col min-h-0",
         outputExpanded && expandedCount > 0 && "flex-1"
       )}>
-        <button
-          onClick={() => setOutputExpanded(!outputExpanded)}
-          className="w-full px-4 py-3 flex items-center justify-between hover:bg-accent transition-colors shrink-0"
-        >
-          <div className="flex items-center gap-2">
+        <div className="w-full px-4 py-3 flex items-center justify-between shrink-0">
+          <button
+            onClick={() => setOutputExpanded(!outputExpanded)}
+            className="flex items-center gap-2 hover:bg-accent transition-colors flex-1"
+          >
             <Terminal className="w-4 h-4 text-cyan-600" />
-            <h2 className="font-semibold text-sm text-foreground">Output</h2>
-          </div>
-          <ChevronDown
-            className={cn(
-              "w-4 h-4 transition-transform text-muted-foreground",
-              !outputExpanded && "-rotate-90"
+            <h2 className="font-semibold text-sm text-foreground">Serial Monitor</h2>
+            {isSerialMonitorActive && (
+              <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-500 rounded-full">
+                ACTIVE
+              </span>
             )}
-          />
-        </button>
+          </button>
+          <div className="flex items-center gap-2">
+            {!isSerialMonitorActive ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onStartSerialMonitor}
+                className="h-7 text-xs"
+              >
+                Start
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={onStopSerialMonitor}
+                className="h-7 text-xs"
+              >
+                Stop
+              </Button>
+            )}
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 transition-transform text-muted-foreground",
+                !outputExpanded && "-rotate-90"
+              )}
+            />
+          </div>
+        </div>
         {outputExpanded && (
           <div className="flex-1 flex flex-col bg-card min-h-0 overflow-hidden">
             <div className="flex-1 flex overflow-auto min-h-0">
@@ -197,8 +243,10 @@ export function NocodePanel({
                 ))}
               </div>
               <textarea
+                ref={outputTextareaRef}
                 value={outputContent}
-                onChange={(e) => setOutputContent(e.target.value)}
+                onChange={(e) => !isSerialMonitorActive && setOutputContent(e.target.value)}
+                readOnly={isSerialMonitorActive}
                 className="flex-1 px-3 py-2 text-xs font-mono text-foreground resize-none focus:outline-none leading-5 bg-background"
                 spellCheck={false}
                 style={{ minHeight: '100%' }}
@@ -222,7 +270,11 @@ export function NocodePanel({
         >
           <div className="flex items-center gap-2">
             <Usb className="w-4 h-4 text-blue-600" />
-            <h2 className="font-semibold text-sm text-foreground">Arduino Upload</h2>
+            <h2 className="font-semibold text-sm text-foreground">
+              {availableBoards.find((b) => b.id === selectedBoard)?.name
+                ? `${availableBoards.find((b) => b.id === selectedBoard)?.name} Upload`
+                : "Arduino Upload"}
+            </h2>
           </div>
           <ChevronDown
             className={cn(
@@ -250,15 +302,69 @@ export function NocodePanel({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {arduinoStatus.coreInstalled ? (
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <XCircle className="h-3 w-3 text-red-500" />
-                  )}
-                  <span>AVR Core</span>
+                  {(() => {
+                    // Show correct core based on selected board
+                    const isESP32 = selectedBoard === "esp32" || selectedBoard === "esp32wroom32";
+                    const coreInstalled = isESP32 
+                      ? (arduinoStatus?.esp32CoreInstalled || false)
+                      : (arduinoStatus?.avrCoreInstalled || arduinoStatus?.coreInstalled || false);
+                    const coreName = isESP32 ? "ESP32 Core" : "AVR Core";
+                    const coreType = isESP32 ? "esp32" : "avr";
+                    
+                    return (
+                      <>
+                        {coreInstalled ? (
+                          <CheckCircle className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <>
+                            <XCircle className="h-3 w-3 text-red-500" />
+                            {arduinoStatus?.cliInstalled && onInstallCore && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-auto p-0 text-xs ml-1"
+                                onClick={() => onInstallCore(coreType)}
+                              >
+                                Install
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        <span>{coreName}</span>
+                        {!coreInstalled && arduinoStatus?.cliInstalled && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0 text-xs ml-1"
+                            onClick={onRefreshPorts}
+                            title="Refresh status"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
+
+            {/* Board Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs">Board Type</Label>
+              <Select value={selectedBoard} onValueChange={onBoardChange}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBoards.map((board) => (
+                    <SelectItem key={board.id} value={board.id}>
+                      {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Port Selection */}
             <div className="space-y-2">

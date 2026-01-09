@@ -52,6 +52,18 @@ export default function NocodeEditor() {
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [manualPort, setManualPort] = useState<string>("COM11");
   const [useManualPort, setUseManualPort] = useState(false);
+  const [selectedBoard, setSelectedBoard] = useState<string>("nano");
+  
+  // Serial monitor state
+  const [isSerialMonitorActive, setIsSerialMonitorActive] = useState(false);
+  const serialMonitorWsRef = useRef<WebSocket | null>(null);
+
+  // Available boards for upload
+  const availableBoards = [
+    { id: "nano", name: "Arduino Nano" },
+    { id: "esp32", name: "ESP32" },
+    { id: "esp32wroom32", name: "ESP32-WROOM-32" },
+  ];
 
   const handleSelectBlock = useCallback((blockId: string) => {
     setSelectedBlockType(blockId);
@@ -174,6 +186,154 @@ export default function NocodeEditor() {
     } else {
       setOutputContent(">>> No Serial.print statements found in uploaded code\n>>> Add Serial.print blocks to see output here");
     }
+  }, []);
+
+  // Start/Stop Serial Monitor
+  const startSerialMonitor = useCallback(async () => {
+    const portToUse = useManualPort ? manualPort.trim().toUpperCase() : selectedPort?.trim().toUpperCase();
+    if (!portToUse || !portToUse.match(/^COM\d+$/)) {
+      toast({
+        title: "Serial Monitor Failed",
+        description: `Invalid port: ${portToUse || "none"}. Please select a valid COM port.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Start serial monitor via API
+      const response = await fetch("/api/arduino/serial-monitor/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ port: portToUse, baudRate: 9600 }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || "Failed to start serial monitor");
+      }
+
+      // Connect WebSocket for real-time data
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/api/arduino/serial-monitor?port=${portToUse}`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("[Serial Monitor] WebSocket connected");
+        setIsSerialMonitorActive(true);
+        setOutputContent(`>>> Serial Monitor Active on ${portToUse}\n>>> Waiting for data...\n`);
+        toast({
+          title: "Serial Monitor Started",
+          description: `Reading from ${portToUse} at 9600 baud`,
+        });
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === "data") {
+            const timestamp = new Date(message.timestamp).toLocaleTimeString();
+            setOutputContent((prev) => {
+              const newContent = prev + `[${timestamp}] ${message.data}\n`;
+              // Keep only last 1000 lines to prevent memory issues
+              const lines = newContent.split('\n');
+              if (lines.length > 1000) {
+                return lines.slice(-1000).join('\n');
+              }
+              return newContent;
+            });
+          } else if (message.type === "error") {
+            const errorMsg = message.error || "Unknown error";
+            setOutputContent((prev) => prev + `>>> ERROR: ${errorMsg}\n`);
+            
+            // Provide helpful message for access denied errors
+            let userMessage = errorMsg;
+            if (errorMsg.includes("Access denied") || errorMsg.includes("cannot open")) {
+              userMessage = `Port ${portToUse} is busy. Close other programs using this port (Arduino IDE, serial monitors, etc.) and try again.`;
+            }
+            
+            toast({
+              title: "Serial Monitor Error",
+              description: userMessage,
+              variant: "destructive",
+              duration: 10000,
+            });
+            
+            // Auto-stop on error
+            setIsSerialMonitorActive(false);
+            if (serialMonitorWsRef.current) {
+              serialMonitorWsRef.current.close();
+              serialMonitorWsRef.current = null;
+            }
+          }
+        } catch (error) {
+          console.error("[Serial Monitor] Failed to parse message:", error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("[Serial Monitor] WebSocket error:", error);
+        toast({
+          title: "Serial Monitor Error",
+          description: "Failed to connect to serial monitor",
+          variant: "destructive",
+        });
+        setIsSerialMonitorActive(false);
+      };
+
+      ws.onclose = () => {
+        console.log("[Serial Monitor] WebSocket closed");
+        setIsSerialMonitorActive(false);
+        setOutputContent((prev) => prev + "\n>>> Serial Monitor Disconnected\n");
+      };
+
+      serialMonitorWsRef.current = ws;
+    } catch (error: any) {
+      toast({
+        title: "Serial Monitor Failed",
+        description: error.message || "Failed to start serial monitor",
+        variant: "destructive",
+      });
+    }
+  }, [selectedPort, manualPort, useManualPort, toast]);
+
+  const stopSerialMonitor = useCallback(async () => {
+    const portToUse = useManualPort ? manualPort.trim().toUpperCase() : selectedPort?.trim().toUpperCase();
+    
+    // Close WebSocket
+    if (serialMonitorWsRef.current) {
+      serialMonitorWsRef.current.close();
+      serialMonitorWsRef.current = null;
+    }
+
+    // Stop via API
+    if (portToUse) {
+      try {
+        await fetch("/api/arduino/serial-monitor/stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ port: portToUse }),
+        });
+      } catch (error) {
+        console.error("[Serial Monitor] Failed to stop:", error);
+      }
+    }
+
+    setIsSerialMonitorActive(false);
+    setOutputContent((prev) => prev + "\n>>> Serial Monitor Stopped\n");
+    toast({
+      title: "Serial Monitor Stopped",
+      description: "Serial monitor has been disconnected",
+    });
+  }, [selectedPort, manualPort, useManualPort, toast]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (serialMonitorWsRef.current) {
+        serialMonitorWsRef.current.close();
+      }
+    };
   }, []);
 
   const handleDeleteConnection = useCallback((connectionId: string) => {
@@ -370,6 +530,13 @@ void loop() {
     fetchAvailablePorts();
     setSelectedPort("COM11");
     setManualPort("COM11");
+    
+    // Refresh status every 5 seconds to detect newly installed cores
+    const statusInterval = setInterval(() => {
+      checkArduinoStatus();
+    }, 5000);
+    
+    return () => clearInterval(statusInterval);
   }, []);
 
   // Arduino functions
@@ -379,23 +546,73 @@ void loop() {
       if (response.ok) {
         const status = await response.json();
         setArduinoStatus(status);
+        // Debug logging
+        if (selectedBoard === "esp32" || selectedBoard === "esp32wroom32") {
+          console.log("[ESP32 Core Status]", {
+            detected: status.esp32CoreInstalled,
+            cliInstalled: status.cliInstalled,
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to check Arduino status:", error);
     }
-  }, []);
+  }, [selectedBoard]);
+
+  const installArduinoCore = useCallback(async (core: string) => {
+    try {
+      const response = await fetch("/api/arduino/install-core", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ core }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Core Installation Started",
+          description: `Installing ${core === "esp32" ? "ESP32" : "AVR"} core. This may take a few minutes...`,
+        });
+        // Refresh status after a delay
+        setTimeout(() => {
+          checkArduinoStatus();
+        }, 2000);
+      } else {
+        toast({
+          title: "Installation Failed",
+          description: result.error || "Failed to install core",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Installation Failed",
+        description: error.message || "Failed to install core",
+        variant: "destructive",
+      });
+    }
+  }, [toast, checkArduinoStatus]);
 
   const fetchAvailablePorts = useCallback(async () => {
     try {
       const response = await fetch("/api/arduino/ports");
       if (response.ok) {
-        const ports = await response.json();
-        // Ensure ports is an array
-        const portsArray = Array.isArray(ports) ? ports : [];
+        const data = await response.json();
+        // Handle both { ports: [...] } and [...] formats
+        const portsArray = Array.isArray(data) ? data : (Array.isArray(data.ports) ? data.ports : []);
         setAvailablePorts(portsArray);
-        if (portsArray.length > 0 && !selectedPort) {
+        
+        // Auto-select COM11 if available, otherwise first port
+        if (portsArray.length > 0) {
           const com11 = portsArray.find((p: string) => p.toUpperCase() === "COM11");
-          setSelectedPort(com11 || portsArray[0]);
+          if (com11 && !selectedPort) {
+            setSelectedPort(com11);
+            setManualPort(com11);
+          } else if (!selectedPort) {
+            setSelectedPort(portsArray[0]);
+            setManualPort(portsArray[0]);
+          }
         }
       } else {
         // If API fails, set empty array
@@ -418,7 +635,7 @@ void loop() {
       return;
     }
 
-    const portToUse = useManualPort ? manualPort : selectedPort;
+    let portToUse = useManualPort ? manualPort : selectedPort;
     if (!portToUse) {
       toast({
         title: "Upload Failed",
@@ -427,6 +644,19 @@ void loop() {
       });
       return;
     }
+    
+    // Normalize port format (uppercase, trimmed)
+    portToUse = portToUse.trim().toUpperCase();
+    if (!portToUse.match(/^COM\d+$/)) {
+      toast({
+        title: "Upload Failed",
+        description: `Invalid port format: ${portToUse}. Must be COM1, COM2, etc.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log(`[Upload] Board: ${selectedBoard}, Port: ${portToUse}`);
 
     setIsUploading(true);
 
@@ -438,26 +668,43 @@ void loop() {
         },
         body: JSON.stringify({
           code: arduinoCode,
+          board: selectedBoard,
           port: portToUse,
-          fqbn: "arduino:avr:nano",
         }),
       });
 
       const result = await response.json();
 
-      if (result.success) {
+      if (response.ok && result.success) {
         // Parse Serial.print statements from uploaded code and show output
         parseSerialOutput(arduinoCode);
+        const boardName = availableBoards.find(b => b.id === selectedBoard)?.name || "Arduino";
         toast({
           title: "Upload Successful",
-          description: "Code has been uploaded to Arduino Nano!",
+          description: `Code has been uploaded to ${boardName}!`,
         });
+        
+        // Stop serial monitor if active (port will be busy after upload)
+        if (isSerialMonitorActive) {
+          await stopSerialMonitor();
+          // Wait a bit before allowing restart
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          toast({
+            title: "Serial Monitor Stopped",
+            description: "Serial monitor was stopped due to upload. You can restart it now.",
+          });
+        }
       } else {
+        // Show detailed error message (handles both 400 and other errors)
+        const errorMsg = result.error || result.details || "Failed to upload code";
+        const outputMsg = result.output ? `\n\nOutput:\n${result.output.substring(0, 500)}` : "";
         toast({
           title: "Upload Failed",
-          description: result.error || "Failed to upload code",
+          description: `${errorMsg}${outputMsg}`,
           variant: "destructive",
+          duration: 15000, // Show longer for errors
         });
+        console.error("Upload error:", result);
       }
     } catch (error: any) {
       toast({
@@ -468,7 +715,7 @@ void loop() {
     } finally {
       setIsUploading(false);
     }
-  }, [arduinoCode, selectedPort, manualPort, useManualPort, toast, parseSerialOutput]);
+  }, [arduinoCode, selectedPort, manualPort, useManualPort, selectedBoard, toast, parseSerialOutput]);
 
   const handleNewProject = useCallback(() => {
     const newProject: ProjectData = {
@@ -658,6 +905,13 @@ void loop() {
           onUseManualPortChange={setUseManualPort}
           onRefreshPorts={fetchAvailablePorts}
           outputContent={outputContent}
+          selectedBoard={selectedBoard}
+          availableBoards={availableBoards}
+          onBoardChange={setSelectedBoard}
+          onInstallCore={installArduinoCore}
+          isSerialMonitorActive={isSerialMonitorActive}
+          onStartSerialMonitor={startSerialMonitor}
+          onStopSerialMonitor={stopSerialMonitor}
         />
       </div>
     </div>
