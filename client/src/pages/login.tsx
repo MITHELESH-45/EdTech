@@ -110,13 +110,16 @@ export default function Login() {
     };
   }, []);
 
-  const onSubmit = (data: LoginForm) => {
+  const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
-    setTimeout(() => {
-      const result = login(data.email, data.password);
-      setIsLoading(false);
+    try {
+      const result = await login(data.email, data.password);
       
       if (result.success) {
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+        });
         setLocation("/dashboard");
       } else {
         toast({
@@ -125,7 +128,15 @@ export default function Login() {
           variant: "destructive",
         });
       }
-    }, 300);
+    } catch (error) {
+      toast({
+        title: "Login failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

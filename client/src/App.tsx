@@ -26,7 +26,6 @@ import CodingPlayground from "@/pages/coding-playground";
 import CodingComponent from "@/pages/coding-component";
 import RoboticsHelper from "./pages/robotics-helper";
 import Settings from "@/pages/settings";
-
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">

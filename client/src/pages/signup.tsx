@@ -117,11 +117,10 @@ export default function Signup() {
     };
   }, []);
 
-  const onSubmit = (data: SignupForm) => {
+  const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
-    setTimeout(() => {
-      const result = signup(data.email, data.password, data.name);
-      setIsLoading(false);
+    try {
+      const result = await signup(data.email, data.password, data.name);
       
       if (result.success) {
         toast({
@@ -136,7 +135,15 @@ export default function Signup() {
           variant: "destructive",
         });
       }
-    }, 300);
+    } catch (error) {
+      toast({
+        title: "Signup failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

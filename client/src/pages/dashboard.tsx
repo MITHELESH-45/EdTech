@@ -110,25 +110,37 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [scrollProgress, setScrollProgress] = useState(0);
-  const mainContentRef = useRef<HTMLElement>(null);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
 
-  // Set up scroll listener
+  // Set up scroll listener on AppLayout's scroll container
   useEffect(() => {
-    const mainElement = mainContentRef.current;
-    if (!mainElement) return;
+    // Find the AppLayout's scroll container (parent with overflow-auto)
+    const findScrollContainer = (element: HTMLElement | null): HTMLElement | null => {
+      if (!element) return null;
+      const parent = element.parentElement;
+      if (!parent) return null;
+      const style = window.getComputedStyle(parent);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+        return parent;
+      }
+      return findScrollContainer(parent);
+    };
+
+    const scrollContainer = findScrollContainer(dashboardRef.current);
+    if (!scrollContainer) return;
 
     const handleScroll = () => {
-      const scrollTop = mainElement.scrollTop;
-      const scrollHeight = mainElement.scrollHeight - mainElement.clientHeight;
+      const scrollTop = scrollContainer.scrollTop;
+      const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
       const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
       setScrollProgress(progress);
     };
 
-    mainElement.addEventListener('scroll', handleScroll, { passive: true });
-    return () => mainElement.removeEventListener('scroll', handleScroll);
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Combine original courses with additional courses and enable all
@@ -165,22 +177,20 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
+    <div ref={dashboardRef} className="h-full w-full bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
 
       {/* MAIN LAYOUT */}
-      <div className="flex flex-1 overflow-hidden mb-10">
+      <div className="flex flex-1 min-h-0">
 
         {/* LEFT — STATIC GROOT */}
-        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12">
+        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12 flex-shrink-0">
           <div className="h-full w-full flex items-center justify-center">
             <GrootModelViewer scrollProgress={scrollProgress} />
           </div>
         </div>
 
-        {/* RIGHT — SCROLLABLE CONTENT */}
-        <main 
-          ref={mainContentRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
+        {/* RIGHT — CONTENT */}
+        <main className="flex-1 bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
         >
         {/* Hero Section with Search */}
         <div className="relative border-b border-border overflow-hidden">
@@ -277,14 +287,7 @@ export default function Dashboard() {
                   description: "Run code with AI help",
                   hoverColorClass: "group-hover:text-chart-4"
                 },
-                {
-                  href: "/no-code-editor",
-                  icon: "/icons/code.png",
-                  iconAlt: "Code",
-                  title: "No-Code Editor",
-                  description: "Visual programming",
-                  hoverColorClass: "group-hover:text-chart-4"
-                }
+                
               ].map((tool, index) => (
                 <Link key={`${tool.href}-${index}`} href={tool.href}>
                   <motion.div
