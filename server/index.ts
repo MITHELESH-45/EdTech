@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
-import { createServer } from "http";
+import { createServer, type Server } from "http";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -49,7 +49,6 @@ if (!apiKey) {
 }  
 
 const app = express();
-const httpServer = createServer(app);
 
 declare module "http" {
   interface IncomingMessage {
@@ -104,6 +103,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await registerRoutes(app);
   // Initialize MongoDB connection
   try {
     const { connectToMongoDB } = await import("./utils/mongodb");
@@ -129,17 +129,21 @@ app.use((req, res, next) => {
   });
 
   // Production vs development setup
+  const port = parseInt(process.env.PORT || "5000", 10);
+  
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
+    app.listen(port, () => {
+      log(`serving on http://localhost:${port}`);
+    });
   } else {
+    // For development, create server for Vite HMR
+    const httpServer = createServer(app);
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
+    
+    httpServer.listen(port, () => {
+      log(`serving on http://localhost:${port}`);
+    });
   }
-
-  // ✅ Windows-safe server listen
-  const port = parseInt(process.env.PORT || "5000", 10);
-
-  httpServer.listen(port, () => {
-    log(`serving on http://localhost:${port}`);
-  });
 })();

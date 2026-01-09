@@ -1,5 +1,4 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { registerArduinoRoutes } from "./arduino-routes";
 import { registerGrootRoutes } from "./groot-routes";
@@ -7,7 +6,6 @@ import { registerCodingRoutes } from "./coding-routes";
 import { registerAuthRoutes } from "./routes/auth";
 
 export async function registerRoutes(
-  httpServer: Server,
   app: Express
 ): Promise<Server> {
   // Register Authentication routes
@@ -79,6 +77,4 @@ export async function registerRoutes(
 
   // Coding playground API (code runner)
   registerCodingRoutes(app);
-
-  return httpServer;
 }

@@ -4,10 +4,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Code, CheckCircle2, AlertCircle, Play } from "lucide-react";
+import { ArrowLeft, Code, CheckCircle2, AlertCircle, Play, Terminal, FileCode, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 import { getTopicById } from "@/lib/coding-learning-content";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SiC, SiCplusplus, SiPython } from "react-icons/si";
+import { FaJava } from "react-icons/fa";
+import { TbBrackets, TbRepeat, TbSquare, TbLetterT, TbFunction } from "react-icons/tb";
+
+const topicIcons: Record<string, any> = {
+  conditionals: TbBrackets,
+  loops: TbRepeat,
+  arrays: TbSquare,
+  strings: TbLetterT,
+  functions: TbFunction,
+};
+
+const languageIcons: Record<string, any> = {
+  c: SiC,
+  cpp: SiCplusplus,
+  python: SiPython,
+  java: FaJava,
+};
 
 export default function CodingLearnTopic() {
   const [, params] = useRoute("/coding/learn/:topic");
@@ -27,6 +45,8 @@ export default function CodingLearnTopic() {
     );
   }
 
+  const TopicIcon = topicIcons[topicId] || Code;
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -38,13 +58,27 @@ export default function CodingLearnTopic() {
       >
         <div className="flex items-center gap-4">
           <Link href="/coding">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+            <motion.div whileHover={{ x: -4 }} whileTap={{ scale: 0.95 }}>
+              <Button variant="ghost" size="icon" className="rounded-xl">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </motion.div>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold">{topic.title}</h1>
-            <p className="text-muted-foreground pt-2">{topic.description}</p>
+          <div className="flex items-center gap-4">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", delay: 0.2 }}
+              className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-lg border border-primary/20"
+            >
+              <TopicIcon className="h-7 w-7 text-primary" />
+            </motion.div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                {topic.title}
+              </h1>
+              <p className="text-muted-foreground pt-2">{topic.description}</p>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -77,15 +111,18 @@ export default function CodingLearnTopic() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Code className="h-5 w-5 text-primary" />
-                  Concept Explanation
+            <Card className="relative overflow-hidden border-2 hover:shadow-xl transition-all bg-gradient-to-br from-card to-muted/30 group">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 shadow-md">
+                    <FileCode className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="font-bold">Concept Explanation</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+              <CardContent className="relative">
+                <p className="text-muted-foreground leading-relaxed whitespace-pre-line text-base">
                   {topic.explanation}
                 </p>
               </CardContent>
@@ -98,40 +135,73 @@ export default function CodingLearnTopic() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  Key Rules
+            <Card className="relative overflow-hidden border-2 hover:shadow-xl transition-all bg-gradient-to-br from-card to-muted/30 group">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-500/0 via-green-500/5 to-green-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 flex items-center justify-center border border-green-500/20 shadow-md">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  </div>
+                  <span className="font-bold">Key Rules</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-4">
+              <CardContent className="relative">
+                <ul className="space-y-6">
                   {topic.keyRules.map((item, index) => (
-                    <li key={index} className="space-y-2 border-b last:border-b-0 border-border pb-3 last:pb-0">
-                      <div className="flex items-start gap-2">
-                        <span className="text-primary mt-1">•</span>
-                        <span className="text-foreground font-medium">{item.rule}</span>
-                      </div>
-                      <div className="pl-6 space-y-2">
-                        <div className="text-sm text-muted-foreground">
-                          <span className="font-semibold text-primary">Example:</span> {item.example}
+                    <motion.li
+                      key={index}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      className="space-y-3 border-b last:border-b-0 border-border/50 pb-4 last:pb-0"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 mt-0.5 flex-shrink-0">
+                          <span className="text-primary text-xs font-bold">{index + 1}</span>
                         </div>
-                        <div className="bg-muted rounded-md p-3 text-xs font-mono whitespace-pre-wrap">
+                        <span className="text-foreground font-semibold text-base">{item.rule}</span>
+                      </div>
+                      <div className="pl-9 space-y-3">
+                        <div className="flex items-start gap-2 text-sm bg-primary/5 rounded-lg p-3 border border-primary/10">
+                          <Lightbulb className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="font-semibold text-primary">Example: </span>
+                            <span className="text-muted-foreground">{item.example}</span>
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-muted/80 to-muted/40 rounded-lg p-4 text-xs font-mono whitespace-pre-wrap border border-border/50 shadow-inner">
                           {item.code}
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-2 pl-1">
-                          <div className="bg-background border border-border rounded-md p-2">
-                            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Input</div>
-                            <div className="text-xs text-foreground whitespace-pre-wrap">{item.input || "—"}</div>
-                          </div>
-                          <div className="bg-background border border-border rounded-md p-2">
-                            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Output</div>
-                            <div className="text-xs text-foreground whitespace-pre-wrap">{item.output || "—"}</div>
-                          </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20 shadow-md">
+                            <CardHeader className="py-2 px-3">
+                              <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide flex items-center gap-1">
+                                <Terminal className="h-3 w-3" />
+                                Input
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-3 pt-0">
+                              <div className="text-xs text-foreground whitespace-pre-wrap font-mono bg-background/50 rounded p-2 border border-border/50">
+                                {item.input || "—"}
+                              </div>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20 shadow-md">
+                            <CardHeader className="py-2 px-3">
+                              <div className="text-[11px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wide flex items-center gap-1">
+                                <Terminal className="h-3 w-3" />
+                                Output
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-3 pt-0">
+                              <div className="text-xs text-foreground whitespace-pre-wrap font-mono bg-background/50 rounded p-2 border border-border/50">
+                                {item.output || "—"}
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
                       </div>
-                    </li>
+                    </motion.li>
                   ))}
                 </ul>
               </CardContent>
@@ -144,20 +214,29 @@ export default function CodingLearnTopic() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-amber-500" />
-                  Common Mistakes
+            <Card className="relative overflow-hidden border-2 border-amber-500/30 hover:shadow-xl transition-all bg-gradient-to-br from-card to-amber-500/5 group">
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-md">
+                    <AlertCircle className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <span className="font-bold">Common Mistakes</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
+              <CardContent className="relative">
+                <ul className="space-y-3">
                   {topic.commonMistakes.map((mistake, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <span className="text-amber-500 mt-1">⚠</span>
-                      <span className="text-muted-foreground">{mistake}</span>
-                    </li>
+                    <motion.li
+                      key={index}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 + index * 0.1 }}
+                      className="flex items-start gap-3 bg-amber-500/10 rounded-lg p-3 border border-amber-500/20"
+                    >
+                      <span className="text-amber-500 mt-0.5 text-lg flex-shrink-0">⚠</span>
+                      <span className="text-muted-foreground leading-relaxed">{mistake}</span>
+                    </motion.li>
                   ))}
                 </ul>
               </CardContent>
@@ -217,38 +296,70 @@ export default function CodingLearnTopic() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="python" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="c">C</TabsTrigger>
-                  <TabsTrigger value="cpp">C++</TabsTrigger>
-                  <TabsTrigger value="python">Python</TabsTrigger>
-                  <TabsTrigger value="java">Java</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4 bg-muted/50">
+                  <TabsTrigger value="c" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-sky-600 data-[state=active]:text-white">
+                    {(() => {
+                      const Icon = languageIcons.c;
+                      return <Icon className="h-4 w-4" />;
+                    })()}
+                    <span>C</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="cpp" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white">
+                    {(() => {
+                      const Icon = languageIcons.cpp;
+                      return <Icon className="h-4 w-4" />;
+                    })()}
+                    <span>C++</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="python" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-yellow-600 data-[state=active]:text-white data-[state=active]:text-black">
+                    {(() => {
+                      const Icon = languageIcons.python;
+                      return <Icon className="h-4 w-4" />;
+                    })()}
+                    <span>Python</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="java" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white">
+                    {(() => {
+                      const Icon = languageIcons.java;
+                      return <Icon className="h-4 w-4" />;
+                    })()}
+                    <span>Java</span>
+                  </TabsTrigger>
                 </TabsList>
                 <TabsContent value="c" className="mt-4">
                   <ScrollArea className="h-[600px]">
-                    <pre className="text-xs font-mono bg-muted p-4 rounded-md overflow-x-auto">
-                      <code>{topic.syntax.c}</code>
-                    </pre>
+                    <div className="bg-gradient-to-br from-sky-500/10 to-sky-500/5 border border-sky-500/20 rounded-lg p-4">
+                      <pre className="text-xs font-mono bg-background/80 p-4 rounded-md overflow-x-auto border border-border/50 shadow-inner">
+                        <code>{topic.syntax.c}</code>
+                      </pre>
+                    </div>
                   </ScrollArea>
                 </TabsContent>
                 <TabsContent value="cpp" className="mt-4">
                   <ScrollArea className="h-[600px]">
-                    <pre className="text-xs font-mono bg-muted p-4 rounded-md overflow-x-auto">
-                      <code>{topic.syntax.cpp}</code>
-                    </pre>
+                    <div className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border border-indigo-500/20 rounded-lg p-4">
+                      <pre className="text-xs font-mono bg-background/80 p-4 rounded-md overflow-x-auto border border-border/50 shadow-inner">
+                        <code>{topic.syntax.cpp}</code>
+                      </pre>
+                    </div>
                   </ScrollArea>
                 </TabsContent>
                 <TabsContent value="python" className="mt-4">
                   <ScrollArea className="h-[600px]">
-                    <pre className="text-xs font-mono bg-muted p-4 rounded-md overflow-x-auto">
-                      <code>{topic.syntax.python}</code>
-                    </pre>
+                    <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border border-yellow-500/20 rounded-lg p-4">
+                      <pre className="text-xs font-mono bg-background/80 p-4 rounded-md overflow-x-auto border border-border/50 shadow-inner">
+                        <code>{topic.syntax.python}</code>
+                      </pre>
+                    </div>
                   </ScrollArea>
                 </TabsContent>
                 <TabsContent value="java" className="mt-4">
                   <ScrollArea className="h-[600px]">
-                    <pre className="text-xs font-mono bg-muted p-4 rounded-md overflow-x-auto">
-                      <code>{topic.syntax.java}</code>
-                    </pre>
+                    <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border border-orange-500/20 rounded-lg p-4">
+                      <pre className="text-xs font-mono bg-background/80 p-4 rounded-md overflow-x-auto border border-border/50 shadow-inner">
+                        <code>{topic.syntax.java}</code>
+                      </pre>
+                    </div>
                   </ScrollArea>
                 </TabsContent>
               </Tabs>
@@ -264,20 +375,25 @@ export default function CodingLearnTopic() {
             transition={{ duration: 0.5, delay: 0.6 }}
             className="sticky bottom-6 z-10"
           >
-            <Card className="bg-card border-border shadow-md">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-2 border-primary/30 shadow-xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardContent className="p-6 relative">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <h3 className="font-semibold text-lg mb-1 text-foreground">Ready to Practice?</h3>
+                    <h3 className="font-bold text-xl mb-2 text-foreground bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      Ready to Practice?
+                    </h3>
                     <p className="text-sm text-muted-foreground">
                       Open the code editor and start coding with the concepts you've learned.
                     </p>
                   </div>
                   <Link href="/code-editor">
-                    <Button size="lg" className="gap-2">
-                      <Play className="h-5 w-5" />
-                      Practice in Code Editor
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Button size="lg" className="gap-2 shadow-lg hover:shadow-xl bg-gradient-to-r from-primary to-primary/90 text-white border-0">
+                        <Play className="h-5 w-5" />
+                        Practice in Code Editor
+                      </Button>
+                    </motion.div>
                   </Link>
                 </div>
               </CardContent>
