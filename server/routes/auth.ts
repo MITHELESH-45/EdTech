@@ -6,6 +6,7 @@
 
 import type { Express, Request, Response } from "express";
 import { getLoginCollection } from "../utils/mongodb";
+import { handleDailyLogin } from "./courses";
 import { randomUUID } from "crypto";
 
 // Simple password hashing (for production, use bcrypt)
@@ -153,6 +154,14 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       console.log(`[AUTH] User logged in: ${email}`);
+
+      // Handle daily login tracking (award points, update streak)
+      try {
+        await handleDailyLogin(user.userId);
+      } catch (error) {
+        // Log error but don't fail login if daily login tracking fails
+        console.error("[AUTH] Daily login tracking error:", error);
+      }
 
       // Return user data (without password)
       res.json({
