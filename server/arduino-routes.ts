@@ -161,12 +161,25 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
   // ==========================================================================
   app.get("/api/arduino/status", async (_req: Request, res: Response) => {
     try {
-      // Re-detect CLI path on each status check
+      // Re-detect CLI path on each status check to ensure consistency
       const cliPath = await findArduinoCli();
       config.cliPath = cliPath;
       
-      // Check if Arduino CLI is installed
+      // Check if Arduino CLI is installed (this also updates config.cliPath if needed)
       const cliInstalled = await checkArduinoCli();
+      
+      // Ensure CLI path is set correctly after check
+      if (cliInstalled) {
+        // Verify CLI path is correct by testing it
+        const verifyPath = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+        try {
+          await execAsync(`${verifyPath} version`, { timeout: 5000 });
+        } catch {
+          // If verification fails, try to find CLI again
+          const newPath = await findArduinoCli();
+          config.cliPath = newPath;
+        }
+      }
       
       // Get CLI version if available
       let cliVersion = "";
@@ -186,9 +199,41 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
       // List connected boards
       const boards = cliInstalled ? await listConnectedBoards() : [];
       
-      // Check if cores are installed
-      const avrCoreInstalled = cliInstalled ? await checkArduinoCore() : false;
-      const esp32CoreInstalled = cliInstalled ? await checkESP32Core() : false;
+      // Check if cores are installed (only if CLI is installed)
+      // These functions now verify CLI path internally, so we get consistent results
+      let avrCoreInstalled = false;
+      let esp32CoreInstalled = false;
+      
+      if (cliInstalled) {
+        // Re-verify CLI path is correct before checking cores (ensure consistency)
+        const verifyPath = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+        try {
+          await execAsync(`${verifyPath} version`, { timeout: 5000 });
+          // CLI path is valid, proceed with core checks
+          avrCoreInstalled = await checkArduinoCore();
+          esp32CoreInstalled = await checkESP32Core();
+          // Update cliPathInfo with actual verified path
+          cliPathInfo = config.cliPath;
+        } catch (verifyError: any) {
+          console.error("[Arduino] CLI path verification failed in status check:", verifyError.message);
+          // CLI path might have changed, try to re-detect
+          const newPath = await findArduinoCli();
+          if (newPath !== config.cliPath) {
+            config.cliPath = newPath;
+            cliPathInfo = newPath;
+            // Retry core checks with new path
+            try {
+              await execAsync(`${config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath} version`, { timeout: 5000 });
+              avrCoreInstalled = await checkArduinoCore();
+              esp32CoreInstalled = await checkESP32Core();
+            } catch {
+              // If still fails, cores are not installed
+              avrCoreInstalled = false;
+              esp32CoreInstalled = false;
+            }
+          }
+        }
+      }
       
       res.json({
         cliInstalled,
@@ -235,16 +280,48 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
 
   // ==========================================================================
   // GET /api/arduino/ports - List available serial ports
+  // Returns ports with connected boards prioritized first
   // ==========================================================================
   app.get("/api/arduino/ports", async (_req: Request, res: Response) => {
     try {
-      const ports = await listSerialPorts();
-      // Return as array for frontend compatibility
-      res.json(ports);
+      // Get connected boards first (these are actual Arduino/ESP32 devices)
+      const connectedBoards = await listConnectedBoards();
+      const connectedPorts = connectedBoards.map(b => b.port).filter(Boolean);
+      
+      // Get all serial ports
+      const allPorts = await listSerialPorts();
+      
+      // Prioritize: connected boards first, then other ports
+      const prioritizedPorts: string[] = [];
+      
+      // Add connected ports first
+      for (const port of connectedPorts) {
+        if (!prioritizedPorts.includes(port)) {
+          prioritizedPorts.push(port);
+        }
+      }
+      
+      // Add remaining ports
+      for (const port of allPorts) {
+        if (!prioritizedPorts.includes(port)) {
+          prioritizedPorts.push(port);
+        }
+      }
+      
+      // If no ports found, still return empty array (don't add dummy ports)
+      // Return with metadata about which ports are connected
+      res.json({
+        ports: prioritizedPorts.length > 0 ? prioritizedPorts : allPorts,
+        connectedBoards: connectedBoards,
+        recommendedPort: connectedPorts.length > 0 ? connectedPorts[0] : (allPorts.length > 0 ? allPorts[0] : null),
+      });
     } catch (error: any) {
+      console.error("[Arduino] Error listing ports:", error);
       res.status(500).json({
         error: "Failed to list serial ports",
         details: error.message,
+        ports: [], // Return empty array on error
+        recommendedPort: null,
       });
     }
   });
@@ -866,27 +943,97 @@ async function checkArduinoCli(): Promise<boolean> {
 
 /**
  * Check if Arduino AVR core is installed
+ * Assumes CLI path in config.cliPath is already verified
  */
 async function checkArduinoCore(): Promise<boolean> {
   try {
+    // Verify CLI path is valid by testing it
     const cmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+    
+    // First verify CLI works
+    try {
+      await execAsync(`${cmd} version`, { timeout: 5000 });
+    } catch (verifyError: any) {
+      console.log("[Arduino] CLI path verification failed, trying to re-detect...");
+      // Try to re-detect CLI path if verification fails
+      const newPath = await findArduinoCli();
+      if (newPath !== config.cliPath) {
+        config.cliPath = newPath;
+        console.log(`[Arduino] CLI path updated to: ${newPath}`);
+        // Update command with new path
+        const newCmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+        await execAsync(`${newCmd} version`, { timeout: 5000 });
+        // Use new command for core list
+        const { stdout } = await execAsync(`${newCmd} core list`, { timeout: 10000 });
+        const output = stdout.toLowerCase();
+        const hasCore = output.includes("arduino:avr") || 
+                        output.includes("arduino avr") ||
+                        output.match(/arduino\s+avr/i) !== null;
+        console.log(`[Arduino] AVR core ${hasCore ? 'detected' : 'not found'}`);
+        return hasCore;
+      } else {
+        throw verifyError; // Re-throw if we couldn't find a new path
+      }
+    }
+    
+    // CLI path is valid, check cores
     const { stdout } = await execAsync(`${cmd} core list`, { timeout: 10000 });
-    return stdout.includes("arduino:avr");
-  } catch {
+    const output = stdout.toLowerCase();
+    
+    // Check for various formats: arduino:avr, arduino:avr@version, arduino avr
+    const hasCore = output.includes("arduino:avr") || 
+                    output.includes("arduino avr") ||
+                    output.match(/arduino\s+avr/i) !== null;
+    
+    console.log(`[Arduino] AVR core ${hasCore ? 'detected' : 'not found'}`);
+    return hasCore;
+  } catch (error: any) {
+    console.error("[Arduino] Failed to check AVR core:", error.message);
     return false;
   }
 }
 
 /**
  * Check if ESP32 core is installed
+ * Assumes CLI path in config.cliPath is already verified
  */
 async function checkESP32Core(): Promise<boolean> {
   try {
+    // Verify CLI path is valid by testing it
     const cmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+    
+    // First verify CLI works
+    try {
+      await execAsync(`${cmd} version`, { timeout: 5000 });
+    } catch (verifyError: any) {
+      console.log("[Arduino] CLI path verification failed, trying to re-detect...");
+      // Try to re-detect CLI path if verification fails
+      const newPath = await findArduinoCli();
+      if (newPath !== config.cliPath) {
+        config.cliPath = newPath;
+        console.log(`[Arduino] CLI path updated to: ${newPath}`);
+        // Update command with new path
+        const newCmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+        await execAsync(`${newCmd} version`, { timeout: 5000 });
+        // Use new command for core list
+        const { stdout } = await execAsync(`${newCmd} core list`, { timeout: 10000 });
+        const output = stdout.toLowerCase();
+        const hasCore = output.includes("esp32:esp32") || output.includes("esp32");
+        console.log(`[Arduino] ESP32 core ${hasCore ? 'detected' : 'not found'}`);
+        return hasCore;
+      } else {
+        throw verifyError; // Re-throw if we couldn't find a new path
+      }
+    }
+    
+    // CLI path is valid, check cores
     const { stdout } = await execAsync(`${cmd} core list`, { timeout: 10000 });
     // Check for esp32:esp32 in the output (case-insensitive)
     const output = stdout.toLowerCase();
-    return output.includes("esp32:esp32") || output.includes("esp32");
+    const hasCore = output.includes("esp32:esp32") || output.includes("esp32");
+    
+    console.log(`[Arduino] ESP32 core ${hasCore ? 'detected' : 'not found'}`);
+    return hasCore;
   } catch (error: any) {
     console.error("[Arduino] Failed to check ESP32 core:", error.message);
     return false;
@@ -896,7 +1043,7 @@ async function checkESP32Core(): Promise<boolean> {
 /**
  * List connected Arduino boards
  */
-async function listConnectedBoards(): Promise<Array<{ port: string; board: string }>> {
+async function listConnectedBoards(): Promise<Array<{ port: string; board: string; fqbn?: string }>> {
   try {
     const cmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
     const { stdout } = await execAsync(`${cmd} board list --format json`, { timeout: 10000 });
@@ -904,14 +1051,21 @@ async function listConnectedBoards(): Promise<Array<{ port: string; board: strin
     
     if (Array.isArray(data)) {
       return data
-        .filter((item: any) => item.matching_boards && item.matching_boards.length > 0)
+        .filter((item: any) => {
+          // Include boards with matching boards OR just ports that might be Arduino
+          const hasPort = item.port?.address || item.address;
+          const hasMatchingBoards = item.matching_boards && item.matching_boards.length > 0;
+          return hasPort && (hasMatchingBoards || item.port?.protocol === "serial");
+        })
         .map((item: any) => ({
           port: item.port?.address || item.address || "unknown",
-          board: item.matching_boards?.[0]?.name || "Unknown Board",
+          board: item.matching_boards?.[0]?.name || item.matching_boards?.[0]?.fqbn || "Unknown Board",
+          fqbn: item.matching_boards?.[0]?.fqbn,
         }));
     }
     return [];
-  } catch {
+  } catch (error: any) {
+    console.error("[Arduino] Failed to list connected boards:", error.message);
     return [];
   }
 }
@@ -924,19 +1078,27 @@ async function listSerialPorts(): Promise<string[]> {
   const ports: string[] = [];
   
   try {
-    // Try Arduino CLI first (most accurate)
-    const { stdout } = await execAsync(`${config.cliPath} board list --format json`);
+    // Try Arduino CLI first (most accurate) - properly quote path
+    const cmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
+    const { stdout } = await execAsync(`${cmd} board list --format json`, { timeout: 10000 });
     const data = JSON.parse(stdout);
     
     if (Array.isArray(data)) {
       const cliPorts = data
-        .map((item: any) => item.port?.address || item.address)
-        .filter(Boolean);
+        .map((item: any) => {
+          // Try multiple possible port address fields
+          return item.port?.address || 
+                 item.address || 
+                 item.port?.address_label ||
+                 item.port?.protocol === "serial" ? (item.port?.address || item.address) : null;
+        })
+        .filter(Boolean)
+        .map((p: string) => p.toUpperCase()); // Normalize to uppercase
       ports.push(...cliPorts);
     }
-  } catch (error) {
+  } catch (error: any) {
     // Arduino CLI not available or failed - use fallback detection
-    console.log("[Arduino] CLI port detection failed, using fallback");
+    console.log("[Arduino] CLI port detection failed, using fallback:", error.message);
   }
   
   // Fallback: Detect all COM ports on Windows
@@ -944,12 +1106,13 @@ async function listSerialPorts(): Promise<string[]> {
     try {
       // Use PowerShell to list all COM ports
       const { stdout } = await execAsync(
-        'powershell -Command "Get-WmiObject Win32_SerialPort | Select-Object -ExpandProperty DeviceID"'
+        'powershell -Command "Get-WmiObject Win32_SerialPort | Select-Object -ExpandProperty DeviceID"',
+        { timeout: 5000 }
       );
       const comPorts = stdout
         .split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line.startsWith('COM') && line.length > 3);
+        .map((line: string) => line.trim().toUpperCase())
+        .filter((line: string) => line.startsWith('COM') && line.length > 3 && /^COM\d+$/.test(line));
       
       // Add all detected COM ports
       for (const port of comPorts) {
@@ -957,31 +1120,60 @@ async function listSerialPorts(): Promise<string[]> {
           ports.push(port);
         }
       }
-      
-      // Also add common COM ports if none found
-      if (ports.length === 0) {
-        for (let i = 1; i <= 20; i++) {
-          ports.push(`COM${i}`);
+    } catch (error: any) {
+      console.log("[Arduino] PowerShell port detection failed:", error.message);
+      // Don't add dummy ports - only real detected ports
+    }
+    
+    // Also try using serialport library as additional fallback
+    try {
+      const portList = await SerialPort.list();
+      for (const portInfo of portList) {
+        const port = portInfo.path?.toUpperCase();
+        if (port && port.startsWith('COM') && !ports.includes(port)) {
+          ports.push(port);
         }
       }
-    } catch (error) {
-      // PowerShell failed - generate common COM ports
-      for (let i = 1; i <= 20; i++) {
-        ports.push(`COM${i}`);
-      }
+    } catch (error: any) {
+      console.log("[Arduino] SerialPort library detection failed:", error.message);
     }
   } else {
-    // Linux/Mac: try common device paths
-    const commonPorts = [
-      "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2",
-      "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2",
-      "/dev/tty.usbserial", "/dev/tty.usbmodem",
-    ];
-    ports.push(...commonPorts);
+    // Linux/Mac: use serialport library for accurate detection
+    try {
+      const portList = await SerialPort.list();
+      for (const portInfo of portList) {
+        const port = portInfo.path;
+        if (port && !ports.includes(port)) {
+          ports.push(port);
+        }
+      }
+    } catch (error: any) {
+      console.log("[Arduino] SerialPort library detection failed:", error.message);
+      // Fallback: try common device paths
+      const commonPorts = [
+        "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2",
+        "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2",
+        "/dev/tty.usbserial", "/dev/tty.usbmodem",
+      ];
+      for (const port of commonPorts) {
+        if (!ports.includes(port)) {
+          ports.push(port);
+        }
+      }
+    }
   }
   
-  // Remove duplicates and sort
-  return Array.from(new Set(ports)).sort();
+  // Remove duplicates, normalize, and sort
+  const uniquePorts = Array.from(new Set(ports.map(p => p.toUpperCase())));
+  return uniquePorts.sort((a, b) => {
+    // Sort COM ports numerically (COM1, COM2, ..., COM10, COM11)
+    const matchA = a.match(/^COM(\d+)$/);
+    const matchB = b.match(/^COM(\d+)$/);
+    if (matchA && matchB) {
+      return parseInt(matchA[1]) - parseInt(matchB[1]);
+    }
+    return a.localeCompare(b);
+  });
 }
 
 /**

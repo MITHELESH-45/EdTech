@@ -153,25 +153,27 @@ export default function ArduinoCodeEditor() {
       const response = await fetch("/api/arduino/ports");
       if (response.ok) {
         const data = await response.json();
-        const ports = data.ports || [];
+        const ports = Array.isArray(data) ? data : (data.ports || []);
         setAvailablePorts(ports);
         
-        // Auto-select COM11 if available, otherwise select first port
-        if (ports.includes("COM11")) {
-          setSelectedPort("COM11");
-          setManualPort("COM11");
+        // Auto-select recommended port (connected board) or first port
+        const recommendedPort = data.recommendedPort || data.recommended || null;
+        if (recommendedPort && ports.includes(recommendedPort)) {
+          // Use recommended port (connected Arduino/ESP32)
+          setSelectedPort(recommendedPort);
+          setManualPort(recommendedPort);
         } else if (ports.length > 0) {
-          setSelectedPort(ports[0]);
-          setManualPort(ports[0]);
+          // Fallback to first port if no recommendation
+          if (!selectedPort || !ports.includes(selectedPort)) {
+            setSelectedPort(ports[0]);
+            setManualPort(ports[0]);
+          }
         }
       }
     } catch (error) {
       console.error("Failed to fetch ports:", error);
-      // Fallback: add common COM ports
-      const commonPorts = Array.from({ length: 20 }, (_, i) => `COM${i + 1}`);
-      setAvailablePorts(commonPorts);
-      setSelectedPort("COM11");
-      setManualPort("COM11");
+      // Don't set dummy ports - just leave empty
+      setAvailablePorts([]);
     }
   };
 

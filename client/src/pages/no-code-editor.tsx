@@ -603,13 +603,15 @@ void loop() {
         const portsArray = Array.isArray(data) ? data : (Array.isArray(data.ports) ? data.ports : []);
         setAvailablePorts(portsArray);
         
-        // Auto-select COM11 if available, otherwise first port
-        if (portsArray.length > 0) {
-          const com11 = portsArray.find((p: string) => p.toUpperCase() === "COM11");
-          if (com11 && !selectedPort) {
-            setSelectedPort(com11);
-            setManualPort(com11);
-          } else if (!selectedPort) {
+        // Auto-select recommended port (connected board) or first port
+        const recommendedPort = data.recommendedPort || data.recommended || null;
+        if (recommendedPort && portsArray.includes(recommendedPort)) {
+          // Use recommended port (connected Arduino/ESP32)
+          setSelectedPort(recommendedPort);
+          setManualPort(recommendedPort);
+        } else if (portsArray.length > 0) {
+          // Fallback to first port if no recommendation
+          if (!selectedPort || !portsArray.includes(selectedPort)) {
             setSelectedPort(portsArray[0]);
             setManualPort(portsArray[0]);
           }

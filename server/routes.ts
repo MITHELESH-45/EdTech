@@ -14,8 +14,6 @@ export async function registerRoutes(
   registerArduinoRoutes(app, httpServer);
   // Register Authentication routes
   registerAuthRoutes(app);
-  // Register Arduino upload routes
-  registerArduinoRoutes(app);
   // Register GROOT chat routes
   registerGrootRoutes(app);
   // Courses API
