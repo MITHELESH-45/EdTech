@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Thermometer, Droplets, Sun, Activity, Zap, RotateCw, AlertCircle } from 'lucide-react';
-import { SensorData, SensorType } from './store';
+import { SensorData, SensorType, useSensorStore } from './store';
 import { cn } from '@/lib/utils';
 
 interface SensorCardProps {
@@ -33,6 +33,8 @@ const getStatusColor = (status: SensorData['status']) => {
 export const SensorCard: React.FC<SensorCardProps> = ({ sensor, isActive, onClick }) => {
   const Icon = getSensorIcon(sensor.type);
   const statusColor = getStatusColor(sensor.status);
+  const sensorStatus = useSensorStore(state => state.sensorStatus);
+  const isSensorOK = sensorStatus === 'OK';
 
   return (
     <motion.div
@@ -56,47 +58,54 @@ export const SensorCard: React.FC<SensorCardProps> = ({ sensor, isActive, onClic
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-0.5">{sensor.name}</h3>
         <div className="flex items-baseline gap-1 flex-wrap">
-          {/* DHT Sensor: Display both temperature and humidity */}
-          {sensor.type === 'DHT Sensor' ? (
-            <>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-foreground">{sensor.value}</span>
-                <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
-              </div>
-              <span className="text-muted-foreground mx-1">/</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-foreground">{sensor.secondaryValue || 0}</span>
-                <span className="text-xs text-muted-foreground font-medium">{sensor.secondaryUnit}</span>
-              </div>
-            </>
-          ) : sensor.type === 'IR Sensor' ? (
-            // IR Sensor: Display detection status
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-foreground">
-                {sensor.value === 1 ? 'Detected' : 'No Detection'}
-              </span>
-              <span className={cn(
-                "w-2 h-2 rounded-full",
-                sensor.value === 1 ? "bg-red-500" : "bg-gray-400"
-              )} />
-            </div>
-          ) : sensor.type === 'Touch Sensor' ? (
-            // Touch Sensor: Display count value
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-foreground">{sensor.value}</span>
-              <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
-            </div>
-          ) : sensor.type === 'Servo Motor' ? (
-            // Servo Motor: Display angle
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-foreground">{sensor.value}</span>
-              <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
-            </div>
+          {!isSensorOK ? (
+            // Show "----" when sensor status is not OK
+            <span className="text-xl font-bold text-foreground">----</span>
           ) : (
-            // Other sensors: Display value and unit
             <>
-              <span className="text-xl font-bold text-foreground">{sensor.value}</span>
-              <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
+              {/* DHT Sensor: Display both temperature and humidity */}
+              {sensor.type === 'DHT Sensor' ? (
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-foreground">{sensor.value}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
+                  </div>
+                  <span className="text-muted-foreground mx-1">/</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-foreground">{sensor.secondaryValue || 0}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{sensor.secondaryUnit}</span>
+                  </div>
+                </>
+              ) : sensor.type === 'IR Sensor' ? (
+                // IR Sensor: Display detection status
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-foreground">
+                    {sensor.value === 1 ? 'Detected' : 'No Detection'}
+                  </span>
+                  <span className={cn(
+                    "w-2 h-2 rounded-full",
+                    sensor.value === 1 ? "bg-red-500" : "bg-gray-400"
+                  )} />
+                </div>
+              ) : sensor.type === 'Touch Sensor' ? (
+                // Touch Sensor: Display count value
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-bold text-foreground">{sensor.value}</span>
+                  <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
+                </div>
+              ) : sensor.type === 'Servo Motor' ? (
+                // Servo Motor: Display angle
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-bold text-foreground">{sensor.value}</span>
+                  <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
+                </div>
+              ) : (
+                // Other sensors: Display value and unit
+                <>
+                  <span className="text-xl font-bold text-foreground">{sensor.value}</span>
+                  <span className="text-xs text-muted-foreground font-medium">{sensor.unit}</span>
+                </>
+              )}
             </>
           )}
         </div>

@@ -29,6 +29,7 @@ interface SensorStore {
   isSimulating: boolean;
   mqttConnected: boolean;
   sensorStatus: 'OK' | 'FAIL' | null;
+  lastMessageTime: number;
   
   // Actions
   selectSensor: (id: string) => void;
@@ -45,8 +46,10 @@ interface SensorStore {
     ir_sensor?: boolean;
     ldr?: number;
   }) => void;
+  clearSensorValues: () => void;
   setMqttConnected: (connected: boolean) => void;
   setSensorStatus: (status: 'OK' | 'FAIL' | null) => void;
+  setLastMessageTime: (time: number) => void;
   toggleSimulation: () => void;
 }
 
@@ -133,12 +136,15 @@ export const useSensorStore = create<SensorStore>((set) => ({
   isSimulating: true,
   mqttConnected: false,
   sensorStatus: null,
+  lastMessageTime: 0,
 
   selectSensor: (id) => set({ selectedSensorId: id }),
   
   setMqttConnected: (connected) => set({ mqttConnected: connected }),
   
   setSensorStatus: (status) => set({ sensorStatus: status }),
+  
+  setLastMessageTime: (time) => set({ lastMessageTime: time }),
 
   updateSensorValues: () => set((state) => {
     if (!state.isSimulating) return state;
@@ -319,6 +325,10 @@ export const useSensorStore = create<SensorStore>((set) => ({
 
   updateAllSensorsFromMQTT: (data) => set((state) => {
     const now = new Date().toLocaleTimeString();
+    const currentTime = Date.now();
+    
+    // Update last message time
+    set({ lastMessageTime: currentTime });
     
     // Update sensor status
     if (data.status === 'OK' || data.status === 'FAIL') {
@@ -330,102 +340,149 @@ export const useSensorStore = create<SensorStore>((set) => ({
       return state;
     }
     
+    // Only update sensors with valid MQTT data - NO fallback to old values
     const newSensors: SensorData[] = state.sensors.map((sensor): SensorData => {
       // Update DHT Sensor (temperature and humidity)
       if (sensor.type === 'DHT Sensor') {
-        const temp = data.temperature !== undefined && data.temperature !== null ? data.temperature : sensor.value;
-        const hum = data.humidity !== undefined && data.humidity !== null ? data.humidity : sensor.secondaryValue;
-        
-        const clampedTemp = Math.max(sensor.min, Math.min(sensor.max, temp));
-        const clampedHum = Math.max(0, Math.min(100, hum || 0));
-        
-        const range = sensor.max - sensor.min;
-        const tempPercent = (clampedTemp - sensor.min) / range;
-        let status: 'normal' | 'warning' | 'critical' = 'normal';
-        
-        if (tempPercent < 0.1 || tempPercent > 0.9) status = 'critical';
-        else if (tempPercent < 0.2 || tempPercent > 0.8) status = 'warning';
-        
-        return {
-          ...sensor,
-          value: Number(clampedTemp.toFixed(1)),
-          secondaryValue: Number(clampedHum.toFixed(1)),
-          status,
-          history: [...sensor.history, { time: now, value: clampedTemp }].slice(-20)
-        };
+        // Only update if both temperature and humidity are provided
+        if (data.temperature !== undefined && data.temperature !== null && 
+            data.humidity !== undefined && data.humidity !== null) {
+          const clampedTemp = Math.max(sensor.min, Math.min(sensor.max, data.temperature));
+          const clampedHum = Math.max(0, Math.min(100, data.humidity));
+          
+          const range = sensor.max - sensor.min;
+          const tempPercent = (clampedTemp - sensor.min) / range;
+          let status: 'normal' | 'warning' | 'critical' = 'normal';
+          
+          if (tempPercent < 0.1 || tempPercent > 0.9) status = 'critical';
+          else if (tempPercent < 0.2 || tempPercent > 0.8) status = 'warning';
+          
+          return {
+            ...sensor,
+            value: Number(clampedTemp.toFixed(1)),
+            secondaryValue: Number(clampedHum.toFixed(1)),
+            status,
+            history: [...sensor.history, { time: now, value: clampedTemp }].slice(-20)
+          };
+        }
+        // If data missing, return sensor unchanged (will be cleared by timeout)
+        return sensor;
       }
       
-      // Update Touch Sensor (count)
-      if (sensor.type === 'Touch Sensor' && data.touch_count !== undefined && data.touch_count !== null) {
-        const count = Math.max(sensor.min, Math.min(sensor.max, data.touch_count));
-        return {
-          ...sensor,
-          value: count,
-          history: [...sensor.history, { time: now, value: count }].slice(-20)
-        };
+      // Update Touch Sensor (count) - ONLY from MQTT, no auto-increment
+      if (sensor.type === 'Touch Sensor') {
+        if (data.touch_count !== undefined && data.touch_count !== null) {
+          const count = Math.max(sensor.min, Math.min(sensor.max, data.touch_count));
+          return {
+            ...sensor,
+            value: count,
+            history: [...sensor.history, { time: now, value: count }].slice(-20)
+          };
+        }
+        return sensor;
       }
       
       // Update Ultrasonic Sensor (distance)
-      if (sensor.type === 'Ultrasonic Sensor' && data.distance_cm !== undefined && data.distance_cm !== null) {
-        const distance = Math.max(sensor.min, Math.min(sensor.max, data.distance_cm));
-        const range = sensor.max - sensor.min;
-        const percent = (distance - sensor.min) / range;
-        let status: 'normal' | 'warning' | 'critical' = 'normal';
-        
-        if (percent < 0.1 || percent > 0.9) status = 'critical';
-        else if (percent < 0.2 || percent > 0.8) status = 'warning';
-        
-        return {
-          ...sensor,
-          value: Number(distance.toFixed(1)),
-          status,
-          history: [...sensor.history, { time: now, value: distance }].slice(-20)
-        };
+      if (sensor.type === 'Ultrasonic Sensor') {
+        if (data.distance_cm !== undefined && data.distance_cm !== null) {
+          const distance = Math.max(sensor.min, Math.min(sensor.max, data.distance_cm));
+          const range = sensor.max - sensor.min;
+          const percent = (distance - sensor.min) / range;
+          let status: 'normal' | 'warning' | 'critical' = 'normal';
+          
+          if (percent < 0.1 || percent > 0.9) status = 'critical';
+          else if (percent < 0.2 || percent > 0.8) status = 'warning';
+          
+          return {
+            ...sensor,
+            value: Number(distance.toFixed(1)),
+            status,
+            history: [...sensor.history, { time: now, value: distance }].slice(-20)
+          };
+        }
+        return sensor;
       }
       
       // Update IR Sensor (boolean)
-      if (sensor.type === 'IR Sensor' && data.ir_sensor !== undefined && data.ir_sensor !== null) {
-        const detected = data.ir_sensor ? 1 : 0;
-        return {
-          ...sensor,
-          value: detected,
-          status: detected === 1 ? 'warning' : 'normal',
-          history: [...sensor.history, { time: now, value: detected }].slice(-20)
-        };
+      if (sensor.type === 'IR Sensor') {
+        if (data.ir_sensor !== undefined && data.ir_sensor !== null) {
+          const detected = data.ir_sensor ? 1 : 0;
+          return {
+            ...sensor,
+            value: detected,
+            status: detected === 1 ? 'warning' : 'normal',
+            history: [...sensor.history, { time: now, value: detected }].slice(-20)
+          };
+        }
+        return sensor;
       }
       
       // Update LDR Sensor (light level)
-      if (sensor.type === 'LDR Sensor' && data.ldr !== undefined && data.ldr !== null) {
-        const ldr = Math.max(sensor.min, Math.min(sensor.max, data.ldr));
-        const range = sensor.max - sensor.min;
-        const percent = (ldr - sensor.min) / range;
-        let status: 'normal' | 'warning' | 'critical' = 'normal';
-        
-        if (percent < 0.1 || percent > 0.9) status = 'critical';
-        else if (percent < 0.2 || percent > 0.8) status = 'warning';
-        
-        return {
-          ...sensor,
-          value: Number(ldr.toFixed(1)),
-          status,
-          history: [...sensor.history, { time: now, value: ldr }].slice(-20)
-        };
+      if (sensor.type === 'LDR Sensor') {
+        if (data.ldr !== undefined && data.ldr !== null) {
+          const ldr = Math.max(sensor.min, Math.min(sensor.max, data.ldr));
+          const range = sensor.max - sensor.min;
+          const percent = (ldr - sensor.min) / range;
+          let status: 'normal' | 'warning' | 'critical' = 'normal';
+          
+          if (percent < 0.1 || percent > 0.9) status = 'critical';
+          else if (percent < 0.2 || percent > 0.8) status = 'warning';
+          
+          return {
+            ...sensor,
+            value: Number(ldr.toFixed(1)),
+            status,
+            history: [...sensor.history, { time: now, value: ldr }].slice(-20)
+          };
+        }
+        return sensor;
       }
       
       // Update Servo Motor (angle)
-      if (sensor.type === 'Servo Motor' && data.servo_angle !== undefined && data.servo_angle !== null) {
-        const angle = Math.max(sensor.min, Math.min(sensor.max, data.servo_angle));
-        return {
-          ...sensor,
-          value: Number(angle.toFixed(0)),
-          history: [...sensor.history, { time: now, value: angle }].slice(-20)
-        };
+      if (sensor.type === 'Servo Motor') {
+        if (data.servo_angle !== undefined && data.servo_angle !== null) {
+          const angle = Math.max(sensor.min, Math.min(sensor.max, data.servo_angle));
+          return {
+            ...sensor,
+            value: Number(angle.toFixed(0)),
+            history: [...sensor.history, { time: now, value: angle }].slice(-20)
+          };
+        }
+        return sensor;
       }
       
       return sensor;
     });
 
     return { sensors: newSensors };
+  }),
+
+  clearSensorValues: () => set((state) => {
+    // Clear all sensor values and set status to FAIL
+    const clearedSensors: SensorData[] = state.sensors.map((sensor): SensorData => {
+      // For DHT Sensor, clear both temperature and humidity
+      if (sensor.type === 'DHT Sensor') {
+        return {
+          ...sensor,
+          value: 0, // Will display as "----" in UI when status is FAIL
+          secondaryValue: 0,
+          status: 'normal' as const,
+          history: [] // Clear history
+        };
+      }
+      // For all other sensors, clear the value
+      return {
+        ...sensor,
+        value: 0, // Will display as "----" in UI when status is FAIL
+        status: 'normal' as const,
+        history: [] // Clear history
+      };
+    });
+
+    return { 
+      sensors: clearedSensors,
+      sensorStatus: 'FAIL' as const
+    };
   }),
 
   toggleSimulation: () => set((state) => ({ isSimulating: !state.isSimulating }))
