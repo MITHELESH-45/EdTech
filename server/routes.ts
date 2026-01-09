@@ -7,7 +7,7 @@ import { registerAuthRoutes } from "./routes/auth";
 
 export async function registerRoutes(
   app: Express
-): Promise<Server> {
+): Promise<void> {
   // Register Authentication routes
   registerAuthRoutes(app);
   // Register Arduino upload routes
