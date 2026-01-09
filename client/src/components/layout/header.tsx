@@ -1,6 +1,7 @@
-import { User, ChevronDown, Settings, LogOut, HelpCircle } from "lucide-react";
+import { User, ChevronDown, Settings, LogOut, HelpCircle, Zap, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
 import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
 import { GrootChatModal } from "@/components/groot/GrootChatModal";
 import { useState } from "react";
@@ -19,6 +21,27 @@ export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [grootOpen, setGrootOpen] = useState(false);
+  
+  // Fetch courses info for activity points and completed courses
+  const { data: coursesInfo } = useQuery({
+    queryKey: ["/api/courses/info", user?.userId],
+    queryFn: async () => {
+      if (!user?.userId) return null;
+      const response = await fetch("/api/courses/info", {
+        headers: {
+          "x-user-id": user.userId,
+        },
+      });
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user?.userId && isAuthenticated,
+    retry: 1,
+  });
+  
+  const activityPoints = coursesInfo?.activity?.totalPoints || 0;
+  const completedCourses = coursesInfo?.badges?.completedCourses || 0;
 
   const handleLogout = () => {
     logout();
@@ -54,7 +77,25 @@ export function Header() {
           <span className="font-semibold text-lg tracking-tight">E-GROOTS</span>
         </Link>
 
-        <div className="flex items-center gap-1 ml-auto"> 
+        <div className="flex items-center gap-2 ml-auto"> 
+          {/* Activity Points and Completed Courses - Only show when authenticated */}
+          {isAuthenticated && (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">{activityPoints}</span>
+                <span className="text-xs text-muted-foreground">points</span>
+              </div>
+              {completedCourses > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-chart-4/10 border border-chart-4/20">
+                  <Trophy className="h-4 w-4 text-chart-4" />
+                  <span className="text-sm font-semibold text-foreground">{completedCourses}</span>
+                  <span className="text-xs text-muted-foreground">completed</span>
+                </div>
+              )}
+            </>
+          )}
+          
           {/* Ask GROOT Button - Only show when authenticated */}
           {isAuthenticated && (
             <div
