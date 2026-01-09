@@ -26,6 +26,7 @@ import type { Course } from "@shared/schema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { useQuery as useRQ } from "@tanstack/react-query";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 
@@ -75,6 +76,8 @@ function StatCard({
               <div className="text-sm text-muted-foreground font-medium">{label}</div>
             </div>
           </div>
+
+          
         </CardContent>
       </Card>
     </motion.div>
@@ -118,7 +121,18 @@ export default function Dashboard() {
     queryKey: ["/api/courses"],
   });
 
-  // Set up scroll listener on the main content area
+  // Fetch saved circuits
+  const { data: circuits } = useRQ<{ id: string; name: string; createdAt: string }[]>({
+    queryKey: ["/api/circuits"],
+    queryFn: async () => {
+      const res = await fetch('/api/circuits');
+      if (!res.ok) return [];
+      return (await res.json()) as { id: string; name: string; createdAt: string }[];
+    },
+  });
+  const [showCircuits, setShowCircuits] = useState(false);
+
+  // Set up scroll listener on AppLayout's scroll container
   useEffect(() => {
     const mainContent = mainContentRef.current;
     if (!mainContent) return;
@@ -353,10 +367,65 @@ export default function Dashboard() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+            >
+              <div onClick={() => setShowCircuits(!showCircuits)}>
+                <StatCard
+                  icon={Cpu}
+                  value={circuits ? circuits.length : 0}
+                  label="Circuits Designed"
+                  color="bg-emerald-500"
+                />
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >         
             </motion.div>
           </div>
+
+          {/* Circuits List (toggle) */}
+          {showCircuits && (
+            <motion.section
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8 max-w-4xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Cpu className="h-5 w-5 text-emerald-600" />
+                <h3 className="text-lg font-semibold">Saved Circuits</h3>
+                <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">{circuits ? circuits.length : 0}</span>
+              </div>
+
+              <div className="space-y-2">
+                {(circuits || []).map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-4 p-3 rounded-md border border-border bg-card">
+                    <div>
+                      <div className="font-medium text-foreground">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="px-3 py-1 rounded bg-primary text-white text-sm"
+                        onClick={() => {
+                          // Open circuit in simulator by navigating with loadCircuitId param
+                          window.location.href = `/electronic-simulation?loadCircuitId=${encodeURIComponent(c.id)}`;
+                        }}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {(!circuits || circuits.length === 0) && (
+                  <div className="text-sm text-muted-foreground">No saved circuits yet. Save circuits from the simulator.</div>
+                )}
+              </div>
+            </motion.section>
+          )}
 
           {/* Error Message */}
           {error && (
