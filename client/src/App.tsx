@@ -25,6 +25,7 @@ import CodingLearnTopic from "@/pages/coding-learn-topic";
 import CodeEditorPage from "@/pages/code-editor";
 import RoboticsHelper from "./pages/robotics-helper";
 import Settings from "@/pages/settings";
+import CareerPage from "@/pages/career";
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -137,6 +138,9 @@ function Router() {
       </Route>
       <Route path="/help">
         <ProtectedRoute component={Help} />
+      </Route>
+      <Route path="/career">
+        <ProtectedRoute component={CareerPage} />
       </Route>
       <Route path="/about">
         <AppLayout>

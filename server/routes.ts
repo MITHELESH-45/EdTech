@@ -5,6 +5,7 @@ import { registerGrootRoutes } from "./groot-routes";
 import { registerCodingRoutes } from "./coding-routes";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerCourseRoutes } from "./routes/courses";
+import { registerCareerRoutes } from "./routes/career";
 
 export async function registerRoutes(
   app: Express
@@ -13,6 +14,8 @@ export async function registerRoutes(
   registerAuthRoutes(app);
   // Register Course tracking routes
   registerCourseRoutes(app);
+  // Register Career optimization routes
+  registerCareerRoutes(app);
   // Register Arduino upload routes
   registerArduinoRoutes(app);
   // Register GROOT chat routes

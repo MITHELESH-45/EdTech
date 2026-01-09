@@ -1,4 +1,4 @@
-import { User, ChevronDown, Settings, LogOut, HelpCircle, Zap, Trophy } from "lucide-react";
+import { User, ChevronDown, Settings, LogOut, HelpCircle, Zap, Trophy, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -139,6 +139,12 @@ export function Header() {
                   <DropdownMenuItem data-testid="menu-item-profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     Profile
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/career">
+                  <DropdownMenuItem data-testid="menu-item-career" className="cursor-pointer">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Career
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/settings">

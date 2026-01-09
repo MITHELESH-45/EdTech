@@ -18,11 +18,15 @@ import {
   BarChart3,
   Sparkles,
   ArrowRight,
-  PlayCircle
+  PlayCircle,
+  Briefcase
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCourseTracking } from "@/lib/course-tracking-context";
 import type { Course } from "@shared/schema";
+import { generateSkillsFromCourses, calculateCareerProgress, getCareerPathway } from "@/lib/career-utils";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -120,6 +124,32 @@ export default function Dashboard() {
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
+
+  // Fetch career data for dashboard widget
+  const { data: userCareer } = useQuery<any>({
+    queryKey: ["/api/career"],
+    enabled: !!user,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/career");
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  // Generate skills from courses for career progress
+  const skills = courses ? generateSkillsFromCourses(courses) : [];
+  const careerGoal = userCareer?.careerGoal;
+  const careerPathway = careerGoal?.path 
+    ? getCareerPathway(careerGoal.path)
+    : null;
+  const careerProgress = careerGoal 
+    ? calculateCareerProgress(careerGoal, skills, courses || [])
+    : 0;
 
   // Fetch saved circuits
   const { data: circuits } = useRQ<{ id: string; name: string; createdAt: string }[]>({
@@ -426,6 +456,63 @@ export default function Dashboard() {
               </div>
             </motion.section>
           )}
+
+          {/* Career Progress Widget */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="mb-8"
+          >
+            <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Career Optimization</h3>
+                      {careerPathway ? (
+                        <p className="text-sm text-muted-foreground">
+                          {careerPathway.name} • {careerProgress}% complete
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Set your career goal to get personalized recommendations
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Link href="/career">
+                    <Button variant="outline" size="sm" className="group">
+                      {careerPathway ? "View Progress" : "Set Career Goal"}
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </div>
+                {careerPathway && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Career Pathway Progress</span>
+                      <span className="font-semibold">{careerProgress}%</span>
+                    </div>
+                    <Progress value={careerProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {careerPathway.milestones.filter(m => m.completed).length} of {careerPathway.milestones.length} milestones completed
+                    </p>
+                  </div>
+                )}
+                {!careerPathway && (
+                  <div className="pt-2">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose from 5 career paths: Embedded Systems, IoT Developer, Hardware Engineer, Robotics Engineer, or Electronics Designer
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.section>
 
           {/* Error Message */}
           {error && (
