@@ -4,15 +4,62 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Code, CheckCircle2, AlertCircle, Play } from "lucide-react";
+import { ArrowLeft, Code, CheckCircle2, AlertCircle, Play, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { getTopicById } from "@/lib/coding-learning-content";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getQuestionId, isQuestionCompleted } from "@/lib/question-mapping";
+import { useEffect, useState } from "react";
 
 export default function CodingLearnTopic() {
   const [, params] = useRoute("/coding/learn/:topic");
   const topicId = params?.topic || "";
   const topic = getTopicById(topicId);
+  const [completedQuestions, setCompletedQuestions] = useState<Set<string>>(new Set());
+
+  // Refresh completion status
+  useEffect(() => {
+    const checkCompletions = () => {
+      const completed = new Set<string>();
+      topic?.questions.forEach((_, index) => {
+        const questionId = getQuestionId(topicId, index);
+        if (questionId && isQuestionCompleted(questionId)) {
+          completed.add(questionId);
+        }
+      });
+      setCompletedQuestions(completed);
+    };
+
+    checkCompletions();
+    
+    // Listen for storage changes (when question is completed in code editor)
+    const handleStorageChange = () => {
+      checkCompletions();
+    };
+    
+    // Listen for custom storage event (same-tab updates)
+    const handleCustomStorage = () => {
+      checkCompletions();
+    };
+    
+    // Refresh when page regains focus (user returns from code editor)
+    const handleFocus = () => {
+      checkCompletions();
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("questionCompleted", handleCustomStorage);
+    window.addEventListener("focus", handleFocus);
+    // Also check periodically in case of same-tab updates
+    const interval = setInterval(checkCompletions, 1000);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("questionCompleted", handleCustomStorage);
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
+  }, [topicId, topic]);
 
   if (!topic) {
     return (
@@ -175,30 +222,45 @@ export default function CodingLearnTopic() {
                 <CardTitle>Practice Questions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {topic.questions.map((question, index) => (
-                  <div key={index} className="border-l-4 border-primary pl-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Question {index + 1}</Badge>
-                    </div>
-                    <p className="font-medium text-foreground">{question.problem}</p>
-                    <div className="space-y-2">
-                      <div className="bg-muted rounded-md p-3">
-                        <div className="text-xs font-semibold text-muted-foreground mb-1">Sample Input:</div>
-                        <pre className="text-sm font-mono whitespace-pre-wrap">{question.input || "(No input)"}</pre>
-                      </div>
-                      <div className="bg-muted rounded-md p-3">
-                        <div className="text-xs font-semibold text-muted-foreground mb-1">Sample Output:</div>
-                        <pre className="text-sm font-mono whitespace-pre-wrap">{question.output}</pre>
-                      </div>
-                      {question.explanation && (
-                        <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
-                          <div className="text-xs font-semibold text-primary mb-1">💡 Hint:</div>
-                          <p className="text-sm text-muted-foreground">{question.explanation}</p>
+                {topic.questions.map((question, index) => {
+                  const questionId = getQuestionId(topicId, index);
+                  const isCompleted = questionId ? completedQuestions.has(questionId) : false;
+                  
+                  return (
+                    <div key={index} className="border-l-4 border-primary pl-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">Question {index + 1}</Badge>
+                          {isCompleted && (
+                            <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Completed
+                            </Badge>
+                          )}
                         </div>
+                      </div>
+                      <p className="font-medium text-foreground">{question.problem}</p>
+                      {questionId && !isCompleted && (
+                        <Link href={`/code-editor?questionId=${questionId}`}>
+                          <Button className="gap-2" size="sm">
+                            <Code className="h-4 w-4" />
+                            Solve in Code Editor
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </Link>
+                      )}
+                      {questionId && isCompleted && (
+                        <Link href={`/code-editor?questionId=${questionId}`}>
+                          <Button variant="outline" className="gap-2" size="sm">
+                            <Code className="h-4 w-4" />
+                            View in Code Editor
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </Link>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </motion.div>

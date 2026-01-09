@@ -1,4 +1,4 @@
-import { Cpu, Globe, Blocks, ChevronRight } from "lucide-react";
+import { Cpu, Globe, Blocks, ChevronRight, Code } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -34,6 +34,14 @@ const tools: ToolItem[] = [
     name: "No-Code Editor",
     icon: Blocks,
     path: "/no-code-editor",
+    isActive: true,
+    comingSoon: false,
+  },
+  {
+    id: "coding-playground",
+    name: "Coding Playground",
+    icon: Code,
+    path: "/coding-playground",
     isActive: true,
     comingSoon: false,
   },

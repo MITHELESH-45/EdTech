@@ -22,8 +22,9 @@ import NocodeEditor from "./pages/no-code-editor";
 import CodingLearning from "@/pages/coding-learning";
 import CodingLearnTopic from "@/pages/coding-learn-topic";
 import CodeEditorPage from "@/pages/code-editor";
-import RoboticsHelper from "./pages/robotics-helper";
 import CodingPlayground from "@/pages/coding-playground";
+import CodingComponent from "@/pages/coding-component";
+import RoboticsHelper from "./pages/robotics-helper";
 import Settings from "@/pages/settings";
 
 function LoadingScreen() {
@@ -117,6 +118,7 @@ function Router() {
       </Route>
       <Route path="/robotics-helper">
         <ProtectedRoute component={RoboticsHelper} />
+      </Route>
       <Route path="/coding">
         <ProtectedRoute component={CodingLearning} />
       </Route>
@@ -125,6 +127,12 @@ function Router() {
       </Route>
       <Route path="/code-editor">
         <ProtectedRoute component={CodeEditorPage} />
+      </Route>
+      <Route path="/coding-playground">
+        <ProtectedRoute component={CodingPlayground} />
+      </Route>
+      <Route path="/coding-playground/:component">
+        <ProtectedRoute component={CodingComponent} />
       </Route>
       <Route path="/courses/:id">
         <ProtectedRoute component={CourseDetail} />
