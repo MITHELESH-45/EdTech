@@ -12,3 +12,4 @@ declare module '@lottiefiles/dotlottie-react' {
   export class DotLottieReact extends Component<DotLottieReactProps> {}
 }
 
+

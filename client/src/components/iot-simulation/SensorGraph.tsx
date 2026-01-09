@@ -14,15 +14,16 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({ sensor }) => {
   const currentTheme = theme === 'system' ? systemTheme : theme;
   const isDark = currentTheme === 'dark';
 
+  // Round off values in the graph data
   const data = sensor.history.map((point) => ({
     time: point.time,
-    value: point.value,
+    value: Math.round(point.value * 10) / 10, // Round to 1 decimal place
   }));
 
-  // Calculate domain with some padding
-  const min = Math.min(...data.map(d => d.value), sensor.min);
-  const max = Math.max(...data.map(d => d.value), sensor.max);
-  const padding = (max - min) * 0.1;
+  // Calculate domain with some padding (rounded)
+  const min = Math.round(Math.min(...data.map(d => d.value), sensor.min) * 10) / 10;
+  const max = Math.round(Math.max(...data.map(d => d.value), sensor.max) * 10) / 10;
+  const padding = Math.round((max - min) * 0.1 * 10) / 10;
 
   // Chart colors
   const gridColor = isDark ? "#333" : "#e5e7eb"; 
@@ -66,10 +67,13 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({ sensor }) => {
               tickLine={false}
               axisLine={false}
               domain={[min - padding, max + padding]}
+              tickFormatter={(value) => Math.round(value * 10) / 10}
             />
             <Tooltip 
               contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, color: tooltipText, borderRadius: '8px' }}
               itemStyle={{ color: '#3b82f6' }}
+              formatter={(value: number) => [Math.round(value * 10) / 10, 'Value']}
+              labelFormatter={(label) => `Time: ${label}`}
             />
             <Area 
               type="monotone" 

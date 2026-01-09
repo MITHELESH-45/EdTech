@@ -63,7 +63,8 @@ function StatCard({
       transition={{ duration: 0.5, delay }}
     >
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-lg transition-all duration-300 hover:scale-105">
-        <CardContent className="p-6">
+      <CardContent className="px-2 py-1 pz-0">
+
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
               <Icon className="h-6 w-6 text-white" />
@@ -109,25 +110,37 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [scrollProgress, setScrollProgress] = useState(0);
-  const mainContentRef = useRef<HTMLElement>(null);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
 
-  // Set up scroll listener
+  // Set up scroll listener on AppLayout's scroll container
   useEffect(() => {
-    const mainElement = mainContentRef.current;
-    if (!mainElement) return;
+    // Find the AppLayout's scroll container (parent with overflow-auto)
+    const findScrollContainer = (element: HTMLElement | null): HTMLElement | null => {
+      if (!element) return null;
+      const parent = element.parentElement;
+      if (!parent) return null;
+      const style = window.getComputedStyle(parent);
+      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+        return parent;
+      }
+      return findScrollContainer(parent);
+    };
+
+    const scrollContainer = findScrollContainer(dashboardRef.current);
+    if (!scrollContainer) return;
 
     const handleScroll = () => {
-      const scrollTop = mainElement.scrollTop;
-      const scrollHeight = mainElement.scrollHeight - mainElement.clientHeight;
+      const scrollTop = scrollContainer.scrollTop;
+      const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
       const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
       setScrollProgress(progress);
     };
 
-    mainElement.addEventListener('scroll', handleScroll, { passive: true });
-    return () => mainElement.removeEventListener('scroll', handleScroll);
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Combine original courses with additional courses and enable all
@@ -164,22 +177,20 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
+    <div ref={dashboardRef} className="h-full w-full bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
 
       {/* MAIN LAYOUT */}
-      <div className="flex flex-1 overflow-hidden mb-10">
+      <div className="flex flex-1 min-h-0">
 
         {/* LEFT — STATIC GROOT */}
-        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12">
+        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12 flex-shrink-0">
           <div className="h-full w-full flex items-center justify-center">
             <GrootModelViewer scrollProgress={scrollProgress} />
           </div>
         </div>
 
-        {/* RIGHT — SCROLLABLE CONTENT */}
-        <main 
-          ref={mainContentRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
+        {/* RIGHT — CONTENT */}
+        <main className="flex-1 bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
         >
         {/* Hero Section with Search */}
         <div className="relative border-b border-border overflow-hidden">
@@ -221,81 +232,88 @@ export default function Dashboard() {
                   position: "absolute",
                   top: "30px",
                   left: "875px",
-                  // zIndex: 100,
+                  zIndex: 1,
+                  pointerEvents: "none",
                 }}
               />
 
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search courses by name, description, or difficulty..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 h-14 text-base bg-card/80 backdrop-blur-sm border-border/50 focus:border-primary shadow-lg"
-                />
-              </div>
             </motion.div>
             
-
-
             {/* Quick Access Tools */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-8 flex flex-wrap gap-4"
+              className="mt-8 max-w-2xl grid grid-cols-3 gap-4 relative z-10"
             >
-              <Link href="/electronic-simulation">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <Cpu className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">Electronic Simulation</div>
-                    <div className="text-xs text-muted-foreground">Build circuits visually</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                </motion.div>
-              </Link>
-
-              <Link href="/iot-simulation">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-chart-1/10 flex items-center justify-center group-hover:bg-chart-1/20 transition-colors">
-                    <Wifi className="h-5 w-5 text-chart-1" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">IoT Simulation</div>
-                    <div className="text-xs text-muted-foreground">Connect devices</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-chart-1 group-hover:translate-x-1 transition-all" />
-                </motion.div>
-              </Link>
-
-              <Link href="/no-code-editor">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-chart-4/10 flex items-center justify-center group-hover:bg-chart-4/20 transition-colors">
-                    <Code className="h-5 w-5 text-chart-4" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">No-Code Editor</div>
-                    <div className="text-xs text-muted-foreground">Visual programming</div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-chart-4 group-hover:translate-x-1 transition-all" />
-                </motion.div>
-              </Link>
+              {[
+                {
+                  href: "/electronic-simulation",
+                  icon: "/icons/technology.png",
+                  iconAlt: "Technology",
+                  title: "Electronic Simulation",
+                  description: "Build circuits visually",
+                  hoverColorClass: "group-hover:text-primary"
+                },
+                {
+                  href: "/iot-simulation",
+                  icon: "/icons/wifi.png",
+                  iconAlt: "Wifi",
+                  title: "IoT Simulation",
+                  description: "Connect devices",
+                  hoverColorClass: "group-hover:text-chart-1"
+                },
+                {
+                  href: "/no-code-editor",
+                  icon: "/icons/code.png",
+                  iconAlt: "Code",
+                  title: "No-Code Editor",
+                  description: "Visual programming",
+                  hoverColorClass: "group-hover:text-chart-4"
+                },
+                {
+                  href: "/robotics-helper",
+                  icon: "/icons/wifi.png",
+                  iconAlt: "Robot",
+                  title: "Project GPT",
+                  description: "Get ideas for your projects",
+                  hoverColorClass: "group-hover:text-chart-1"
+                },
+                {
+                  href: "/coding",
+                  icon: "/icons/code.png",
+                  iconAlt: "Code",
+                  title: "Coding Playground",
+                  description: "Run code with AI help",
+                  hoverColorClass: "group-hover:text-chart-4"
+                },
+                
+              ].map((tool, index) => (
+                <Link key={`${tool.href}-${index}`} href={tool.href}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <img
+                        src={tool.icon}
+                        alt={tool.iconAlt}
+                        className="h-6 w-6"
+                      />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground">
+                        {tool.title}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {tool.description}
+                      </div>
+                    </div>
+                    <ArrowRight className={`h-4 w-4 text-muted-foreground ${tool.hoverColorClass} group-hover:translate-x-1 transition-all`} />
+                  </motion.div>
+                </Link>
+              ))}
             </motion.div>
           </div>
         </div>
@@ -329,38 +347,10 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <Card className="border-border/50 bg-card/50 backdrop-blur-sm h-full">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-chart-5/10 flex items-center justify-center">
-                      <BarChart3 className="h-6 w-6 text-chart-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground">By Difficulty</div>
-                    </div>
-                  </div>
-                  <div className="h-32">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={coursesByDifficulty}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={20}
-                          outerRadius={40}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {coursesByDifficulty.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+              
+                  
+                 
+               
             </motion.div>
           </div>
 
@@ -375,6 +365,25 @@ export default function Dashboard() {
               <p className="text-destructive">Failed to load courses. Please try again.</p>
             </motion.div>
           )}
+
+          {/* Search Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-8"
+          >
+            <div className="relative max-w-2xl">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search courses by name, description, or difficulty..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-14 text-base bg-card/80 backdrop-blur-sm border-border/50 focus:border-primary shadow-lg"
+              />
+            </div>
+          </motion.div>
 
           {/* Continue Learning Section */}
           {!isLoading && inProgressCourses.length > 0 && (

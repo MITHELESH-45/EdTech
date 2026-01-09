@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { registerArduinoRoutes } from "./arduino-routes";
 import { registerGrootRoutes } from "./groot-routes";
+import { registerCodingRoutes } from "./coding-routes";
+import { registerAuthRoutes } from "./routes/auth";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -10,6 +12,10 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Register Arduino upload routes (pass httpServer for WebSocket support)
   registerArduinoRoutes(app, httpServer);
+  // Register Authentication routes
+  registerAuthRoutes(app);
+  // Register Arduino upload routes
+  registerArduinoRoutes(app);
   // Register GROOT chat routes
   registerGrootRoutes(app);
   // Courses API
@@ -72,6 +78,9 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch component" });
     }
   });
+
+  // Coding playground API (code runner)
+  registerCodingRoutes(app);
 
   return httpServer;
 }

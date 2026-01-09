@@ -646,6 +646,7 @@ export function CircuitCanvas({
   const [hoveredTerminal, setHoveredTerminal] = useState<{ componentId: string; terminalId: string } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -737,6 +738,7 @@ export function CircuitCanvas({
       if (placed) {
         const newX = pos.x - dragOffset.x;
         const newY = pos.y - dragOffset.y;
+        setDragPosition({ x: newX, y: newY }); // Store drag position for wire calculation
         onMovePlaced(draggingId, newX, newY);
       }
     }
@@ -753,6 +755,7 @@ export function CircuitCanvas({
 
   const handleMouseUp = () => {
     setDraggingId(null);
+    setDragPosition(null); // Clear drag position when drag ends
   };
 
   const componentMap = new Map(
@@ -918,8 +921,42 @@ export function CircuitCanvas({
 
         {/* ═══════════════ WIRES LAYER (renders ON TOP of components) ═══════════════ */}
         {wires.map((wire) => {
-          const midX = (wire.startX + wire.endX) / 2;
-          const midY = (wire.startY + wire.endY) / 2;
+          // Calculate wire positions - use drag position if component is being dragged
+          let startX = wire.startX;
+          let startY = wire.startY;
+          let endX = wire.endX;
+          let endY = wire.endY;
+          
+          // If dragging, recalculate wire positions based on drag position
+          if (draggingId && dragPosition) {
+            const draggedComponent = placedComponents.find((p) => p.id === draggingId);
+            if (draggedComponent) {
+              const metadata = componentMetadata[draggedComponent.componentId];
+              if (metadata) {
+                // Update start position if connected to dragged component
+                if (wire.startTerminal?.componentId === draggingId) {
+                  const term = metadata.terminals.find((t) => t.id === wire.startTerminal!.terminalId);
+                  if (term) {
+                    const pos = getTerminalPosition(dragPosition.x, dragPosition.y, draggedComponent.rotation, term);
+                    startX = pos.x;
+                    startY = pos.y;
+                  }
+                }
+                // Update end position if connected to dragged component
+                if (wire.endTerminal?.componentId === draggingId) {
+                  const term = metadata.terminals.find((t) => t.id === wire.endTerminal!.terminalId);
+                  if (term) {
+                    const pos = getTerminalPosition(dragPosition.x, dragPosition.y, draggedComponent.rotation, term);
+                    endX = pos.x;
+                    endY = pos.y;
+                  }
+                }
+              }
+            }
+          }
+          
+          const midX = (startX + endX) / 2;
+          const midY = (startY + endY) / 2;
           const controlY = midY - 30;
           const isSelected = wire.id === selectedWireId;
           
@@ -934,7 +971,7 @@ export function CircuitCanvas({
             <g key={wire.id} className="wire-group" filter="url(#wire-shadow)">
               {/* Wire shadow for depth */}
               <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                d={`M ${startX} ${startY} Q ${midX} ${controlY} ${endX} ${endY}`}
                 fill="none"
                 stroke="rgba(0,0,0,0.4)"
                 strokeWidth={wire.isActive ? 8 : 7}
@@ -945,7 +982,7 @@ export function CircuitCanvas({
               
               {/* Wire outer stroke for thickness */}
               <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                d={`M ${startX} ${startY} Q ${midX} ${controlY} ${endX} ${endY}`}
                 fill="none"
                 stroke={isSelected ? "#c2410c" : "#064e3b"}
                 strokeWidth={wire.isActive ? 6 : 5}
@@ -955,13 +992,13 @@ export function CircuitCanvas({
               
               {/* Main wire stroke - very visible */}
               <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                d={`M ${startX} ${startY} Q ${midX} ${controlY} ${endX} ${endY}`}
                 fill="none"
                 stroke={wireColor}
                 strokeWidth={wire.isActive ? 4.5 : 3.5}
                 strokeLinecap="round"
                 filter={wire.isActive ? "url(#wire-glow)" : undefined}
-                className="transition-all duration-200 cursor-pointer"
+                className={draggingId ? "cursor-pointer" : "transition-all duration-200 cursor-pointer"}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectWire(wire.id);
@@ -971,7 +1008,7 @@ export function CircuitCanvas({
               
               {/* Wire highlight line for 3D effect */}
               <path
-                d={`M ${wire.startX} ${wire.startY} Q ${midX} ${controlY} ${wire.endX} ${wire.endY}`}
+                d={`M ${startX} ${startY} Q ${midX} ${controlY} ${endX} ${endY}`}
                 fill="none"
                 stroke="rgba(255,255,255,0.4)"
                 strokeWidth={1.5}
@@ -982,13 +1019,13 @@ export function CircuitCanvas({
               
               {/* Start endpoint circle */}
               <circle
-                cx={wire.startX}
-                cy={wire.startY}
+                cx={startX}
+                cy={startY}
                 r={isSelected ? 8 : 6}
                 fill={wireColor}
                 stroke="#ffffff"
                 strokeWidth={2.5}
-                className="transition-all duration-200 cursor-pointer"
+                className={draggingId ? "cursor-pointer" : "transition-all duration-200 cursor-pointer"}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectWire(wire.id);
@@ -996,8 +1033,8 @@ export function CircuitCanvas({
                 }}
               />
               <circle
-                cx={wire.startX}
-                cy={wire.startY}
+                cx={startX}
+                cy={startY}
                 r={2.5}
                 fill="rgba(255,255,255,0.6)"
                 className="pointer-events-none"
@@ -1005,13 +1042,13 @@ export function CircuitCanvas({
               
               {/* End endpoint circle */}
               <circle
-                cx={wire.endX}
-                cy={wire.endY}
+                cx={endX}
+                cy={endY}
                 r={isSelected ? 8 : 6}
                 fill={wireColor}
                 stroke="#ffffff"
                 strokeWidth={2.5}
-                className="transition-all duration-200 cursor-pointer"
+                className={draggingId ? "cursor-pointer" : "transition-all duration-200 cursor-pointer"}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectWire(wire.id);
@@ -1019,8 +1056,8 @@ export function CircuitCanvas({
                 }}
               />
               <circle
-                cx={wire.endX}
-                cy={wire.endY}
+                cx={endX}
+                cy={endY}
                 r={2.5}
                 fill="rgba(255,255,255,0.6)"
                 className="pointer-events-none"
@@ -1030,8 +1067,8 @@ export function CircuitCanvas({
               {isSelected && (
                 <>
                   <circle
-                    cx={wire.startX}
-                    cy={wire.startY}
+                    cx={startX}
+                    cy={startY}
                     r={12}
                     fill="none"
                     stroke="#f97316"
@@ -1040,8 +1077,8 @@ export function CircuitCanvas({
                     className="animate-pulse pointer-events-none"
                   />
                   <circle
-                    cx={wire.endX}
-                    cy={wire.endY}
+                    cx={endX}
+                    cy={endY}
                     r={12}
                     fill="none"
                     stroke="#f97316"
