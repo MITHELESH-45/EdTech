@@ -9,9 +9,21 @@ import { MongoClient, Db, ServerApiVersion } from "mongodb";
 import dotenv from "dotenv";
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI;
+// Use the same connection string as auth routes - ensure it's always set
+const DEFAULT_MONGODB_URI = "mongodb+srv://tridev:Edtech12@info-edtech.05d39mj.mongodb.net/?appName=info-edtech&retryWrites=true&w=majority";
+const MONGODB_URI = process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
 const DB_NAME = "users";
 const COLLECTION_NAME = "login";
+
+// Validate connection string
+if (!MONGODB_URI || (!MONGODB_URI.startsWith("mongodb://") && !MONGODB_URI.startsWith("mongodb+srv://"))) {
+  console.error("[MongoDB] Invalid connection string. Must start with 'mongodb://' or 'mongodb+srv://'");
+  console.error("[MongoDB] Connection string value:", MONGODB_URI);
+  throw new Error("MongoDB connection string is invalid or missing");
+}
+
+// Log connection string status (masked for security)
+console.log(`[MongoDB] Connection string configured: ${MONGODB_URI.replace(/:[^:@]+@/, ":****@")}`);
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
@@ -26,8 +38,17 @@ export async function connectToMongoDB(): Promise<Db> {
 
   try {
     if (!client) {
+      // Get connection string (use constant or fallback)
+      const connectionString = MONGODB_URI || DEFAULT_MONGODB_URI;
+      
+      // Validate connection string before creating client
+      if (!connectionString || (!connectionString.startsWith("mongodb://") && !connectionString.startsWith("mongodb+srv://"))) {
+        console.error("[MongoDB] Invalid connection string at runtime:", connectionString);
+        throw new Error("MongoDB connection string is invalid");
+      }
+      
       // Create a MongoClient with a MongoClientOptions object to set the Stable API version
-      client = new MongoClient(MONGODB_URI || "", {
+      client = new MongoClient(connectionString, {
         serverApi: {
           version: ServerApiVersion.v1,
           strict: true,
@@ -60,7 +81,10 @@ export async function connectToMongoDB(): Promise<Db> {
     return db;
   } catch (error: any) {
     console.error("[MongoDB] Connection error:", error);
-    console.error("[MongoDB] Connection string:", MONGODB_URI?.replace(/:[^:@]+@/, ":****@"));
+    const connectionString = MONGODB_URI || DEFAULT_MONGODB_URI;
+    const maskedUri = connectionString ? connectionString.replace(/:[^:@]+@/, ":****@") : "UNDEFINED";
+    console.error("[MongoDB] Connection string:", maskedUri);
+    console.error("[MongoDB] Connection string length:", connectionString?.length || 0);
     
     // Reset client on error
     client = null;
