@@ -30,6 +30,9 @@ import {
   type CircuitData,
 } from "@/lib/circuit-file";
 import { UnsavedChangesDialog } from "@/components/simulation/unsaved-changes-dialog";
+import { VideoLibraryModal } from "@/components/simulation/video-library-modal";
+import { VideoPlayerPanel } from "@/components/simulation/video-player-panel";
+import type { CircuitTutorial } from "@/lib/circuit-video-tutorials";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -145,6 +148,15 @@ export default function ElectronicSimulation() {
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const pendingActionRef = useRef<(() => void) | null>(null);
+
+  // Video panel state
+  const [showVideoLibrary, setShowVideoLibrary] = useState(false);
+  const [selectedTutorial, setSelectedTutorial] = useState<CircuitTutorial | null>(null);
+  const [showVideoPanel, setShowVideoPanel] = useState(false);
+  const [isVideoPanelMinimized, setIsVideoPanelMinimized] = useState(false);
+  
+  // Control panel minimize state
+  const [isControlPanelMinimized, setIsControlPanelMinimized] = useState(false);
 
   const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
@@ -1059,6 +1071,17 @@ export default function ElectronicSimulation() {
         onOpenChange={setShowLogicPanel}
       />
 
+      {/* Video Library Modal */}
+      <VideoLibraryModal
+        open={showVideoLibrary}
+        onOpenChange={setShowVideoLibrary}
+        onSelectTutorial={(tutorial) => {
+          setSelectedTutorial(tutorial);
+          setShowVideoPanel(true);
+          setIsVideoPanelMinimized(false);
+        }}
+      />
+
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Main content row: Palette | Canvas | Controls */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1147,6 +1170,10 @@ export default function ElectronicSimulation() {
                 onSaveCircuit={handleSaveCircuit}
                 onLoadCircuit={handleLoadCircuit}
                 isDirty={isDirty}
+                onOpenVideoLibrary={() => setShowVideoLibrary(true)}
+                isMinimized={isControlPanelMinimized}
+                onMinimize={() => setIsControlPanelMinimized(true)}
+                onMaximize={() => setIsControlPanelMinimized(false)}
               />
             </div>
 
@@ -1157,6 +1184,22 @@ export default function ElectronicSimulation() {
                   isRunning={isRunning}
                 />
               </div>
+            )}
+
+            {/* Video Player Panel */}
+            {showVideoPanel && (
+              <VideoPlayerPanel
+                tutorial={selectedTutorial}
+                isOpen={showVideoPanel}
+                isMinimized={isVideoPanelMinimized}
+                onClose={() => {
+                  setShowVideoPanel(false);
+                  setSelectedTutorial(null);
+                  setIsVideoPanelMinimized(false);
+                }}
+                onMinimize={() => setIsVideoPanelMinimized(true)}
+                onMaximize={() => setIsVideoPanelMinimized(false)}
+              />
             )}
           </div>
         </div>

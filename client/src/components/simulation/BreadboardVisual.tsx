@@ -161,7 +161,7 @@ const Pin = memo(function Pin({
           r={10}
           fill={type === "power" ? "rgba(220, 38, 38, 0.3)" : type === "ground" ? "rgba(37, 99, 235, 0.3)" : "rgba(34, 197, 94, 0.3)"}
           className="pointer-events-none"
-        />
+      />
       )}
       
       {/* Pin hole - outer ring */}
@@ -190,12 +190,12 @@ const Pin = memo(function Pin({
       {/* Animated glow ring when hovered in wire mode */}
       {isHovered && wireMode && (
         <>
-          <circle
-            cx={x}
-            cy={y}
+        <circle
+          cx={x}
+          cy={y}
             r={12}
-            fill="none"
-            stroke={type === "power" ? "#dc2626" : type === "ground" ? "#3b82f6" : "#22c55e"}
+          fill="none"
+          stroke={type === "power" ? "#dc2626" : type === "ground" ? "#3b82f6" : "#22c55e"}
             strokeWidth={2.5}
             opacity={0.7}
             className="animate-pulse pointer-events-none"
@@ -207,7 +207,7 @@ const Pin = memo(function Pin({
             r={2}
             fill="#ffffff"
             className="pointer-events-none"
-          />
+        />
         </>
       )}
       

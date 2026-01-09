@@ -1,7 +1,7 @@
 export interface Terminal {
   id: string;
   name: string;
-  type: "positive" | "negative" | "signal" | "power" | "ground" | "data";
+  type: "positive" | "negative" | "signal" | "power" | "ground" | "data" | "gpio";
   offsetX: number;
   offsetY: number;
 }
