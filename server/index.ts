@@ -49,6 +49,7 @@ if (!apiKey) {
 }  
 
 const app = express();
+const httpServer = createServer(app);
 
 declare module "http" {
   interface IncomingMessage {
@@ -118,7 +119,7 @@ app.use((req, res, next) => {
     console.error("  3. MongoDB server is running and accessible");
   }
 
-  await registerRoutes(httpServer, app);
+  
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -138,7 +139,7 @@ app.use((req, res, next) => {
     });
   } else {
     // For development, create server for Vite HMR
-    const httpServer = createServer(app);
+    
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
     

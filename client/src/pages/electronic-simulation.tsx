@@ -27,6 +27,7 @@ import {
   downloadCircuit,
   openFilePicker,
   loadCircuitFile,
+  serializeCircuit,
   type CircuitData,
 } from "@/lib/circuit-file";
 import { UnsavedChangesDialog } from "@/components/simulation/unsaved-changes-dialog";
@@ -886,15 +887,82 @@ export default function ElectronicSimulation() {
       controlStates,
       mcuPinStates,
     };
-    
+    // Ask user for a name to store the circuit
+    const name = window.prompt("Enter a name for this circuit:", "My Circuit");
+    if (!name) {
+      toast({ title: "Save cancelled" });
+      return;
+    }
+
+    // Download locally as before
     downloadCircuit(circuitData);
-    setIsDirty(false);
-    
-    toast({
-      title: "Circuit Saved",
-      description: "Your circuit has been downloaded as a .egroots.json file.",
-    });
+
+    // Send to server to persist in MongoDB
+    (async () => {
+      try {
+        const circuitFile = serializeCircuit(circuitData);
+        const resp = await fetch("/api/circuits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, circuitFile }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          toast({ title: "Save failed", description: err.error || "Server error", variant: "destructive" });
+          return;
+        }
+        setIsDirty(false);
+        toast({ title: "Circuit Saved", description: "Saved locally and to your account." });
+      } catch (e) {
+        console.error("Failed to save circuit to server:", e);
+        toast({ title: "Save failed", description: "Could not save to server", variant: "destructive" });
+      }
+    })();
   }, [placedComponents, wires, resistorValues, controlStates, mcuPinStates, toast]);
+
+  // If simulation page is opened with ?loadCircuitId=..., fetch and load that circuit
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const loadId = params.get("loadCircuitId");
+    if (!loadId) return;
+
+    (async () => {
+      try {
+        const resp = await fetch(`/api/circuits/${loadId}`);
+        if (!resp.ok) {
+          console.warn("Failed to fetch circuit", await resp.text());
+          return;
+        }
+        const data = await resp.json();
+        const circuitFile = data.circuitFile;
+        if (!circuitFile || !circuitFile.data) return;
+
+        // Stop any running simulation
+        setIsRunning(false);
+        stopBuzzerSound();
+
+        const d = circuitFile.data as CircuitData;
+        setPlacedComponents(d.placedComponents || []);
+        setWires((d.wires || []).map((w) => ({ ...w, isActive: false })));
+        setResistorValues(d.resistorValues || {});
+        setControlStates(d.controlStates || {});
+        setMcuPinStates(d.mcuPinStates || {});
+
+        setSimulationResult(null);
+        setSelectedComponent(null);
+        setWireMode(false);
+        setWireStart(null);
+        setSelectedPlacedId(null);
+        setSelectedWireId(null);
+        simulationEngine.reset();
+
+        setIsDirty(false);
+        toast({ title: "Circuit Loaded", description: `Loaded circuit "${data.name}"` });
+      } catch (e) {
+        console.error("Error loading circuit by id:", e);
+      }
+    })();
+  }, [simulationEngine, toast]);
 
   // Load circuit from local file
   const performLoadCircuit = useCallback(async () => {
