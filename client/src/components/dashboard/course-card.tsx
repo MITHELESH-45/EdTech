@@ -101,7 +101,7 @@ export function CourseCard({ course }: CourseCardProps) {
           </h3>
         </CardHeader>
 
-        <CardContent className="pb-4 flex-1 relative z-10">
+        <CardContent className="pb-4 flex-1 relative z-10 flex flex-col min-h-0">
           <p className={cn(
             "text-sm line-clamp-3 leading-relaxed mb-4",
             (course as any).image 
@@ -112,7 +112,7 @@ export function CourseCard({ course }: CourseCardProps) {
           </p>
           
           {!course.isLocked && course.progress > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-2 mt-auto">
               <div className="flex items-center justify-between text-xs">
                 <span className={cn(
                   "font-medium",
@@ -134,7 +134,7 @@ export function CourseCard({ course }: CourseCardProps) {
           )}
         </CardContent>
 
-        <CardFooter className="pt-0 relative z-10">
+        <CardFooter className="pt-0 relative z-10 mt-auto">
           {!course.isLocked && (
             <Link href={`/courses/${course.id}`} className="w-full" data-testid={`link-course-${course.id}`}>
               <Button

@@ -30,7 +30,7 @@ export function GrootChatModal({ open, onOpenChange }: GrootChatModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hi! I'm GROOT 🌱 Your Electronics Learning Assistant. How can I help you learn today?",
+      content: "Hi! I'm GROOT, Your Electronics Learning Assistant. How can I help you learn today?",
     },
   ]);
   const [input, setInput] = useState("");

@@ -66,7 +66,7 @@ function RoboticsHelper() {
     <div className="flex grid grid-cols-[30%_70%] h-full overflow-y-auto bg-background flex">
 
       {/* Hero Banner with Gradient */}
-      <div className="flex relative bg-gradient-to-r from-green-700 via-emerald-600 to-green-500 overflow-hidden">
+      <div className="flex relative bg-gradient-to-r from-blue-700 via-cyan-600 to-green-500 overflow-hidden">
         <div className="mx-auto px-3 py-6">
           <div className="flex  gap-10 items-start">
             {/* Hero + Features */}
@@ -147,21 +147,21 @@ function RoboticsHelper() {
             <TabsList className="bg-transparent border-0 h-auto p-0">
               <TabsTrigger
                 value="resources"
-                className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-500 rounded-none px-6 py-4"
+                className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 rounded-none px-6 py-4"
               >
                 <Wrench className="w-4 h-4 mr-2" />
                 Resources
               </TabsTrigger>
               <TabsTrigger
                 value="steps"
-                className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-500 rounded-none px-6 py-4"
+                className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 rounded-none px-6 py-4"
               >
                 <BookOpen className="w-4 h-4 mr-2" />
                 Steps
               </TabsTrigger>
               <TabsTrigger
                 value="code"
-                className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-500 rounded-none px-6 py-4"
+                className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 rounded-none px-6 py-4"
               >
                 <Code className="w-4 h-4 mr-2" />
                 Code

@@ -160,7 +160,7 @@ export function NocodeSidebar({
 
   return (
     <div className="h-full flex flex-col bg-card border-r border-border">
-      <Tabs defaultValue="blocks" className="flex-1 flex flex-col min-h-0">
+      <Tabs defaultValue="projects" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full rounded-none border-b shrink-0">
           <TabsTrigger value="projects" className="flex-1">Projects</TabsTrigger>
           <TabsTrigger value="blocks" className="flex-1">Blocks</TabsTrigger>

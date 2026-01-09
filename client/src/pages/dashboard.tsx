@@ -18,11 +18,15 @@ import {
   BarChart3,
   Sparkles,
   ArrowRight,
-  PlayCircle
+  PlayCircle,
+  Briefcase
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCourseTracking } from "@/lib/course-tracking-context";
 import type { Course } from "@shared/schema";
+import { generateSkillsFromCourses, calculateCareerProgress, getCareerPathway } from "@/lib/career-utils";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -116,9 +120,36 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [scrollProgress, setScrollProgress] = useState(0);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLElement>(null);
   const { data: courses, isLoading, error } = useQuery<Course[]>({
     queryKey: ["/api/courses"],
   });
+
+  // Fetch career data for dashboard widget
+  const { data: userCareer } = useQuery<any>({
+    queryKey: ["/api/career"],
+    enabled: !!user,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/career");
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  // Generate skills from courses for career progress
+  const skills = courses ? generateSkillsFromCourses(courses) : [];
+  const careerGoal = userCareer?.careerGoal;
+  const careerPathway = careerGoal?.path 
+    ? getCareerPathway(careerGoal.path)
+    : null;
+  const careerProgress = careerGoal 
+    ? calculateCareerProgress(careerGoal, skills, courses || [])
+    : 0;
 
   // Fetch saved circuits
   const { data: circuits } = useRQ<{ id: string; name: string; createdAt: string }[]>({
@@ -133,30 +164,18 @@ export default function Dashboard() {
 
   // Set up scroll listener on AppLayout's scroll container
   useEffect(() => {
-    // Find the AppLayout's scroll container (parent with overflow-auto)
-    const findScrollContainer = (element: HTMLElement | null): HTMLElement | null => {
-      if (!element) return null;
-      const parent = element.parentElement;
-      if (!parent) return null;
-      const style = window.getComputedStyle(parent);
-      if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-        return parent;
-      }
-      return findScrollContainer(parent);
-    };
-
-    const scrollContainer = findScrollContainer(dashboardRef.current);
-    if (!scrollContainer) return;
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
 
     const handleScroll = () => {
-      const scrollTop = scrollContainer.scrollTop;
-      const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      const scrollTop = mainContent.scrollTop;
+      const scrollHeight = mainContent.scrollHeight - mainContent.clientHeight;
       const progress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
       setScrollProgress(progress);
     };
 
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    mainContent.addEventListener('scroll', handleScroll, { passive: true });
+    return () => mainContent.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Combine original courses with additional courses and merge with real progress data
@@ -210,20 +229,20 @@ export default function Dashboard() {
   const displayName = user?.name?.split(" ")[0] || "Learner";
 
   return (
-    <div ref={dashboardRef} className="h-full w-full bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col">
+    <div ref={dashboardRef} className="h-full w-full bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col overflow-hidden">
 
       {/* MAIN LAYOUT */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
 
         {/* LEFT — STATIC GROOT */}
-        <div className="w-[420px] min-w-[420px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center -ml-12 flex-shrink-0">
+        <div className="fixed left-0 top-16 bottom-0 w-[320px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center flex-shrink-0 pointer-events-none z-10">
           <div className="h-full w-full flex items-center justify-center">
             <GrootModelViewer scrollProgress={scrollProgress} />
           </div>
         </div>
 
         {/* RIGHT — CONTENT */}
-        <main className="flex-1 bg-gradient-to-br from-primary/10 via-background to-chart-2/10 -ml-20"
+        <main ref={mainContentRef} className="flex-1 bg-gradient-to-br from-primary/10 via-background to-chart-2/10 ml-[320px] overflow-y-auto scrollbar-hide"
         >
         {/* Hero Section with Search */}
         <div className="relative border-b border-border overflow-hidden">
@@ -322,28 +341,28 @@ export default function Dashboard() {
                 },
                 
               ].map((tool, index) => (
-                <Link key={`${tool.href}-${index}`} href={tool.href}>
+                <Link key={`${tool.href}-${index}`} href={tool.href} className="h-full">
                   <motion.div
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-3 px-6 py-3 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
+                    className="h-full flex items-center gap-3 px-6 py-4 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
                       <img
                         src={tool.icon}
                         alt={tool.iconAlt}
                         className="h-6 w-6"
                       />
                     </div>
-                    <div>
-                      <div className="font-semibold text-foreground">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-foreground mb-1">
                         {tool.title}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {tool.description}
                       </div>
                     </div>
-                    <ArrowRight className={`h-4 w-4 text-muted-foreground ${tool.hoverColorClass} group-hover:translate-x-1 transition-all`} />
+                    <ArrowRight className={`h-4 w-4 text-muted-foreground ${tool.hoverColorClass} group-hover:translate-x-1 transition-all flex-shrink-0`} />
                   </motion.div>
                 </Link>
               ))}
@@ -393,11 +412,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              
-                  
-                 
-               
+            >         
             </motion.div>
           </div>
 
@@ -442,6 +457,63 @@ export default function Dashboard() {
             </motion.section>
           )}
 
+          {/* Career Progress Widget */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="mb-8"
+          >
+            <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Career Optimization</h3>
+                      {careerPathway ? (
+                        <p className="text-sm text-muted-foreground">
+                          {careerPathway.name} • {careerProgress}% complete
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Set your career goal to get personalized recommendations
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Link href="/career">
+                    <Button variant="outline" size="sm" className="group">
+                      {careerPathway ? "View Progress" : "Set Career Goal"}
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </div>
+                {careerPathway && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Career Pathway Progress</span>
+                      <span className="font-semibold">{careerProgress}%</span>
+                    </div>
+                    <Progress value={careerProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {careerPathway.milestones.filter(m => m.completed).length} of {careerPathway.milestones.length} milestones completed
+                    </p>
+                  </div>
+                )}
+                {!careerPathway && (
+                  <div className="pt-2">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose from 5 career paths: Embedded Systems, IoT Developer, Hardware Engineer, Robotics Engineer, or Electronics Designer
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.section>
+
           {/* Error Message */}
           {error && (
             <motion.div
@@ -462,7 +534,7 @@ export default function Dashboard() {
             className="mb-8"
           >
             <div className="relative max-w-2xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
               <Input
                 type="search"
                 placeholder="Search courses by name, description, or difficulty..."

@@ -15,4 +15,3 @@ export function AppLayout({ children }: AppLayoutProps) {
     </div>
   );
 }
-
