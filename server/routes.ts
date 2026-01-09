@@ -80,4 +80,63 @@ export async function registerRoutes(
 
   // Coding playground API (code runner)
   registerCodingRoutes(app);
+
+  // Circuits API - save/load/list circuits stored in MongoDB
+  app.post("/api/circuits", async (req, res) => {
+    try {
+      const { name, circuitFile } = req.body as { name?: string; circuitFile?: any };
+      if (!name || typeof name !== "string") {
+        return res.status(400).json({ error: "Missing circuit name" });
+      }
+      if (!circuitFile) {
+        return res.status(400).json({ error: "Missing circuit file data" });
+      }
+
+      const { getDatabase } = await import("./utils/mongodb");
+      const db = await getDatabase();
+      const collection = db.collection("circuits");
+
+      const doc = {
+        name,
+        circuitFile,
+        createdAt: new Date(),
+      } as any;
+
+      const result = await collection.insertOne(doc);
+      res.json({ id: result.insertedId, ...doc });
+    } catch (error: any) {
+      console.error("/api/circuits POST error:", error);
+      res.status(500).json({ error: "Failed to save circuit" });
+    }
+  });
+
+  app.get("/api/circuits", async (_req, res) => {
+    try {
+      const { getDatabase } = await import("./utils/mongodb");
+      const db = await getDatabase();
+      const collection = db.collection("circuits");
+      const docs = await collection.find().sort({ createdAt: -1 }).limit(200).toArray();
+      res.json(docs.map(d => ({ id: d._id, name: d.name, createdAt: d.createdAt })));
+    } catch (error: any) {
+      console.error("/api/circuits GET error:", error);
+      res.status(500).json({ error: "Failed to list circuits" });
+    }
+  });
+
+  app.get("/api/circuits/:id", async (req, res) => {
+    try {
+      const { getDatabase } = await import("./utils/mongodb");
+      const db = await getDatabase();
+      const collection = db.collection("circuits");
+      const { ObjectId } = await import("mongodb");
+      const id = req.params.id;
+      if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+      const doc = await collection.findOne({ _id: new ObjectId(id) });
+      if (!doc) return res.status(404).json({ error: "Circuit not found" });
+      res.json({ id: doc._id, name: doc.name, createdAt: doc.createdAt, circuitFile: doc.circuitFile });
+    } catch (error: any) {
+      console.error("/api/circuits/:id GET error:", error);
+      res.status(500).json({ error: "Failed to fetch circuit" });
+    }
+  });
 }
