@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { CourseTrackingProvider } from "@/lib/course-tracking-context";
 import { Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import NotFound from "@/pages/not-found";
@@ -152,10 +153,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <CourseTrackingProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </CourseTrackingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

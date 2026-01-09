@@ -21,6 +21,7 @@ import {
   PlayCircle
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useCourseTracking } from "@/lib/course-tracking-context";
 import type { Course } from "@shared/schema";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { motion } from "framer-motion";
@@ -108,6 +109,7 @@ const additionalCourses: Course[] = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { coursesInfo, getCourseProgress } = useCourseTracking();
   const [searchQuery, setSearchQuery] = useState("");
   const [scrollProgress, setScrollProgress] = useState(0);
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -132,11 +134,27 @@ export default function Dashboard() {
     return () => mainContent.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Combine original courses with additional courses and enable all
+  // Combine original courses with additional courses and merge with real progress data
   const allCourses = useMemo(() => {
-    const original = (courses || []).map(c => ({ ...c, isLocked: false }));
-    return [...original, ...additionalCourses];
-  }, [courses]);
+    const original = (courses || []).map(c => {
+      const courseProgress = getCourseProgress(c.id);
+      return {
+        ...c,
+        isLocked: false,
+        progress: courseProgress ? courseProgress.progressPercentage : 0,
+      };
+    });
+    
+    const additional = additionalCourses.map(c => {
+      const courseProgress = getCourseProgress(c.id);
+      return {
+        ...c,
+        progress: courseProgress ? courseProgress.progressPercentage : 0,
+      };
+    });
+    
+    return [...original, ...additional];
+  }, [courses, getCourseProgress]);
 
   const filteredCourses = useMemo(() => {
     if (!searchQuery.trim()) return allCourses;
@@ -150,8 +168,9 @@ export default function Dashboard() {
   }, [allCourses, searchQuery]);
 
   const activeCourses = filteredCourses.filter((c) => !c.isLocked);
-  const inProgressCourses = activeCourses.filter((c) => c.progress > 0);
+  const inProgressCourses = activeCourses.filter((c) => c.progress > 0 && c.progress < 100);
   const completedCourses = activeCourses.filter((c) => c.progress === 100);
+  const notStartedCourses = activeCourses.filter((c) => c.progress === 0);
   const coursesByDifficulty = useMemo(() => {
     const beginner = activeCourses.filter((c) => c.difficulty === "beginner").length;
     const intermediate = activeCourses.filter((c) => c.difficulty === "intermediate").length;
@@ -319,7 +338,7 @@ export default function Dashboard() {
             />
             <StatCard
               icon={Target}
-              value={completedCourses.length}
+              value={coursesInfo?.badges.completedCourses || completedCourses.length}
               label="Completed"
               color="bg-chart-4"
               delay={0.2}
@@ -401,7 +420,38 @@ export default function Dashboard() {
             </motion.section>
           )}
 
-          {/* All Courses Section */}
+          {/* Completed Courses Section */}
+          {!isLoading && completedCourses.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-10"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <Target className="h-6 w-6 text-chart-4" />
+                <h2 className="text-2xl font-bold text-foreground">Completed Courses</h2>
+                <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                  {completedCourses.length} course{completedCourses.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {completedCourses.map((course, index) => (
+                  <motion.div
+                    key={course.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="h-full"
+                  >
+                    <CourseCard course={course} />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+
+          {/* All Courses Section - Only show courses not in progress or completed */}
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -411,9 +461,9 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
                 <Sparkles className="h-6 w-6 text-primary" />
                 <h2 className="text-2xl font-bold text-foreground">All Courses</h2>
-                {!isLoading && filteredCourses && (
+                {!isLoading && notStartedCourses && (
                   <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                    {filteredCourses.length} course{filteredCourses.length !== 1 ? "s" : ""}
+                    {searchQuery ? filteredCourses.length : notStartedCourses.length} course{(searchQuery ? filteredCourses.length : notStartedCourses.length) !== 1 ? "s" : ""}
                     {searchQuery && ` found`}
                   </span>
                 )}
@@ -429,8 +479,8 @@ export default function Dashboard() {
                   <CourseCardSkeleton />
                   <CourseCardSkeleton />
                 </>
-              ) : filteredCourses.length > 0 ? (
-                filteredCourses.map((course, index) => (
+              ) : (searchQuery ? filteredCourses : notStartedCourses).length > 0 ? (
+                (searchQuery ? filteredCourses : notStartedCourses).map((course, index) => (
                   <motion.div
                     key={course.id}
                     initial={{ opacity: 0, y: 20 }}
