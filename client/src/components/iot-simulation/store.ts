@@ -1,22 +1,21 @@
 import { create } from 'zustand';
 
 export type SensorType = 
-  | 'Temperature' 
-  | 'Humidity Sensor'
+  | 'DHT Sensor' 
+  | 'Touch Sensor'
   | 'Ultrasonic Sensor' 
-  | 'Gas' 
-  | 'Light' 
-  | 'Pressure' 
-  | 'Motion' 
-  | 'Sound' 
-  | 'Proximity';
+  | 'IR Sensor' 
+  | 'LDR Sensor' 
+  | 'Servo Motor';
 
 export interface SensorData {
   id: string;
   type: SensorType;
   name: string;
   value: number;
+  secondaryValue?: number; // For DHT sensor (temperature and humidity)
   unit: string;
+  secondaryUnit?: string; // For DHT sensor
   min: number;
   max: number;
   status: 'normal' | 'warning' | 'critical';
@@ -28,111 +27,103 @@ interface SensorStore {
   sensors: SensorData[];
   selectedSensorId: string | null;
   isSimulating: boolean;
+  mqttConnected: boolean;
+  sensorStatus: 'OK' | 'FAIL' | null;
   
   // Actions
   selectSensor: (id: string) => void;
   updateSensorValues: () => void;
   updateTemperatureFromMQTT: (temperature: number) => void;
   updateUltrasonicDistanceFromMQTT: (distance: number) => void;
+  updateAllSensorsFromMQTT: (data: {
+    status?: string;
+    temperature?: number;
+    humidity?: number;
+    distance_cm?: number;
+    touch_count?: number;
+    servo_angle?: number;
+    ir_sensor?: boolean;
+    ldr?: number;
+  }) => void;
+  setMqttConnected: (connected: boolean) => void;
+  setSensorStatus: (status: 'OK' | 'FAIL' | null) => void;
   toggleSimulation: () => void;
 }
 
 const INITIAL_SENSORS: SensorData[] = [
   {
     id: 's1',
-    type: 'Temperature',
-    name: 'Temperature Sensor',
-    value: 24,
+    type: 'DHT Sensor',
+    name: 'DHT11 Sensor',
+    value: 24, // Temperature
+    secondaryValue: 45, // Humidity
     unit: '°C',
+    secondaryUnit: '%',
     min: -10,
     max: 50,
     status: 'normal',
     history: [],
-    description: 'Measures ambient temperature in the environment.'
+    description: 'Measures temperature and humidity in the environment.'
   },
   {
     id: 's2',
-    type: 'Humidity Sensor',
-    name: 'Humidity Sensor',
-    value: 45,
-    unit: '%',
+    type: 'Touch Sensor',
+    name: 'Touch Sensor',
+    value: 0, // Count value
+    unit: 'count',
     min: 0,
-    max: 100,
+    max: 9999,
     status: 'normal',
     history: [],
-    description: 'Detects moisture levels in the air.'
+    description: 'Detects touch events and displays count value.'
   },
   {
     id: 's3',
-    type: 'Gas',
-    name: 'Gas Sensor',
-    value: 120,
-    unit: 'ppm',
-    min: 0,
-    max: 1000,
-    status: 'normal',
-    history: [],
-    description: 'Detects presence of hazardous gases like LPG, CO, or smoke.'
-  },
-  {
-    id: 's4',
-    type: 'Light',
-    name: 'LDR Light Sensor',
-    value: 500,
-    unit: 'lux',
-    min: 0,
-    max: 1000,
-    status: 'normal',
-    history: [],
-    description: 'Measures light intensity.'
-  },
-  {
-    id: 's5',
-    type: 'Pressure',
-    name: 'Barometric Pressure',
-    value: 1013,
-    unit: 'hPa',
-    min: 900,
-    max: 1100,
-    status: 'normal',
-    history: [],
-    description: 'Measures atmospheric pressure.'
-  },
-  {
-    id: 's6',
-    type: 'Motion',
-    name: 'PIR Motion Sensor',
-    value: 0,
-    unit: 'activity',
-    min: 0,
-    max: 1,
-    status: 'normal',
-    history: [],
-    description: 'Detects movement in the surrounding area.'
-  },
-  {
-    id: 's7',
-    type: 'Sound',
-    name: 'Sound Sensor',
-    value: 40,
-    unit: 'dB',
-    min: 30,
-    max: 120,
-    status: 'normal',
-    history: [],
-    description: 'Measures noise levels.'
-  },
-  {
-    id: 's8',
-    type: 'Proximity',
+    type: 'Ultrasonic Sensor',
     name: 'Ultrasonic Sensor',
-    value: 150,
+    value: 150, // Distance
     unit: 'cm',
     min: 2,
     max: 400,
     status: 'normal',
     history: [],
-    description: 'Measures distance to an object.'
+    description: 'Measures distance to an object using ultrasonic waves.'
+  },
+  {
+    id: 's4',
+    type: 'IR Sensor',
+    name: 'IR Sensor',
+    value: 0, // Detection status (0 = no detection, 1 = detected)
+    unit: 'status',
+    min: 0,
+    max: 1,
+    status: 'normal',
+    history: [],
+    description: 'Detects objects using infrared light.'
+  },
+  {
+    id: 's5',
+    type: 'LDR Sensor',
+    name: 'LDR Light Sensor',
+    value: 500, // Light level
+    unit: 'lux',
+    min: 0,
+    max: 1000,
+    status: 'normal',
+    history: [],
+    description: 'Measures light intensity using a Light Dependent Resistor.'
+  },
+  {
+    id: 's6',
+    type: 'Servo Motor',
+    name: 'Servo Motor',
+    value: 90, // Angle
+    unit: '°',
+    min: 0,
+    max: 180,
+    status: 'normal',
+    history: [],
+    description: 'Rotational actuator with position control. Displays current angle.'
   }
 ];
 
@@ -140,59 +131,131 @@ export const useSensorStore = create<SensorStore>((set) => ({
   sensors: INITIAL_SENSORS,
   selectedSensorId: INITIAL_SENSORS[0].id,
   isSimulating: true,
+  mqttConnected: false,
+  sensorStatus: null,
 
   selectSensor: (id) => set({ selectedSensorId: id }),
+  
+  setMqttConnected: (connected) => set({ mqttConnected: connected }),
+  
+  setSensorStatus: (status) => set({ sensorStatus: status }),
 
   updateSensorValues: () => set((state) => {
-    if (!state.isSimulating) return {};
+    if (!state.isSimulating) return state;
 
     const now = new Date().toLocaleTimeString();
 
-    const newSensors = state.sensors.map(sensor => {
-      // Skip Temperature sensor - it's updated via MQTT
-      if (sensor.type === 'Temperature') {
-        return sensor;
-      }
-      // Skip Ultrasonic Distance sensor (Proximity type with unit 'cm') - it's updated via MQTT
-      if (sensor.type === 'Proximity' && sensor.unit === 'cm') {
-        return sensor;
-      }
-
+    const newSensors: SensorData[] = state.sensors.map((sensor): SensorData => {
       let change = (Math.random() - 0.5) * 2; // Random change
       
-      // Adjust change magnitude based on sensor type
-      if (sensor.type === 'Gas') change *= 10;
-      if (sensor.type === 'Light') change *= 20;
-      if (sensor.type === 'Pressure') change *= 0.5;
-      if (sensor.type === 'Motion') {
-         // Motion is mostly 0 or 1, but we can simulate activity level
-         change = Math.random() > 0.8 ? 1 : 0;
-         return {
-            ...sensor,
-            value: change,
-            history: [...sensor.history, { time: now, value: change }].slice(-20)
-         };
-      }
-
-      let newValue = sensor.value + change;
-      
-      // Clamp values
-      newValue = Math.max(sensor.min, Math.min(sensor.max, newValue));
-      
-      // Determine status
-      let status: 'normal' | 'warning' | 'critical' = 'normal';
-      const range = sensor.max - sensor.min;
-      const percent = (newValue - sensor.min) / range;
-      
-      if (percent < 0.1 || percent > 0.9) status = 'critical';
-      else if (percent < 0.2 || percent > 0.8) status = 'warning';
-
+      // Handle DHT Sensor (temperature and humidity)
+      if (sensor.type === 'DHT Sensor') {
+        const tempChange = (Math.random() - 0.5) * 1.5;
+        const humChange = (Math.random() - 0.5) * 2;
+        
+        let newTemp = sensor.value + tempChange;
+        let newHum = (sensor.secondaryValue || 0) + humChange;
+        
+        newTemp = Math.max(sensor.min, Math.min(sensor.max, newTemp));
+        newHum = Math.max(0, Math.min(100, newHum));
+        
+        const range = sensor.max - sensor.min;
+        const tempPercent = (newTemp - sensor.min) / range;
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        
+        if (tempPercent < 0.1 || tempPercent > 0.9) status = 'critical';
+        else if (tempPercent < 0.2 || tempPercent > 0.8) status = 'warning';
+        
       return {
         ...sensor,
-        value: Number(newValue.toFixed(1)),
-        status,
-        history: [...sensor.history, { time: now, value: newValue }].slice(-20) // Keep last 20 points
+        value: Number(newTemp.toFixed(1)),
+        secondaryValue: Number(newHum.toFixed(1)),
+        status: status as 'normal' | 'warning' | 'critical',
+        history: [...sensor.history, { time: now, value: newTemp }].slice(-20)
       };
+      }
+      
+      // Handle Touch Sensor (count increments)
+      if (sensor.type === 'Touch Sensor') {
+        // Randomly increment count (simulate touch events)
+        const shouldIncrement = Math.random() > 0.7;
+        const newCount = shouldIncrement ? sensor.value + 1 : sensor.value;
+        const clampedCount = Math.min(sensor.max, newCount);
+        
+        return {
+          ...sensor,
+          value: clampedCount,
+          history: [...sensor.history, { time: now, value: clampedCount }].slice(-20)
+        };
+      }
+      
+      // Handle IR Sensor (0 or 1 - detection status)
+      if (sensor.type === 'IR Sensor') {
+        const detected = Math.random() > 0.6 ? 1 : 0;
+        return {
+          ...sensor,
+          value: detected,
+          status: (detected === 1 ? 'warning' : 'normal') as 'normal' | 'warning' | 'critical',
+          history: [...sensor.history, { time: now, value: detected }].slice(-20)
+        };
+      }
+      
+      // Handle Ultrasonic Sensor
+      if (sensor.type === 'Ultrasonic Sensor') {
+        change *= 5; // Larger changes for distance
+        let newValue = sensor.value + change;
+        newValue = Math.max(sensor.min, Math.min(sensor.max, newValue));
+        
+        const range = sensor.max - sensor.min;
+        const percent = (newValue - sensor.min) / range;
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        
+        if (percent < 0.1 || percent > 0.9) status = 'critical';
+        else if (percent < 0.2 || percent > 0.8) status = 'warning';
+        
+        return {
+          ...sensor,
+          value: Number(newValue.toFixed(1)),
+          status: status as 'normal' | 'warning' | 'critical',
+          history: [...sensor.history, { time: now, value: newValue }].slice(-20)
+        };
+      }
+      
+      // Handle LDR Sensor
+      if (sensor.type === 'LDR Sensor') {
+        change *= 20;
+        let newValue = sensor.value + change;
+        newValue = Math.max(sensor.min, Math.min(sensor.max, newValue));
+        
+        const range = sensor.max - sensor.min;
+        const percent = (newValue - sensor.min) / range;
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        
+        if (percent < 0.1 || percent > 0.9) status = 'critical';
+        else if (percent < 0.2 || percent > 0.8) status = 'warning';
+        
+        return {
+          ...sensor,
+          value: Number(newValue.toFixed(1)),
+          status: status as 'normal' | 'warning' | 'critical',
+          history: [...sensor.history, { time: now, value: newValue }].slice(-20)
+        };
+      }
+      
+      // Handle Servo Motor (angle)
+      if (sensor.type === 'Servo Motor') {
+        change *= 5; // Angle changes
+        let newAngle = sensor.value + change;
+        newAngle = Math.max(sensor.min, Math.min(sensor.max, newAngle));
+        
+        return {
+          ...sensor,
+          value: Number(newAngle.toFixed(0)),
+          history: [...sensor.history, { time: now, value: newAngle }].slice(-20)
+        };
+      }
+
+      return sensor;
     });
 
     return { sensors: newSensors };
@@ -202,11 +265,10 @@ export const useSensorStore = create<SensorStore>((set) => ({
     const now = new Date().toLocaleTimeString();
     
     const newSensors = state.sensors.map(sensor => {
-      if (sensor.type === 'Temperature') {
-        // Clamp temperature value
+      // Update DHT Sensor temperature value
+      if (sensor.type === 'DHT Sensor') {
         const clampedValue = Math.max(sensor.min, Math.min(sensor.max, temperature));
         
-        // Determine status
         let status: 'normal' | 'warning' | 'critical' = 'normal';
         const range = sensor.max - sensor.min;
         const percent = (clampedValue - sensor.min) / range;
@@ -231,12 +293,10 @@ export const useSensorStore = create<SensorStore>((set) => ({
     const now = new Date().toLocaleTimeString();
     
     const newSensors = state.sensors.map(sensor => {
-      // Update only the Ultrasonic Distance sensor (Proximity type with unit 'cm')
-      if (sensor.type === 'Proximity' && sensor.unit === 'cm') {
-        // Clamp distance value
+      // Update Ultrasonic Sensor distance
+      if (sensor.type === 'Ultrasonic Sensor') {
         const clampedValue = Math.max(sensor.min, Math.min(sensor.max, distance));
         
-        // Determine status
         let status: 'normal' | 'warning' | 'critical' = 'normal';
         const range = sensor.max - sensor.min;
         const percent = (clampedValue - sensor.min) / range;
@@ -251,6 +311,117 @@ export const useSensorStore = create<SensorStore>((set) => ({
           history: [...sensor.history, { time: now, value: clampedValue }].slice(-20)
         };
       }
+      return sensor;
+    });
+
+    return { sensors: newSensors };
+  }),
+
+  updateAllSensorsFromMQTT: (data) => set((state) => {
+    const now = new Date().toLocaleTimeString();
+    
+    // Update sensor status
+    if (data.status === 'OK' || data.status === 'FAIL') {
+      set({ sensorStatus: data.status });
+    }
+    
+    // If status is FAIL, don't update sensor values
+    if (data.status === 'FAIL') {
+      return state;
+    }
+    
+    const newSensors: SensorData[] = state.sensors.map((sensor): SensorData => {
+      // Update DHT Sensor (temperature and humidity)
+      if (sensor.type === 'DHT Sensor') {
+        const temp = data.temperature !== undefined && data.temperature !== null ? data.temperature : sensor.value;
+        const hum = data.humidity !== undefined && data.humidity !== null ? data.humidity : sensor.secondaryValue;
+        
+        const clampedTemp = Math.max(sensor.min, Math.min(sensor.max, temp));
+        const clampedHum = Math.max(0, Math.min(100, hum || 0));
+        
+        const range = sensor.max - sensor.min;
+        const tempPercent = (clampedTemp - sensor.min) / range;
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        
+        if (tempPercent < 0.1 || tempPercent > 0.9) status = 'critical';
+        else if (tempPercent < 0.2 || tempPercent > 0.8) status = 'warning';
+        
+        return {
+          ...sensor,
+          value: Number(clampedTemp.toFixed(1)),
+          secondaryValue: Number(clampedHum.toFixed(1)),
+          status,
+          history: [...sensor.history, { time: now, value: clampedTemp }].slice(-20)
+        };
+      }
+      
+      // Update Touch Sensor (count)
+      if (sensor.type === 'Touch Sensor' && data.touch_count !== undefined && data.touch_count !== null) {
+        const count = Math.max(sensor.min, Math.min(sensor.max, data.touch_count));
+        return {
+          ...sensor,
+          value: count,
+          history: [...sensor.history, { time: now, value: count }].slice(-20)
+        };
+      }
+      
+      // Update Ultrasonic Sensor (distance)
+      if (sensor.type === 'Ultrasonic Sensor' && data.distance_cm !== undefined && data.distance_cm !== null) {
+        const distance = Math.max(sensor.min, Math.min(sensor.max, data.distance_cm));
+        const range = sensor.max - sensor.min;
+        const percent = (distance - sensor.min) / range;
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        
+        if (percent < 0.1 || percent > 0.9) status = 'critical';
+        else if (percent < 0.2 || percent > 0.8) status = 'warning';
+        
+        return {
+          ...sensor,
+          value: Number(distance.toFixed(1)),
+          status,
+          history: [...sensor.history, { time: now, value: distance }].slice(-20)
+        };
+      }
+      
+      // Update IR Sensor (boolean)
+      if (sensor.type === 'IR Sensor' && data.ir_sensor !== undefined && data.ir_sensor !== null) {
+        const detected = data.ir_sensor ? 1 : 0;
+        return {
+          ...sensor,
+          value: detected,
+          status: detected === 1 ? 'warning' : 'normal',
+          history: [...sensor.history, { time: now, value: detected }].slice(-20)
+        };
+      }
+      
+      // Update LDR Sensor (light level)
+      if (sensor.type === 'LDR Sensor' && data.ldr !== undefined && data.ldr !== null) {
+        const ldr = Math.max(sensor.min, Math.min(sensor.max, data.ldr));
+        const range = sensor.max - sensor.min;
+        const percent = (ldr - sensor.min) / range;
+        let status: 'normal' | 'warning' | 'critical' = 'normal';
+        
+        if (percent < 0.1 || percent > 0.9) status = 'critical';
+        else if (percent < 0.2 || percent > 0.8) status = 'warning';
+        
+        return {
+          ...sensor,
+          value: Number(ldr.toFixed(1)),
+          status,
+          history: [...sensor.history, { time: now, value: ldr }].slice(-20)
+        };
+      }
+      
+      // Update Servo Motor (angle)
+      if (sensor.type === 'Servo Motor' && data.servo_angle !== undefined && data.servo_angle !== null) {
+        const angle = Math.max(sensor.min, Math.min(sensor.max, data.servo_angle));
+        return {
+          ...sensor,
+          value: Number(angle.toFixed(0)),
+          history: [...sensor.history, { time: now, value: angle }].slice(-20)
+        };
+      }
+      
       return sensor;
     });
 

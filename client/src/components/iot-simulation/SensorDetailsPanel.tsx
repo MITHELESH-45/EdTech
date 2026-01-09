@@ -3,6 +3,7 @@ import { useSensorStore } from './store';
 import { SensorGraph } from './SensorGraph';
 import { StatusBadge } from './StatusBadge';
 import { Info, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export const SensorDetailsPanel: React.FC = () => {
   const { sensors, selectedSensorId } = useSensorStore();
@@ -22,21 +23,70 @@ export const SensorDetailsPanel: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="p-4 rounded-xl bg-card border border-border">
-          <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Current Value</div>
-          <div className="flex items-baseline gap-1">
-             <span className="text-3xl font-bold text-foreground">{sensor.value}</span>
-             <span className="text-sm text-muted-foreground">{sensor.unit}</span>
-          </div>
-        </div>
-        <div className="p-4 rounded-xl bg-card border border-border">
-          <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Operating Range</div>
-          <div className="flex items-baseline gap-1">
-             <span className="text-lg font-bold text-foreground">{sensor.min} - {sensor.max}</span>
-             <span className="text-xs text-muted-foreground">{sensor.unit}</span>
-          </div>
-        </div>
+      <div className={cn(
+        "grid gap-4 mb-8",
+        sensor.type === 'DHT Sensor' ? "grid-cols-2" : "grid-cols-2"
+      )}>
+        {/* For DHT Sensor: Show Temperature and Humidity in separate cards */}
+        {sensor.type === 'DHT Sensor' ? (
+          <>
+            <div className="p-4 rounded-xl bg-card border border-border">
+              <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Temperature</div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-foreground">{sensor.value}</span>
+                <span className="text-sm text-muted-foreground">{sensor.unit}</span>
+              </div>
+            </div>
+            <div className="p-4 rounded-xl bg-card border border-border">
+              <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Humidity</div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-foreground">{sensor.secondaryValue ?? '--'}</span>
+                <span className="text-sm text-muted-foreground">{sensor.secondaryUnit}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-4 rounded-xl bg-card border border-border">
+              <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Current Value</div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-foreground">{sensor.value}</span>
+                <span className="text-sm text-muted-foreground">{sensor.unit}</span>
+              </div>
+              {sensor.type === 'IR Sensor' && (
+                <div className="mt-2">
+                  <div className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium",
+                    sensor.value === 1 ? "bg-red-500/10 text-red-500" : "bg-gray-500/10 text-gray-500"
+                  )}>
+                    <span className={cn(
+                      "w-2 h-2 rounded-full",
+                      sensor.value === 1 ? "bg-red-500" : "bg-gray-400"
+                    )} />
+                    {sensor.value === 1 ? 'Object Detected' : 'No Object'}
+                  </div>
+                </div>
+              )}
+              {sensor.type === 'Touch Sensor' && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Touch count: {sensor.value}
+                </div>
+              )}
+              {sensor.type === 'Servo Motor' && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Current angle: {sensor.value}°
+                </div>
+              )}
+            </div>
+            <div className="p-4 rounded-xl bg-card border border-border">
+              <div className="text-muted-foreground text-xs font-medium mb-1 uppercase">Operating Range</div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-bold text-foreground">{sensor.min} - {sensor.max}</span>
+                <span className="text-xs text-muted-foreground">{sensor.unit}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="space-y-4 mb-8">
