@@ -333,24 +333,12 @@ export function registerGrootRoutes(app: Express): void {
       if (!text || typeof text !== "string" || text.trim().length === 0) {
         return res.status(400).json({
           error: "Text is required",
-  // POST /api/groot/analyze-project - Analyze robotics/IoT project and return structured data
-  // ==========================================================================
-  app.post("/api/groot/analyze-project", async (req: Request, res: Response) => {
-    try {
-      const { description } = req.body;
-
-      if (!description || typeof description !== "string" || description.trim().length === 0) {
-        return res.status(400).json({
-          error: "Project description is required",
         });
       }
 
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
         console.error("[GROOT] OPENAI_API_KEY not found for TTS");
-
-      if (!apiKey) {
-        console.error("[GROOT] OPENAI_API_KEY not found in environment variables");
         return res.status(500).json({
           error: "AI service is not configured. Please contact support.",
         });
@@ -396,6 +384,28 @@ export function registerGrootRoutes(app: Express): void {
       });
     }
   });
+
+  // ==========================================================================
+  // POST /api/groot/analyze-project - Analyze robotics/IoT project and return structured data
+  // ==========================================================================
+  app.post("/api/groot/analyze-project", async (req: Request, res: Response) => {
+    try {
+      const { description } = req.body;
+
+      if (!description || typeof description !== "string" || description.trim().length === 0) {
+        return res.status(400).json({
+          error: "Project description is required",
+        });
+      }
+
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        console.error("[GROOT] OPENAI_API_KEY not found in environment variables");
+        return res.status(500).json({
+          error: "AI service is not configured. Please contact support.",
+        });
+      }
+
       const ROBOTICS_SYSTEM_PROMPT = `You are a Robotics and IoT expert assistant. Your task is to analyze project descriptions and provide structured JSON responses.
 
 You must respond ONLY with valid JSON in this exact format:
