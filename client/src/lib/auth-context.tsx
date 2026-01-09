@@ -19,8 +19,8 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  signup: (email: string, password: string, name: string) => { success: boolean; error?: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateProfile: (updates: Partial<Pick<AuthUser, "name" | "email">>) => void;
 }
@@ -59,58 +59,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = (email: string, password: string): { success: boolean; error?: string } => {
-    const users = getStoredUsers();
-    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (!existingUser) {
-      return { success: false, error: "No account found with this email. Please sign up first." };
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return { success: false, error: data.error || "Login failed" };
+      }
+
+      const authUser: AuthUser = {
+        userId: data.user.userId,
+        email: data.user.email,
+        name: data.user.name,
+        joinedDate: data.user.joinedDate,
+      };
+
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
+      setUser(authUser);
+      return { success: true };
+    } catch (error) {
+      console.error("[AUTH] Login error:", error);
+      return { success: false, error: "Network error. Please check your connection." };
     }
-    
-    if (existingUser.password !== password) {
-      return { success: false, error: "Incorrect password. Please try again." };
-    }
-    
-    const authUser: AuthUser = {
-      userId: existingUser.userId,
-      email: existingUser.email,
-      name: existingUser.name,
-      joinedDate: existingUser.joinedDate,
-    };
-    
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
-    setUser(authUser);
-    return { success: true };
   };
 
-  const signup = (email: string, password: string, name: string): { success: boolean; error?: string } => {
-    const users = getStoredUsers();
-    const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (existingUser) {
-      return { success: false, error: "An account with this email already exists. Please login instead." };
+  const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        return { success: false, error: data.error || "Signup failed" };
+      }
+
+      const authUser: AuthUser = {
+        userId: data.user.userId,
+        email: data.user.email,
+        name: data.user.name,
+        joinedDate: data.user.joinedDate,
+      };
+
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
+      setUser(authUser);
+      return { success: true };
+    } catch (error) {
+      console.error("[AUTH] Signup error:", error);
+      return { success: false, error: "Network error. Please check your connection." };
     }
-    
-    const newUser: StoredUser = {
-      userId: `user-${Date.now()}`,
-      email,
-      password,
-      name,
-      joinedDate: new Date().toISOString(),
-    };
-    
-    saveStoredUsers([...users, newUser]);
-    
-    const authUser: AuthUser = {
-      userId: newUser.userId,
-      email: newUser.email,
-      name: newUser.name,
-      joinedDate: newUser.joinedDate,
-    };
-    
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser));
-    setUser(authUser);
-    return { success: true };
   };
 
   const logout = () => {
