@@ -5,7 +5,8 @@ export type CareerPath =
   | "iot-developer"
   | "hardware-engineer"
   | "robotics-engineer"
-  | "electronics-designer";
+  | "electronics-designer"
+  | "software-engineer";
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert";
 

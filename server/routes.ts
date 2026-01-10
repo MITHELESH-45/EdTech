@@ -5,18 +5,22 @@ import { registerGrootRoutes } from "./groot-routes";
 import { registerCodingRoutes } from "./coding-routes";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerCourseRoutes } from "./routes/courses";
-import { registerCareerRoutes } from "./routes/career";
+// import { registerCareerRoutes } from "./routes/career";
 import { registerLeaderboardRoutes } from "./routes/leaderboard";
+import careerRoutes from "./routes/career";
 
 export async function registerRoutes(
   app: Express
 ): Promise<void> {
+  // Career API
+  app.use("/api/career", careerRoutes);
+
   // Register Authentication routes
   registerAuthRoutes(app);
   // Register Course tracking routes
   registerCourseRoutes(app);
   // Register Career optimization routes
-  registerCareerRoutes(app);
+  // registerCareerRoutes(app);
   // Register Leaderboard routes
   registerLeaderboardRoutes(app);
   // Register Arduino upload routes

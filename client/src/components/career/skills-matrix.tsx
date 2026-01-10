@@ -3,11 +3,11 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Zap, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
-import type { Skill } from "@shared/career-schema";
+import type { Skill, UserCareerData } from "@shared/career-schema";
 import { useQuery } from "@tanstack/react-query";
 
 export function SkillsMatrix() {
-  const { data: userCareer, isLoading } = useQuery({
+  const { data: userCareer, isLoading } = useQuery<UserCareerData>({
     queryKey: ["/api/career"],
     enabled: !!localStorage.getItem("userId"),
   });
@@ -104,7 +104,7 @@ export function SkillsMatrix() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">{skill.name}</span>
-                      <Badge className={getSkillLevelBadge(skill.level)} variant="outline">
+                      <Badge className={`${getSkillLevelBadge(skill.level)} text-xs`} variant="outline">
                         {skill.level}
                       </Badge>
                     </div>
