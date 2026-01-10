@@ -395,10 +395,13 @@ export const useSensorStore = create<SensorStore>((set) => ({
         return sensor;
       }
       
-      // Update IR Sensor (boolean)
+      // Update IR Sensor (boolean) - INVERTED LOGIC
+      // MQTT true (detection) → show "No Detection" (value = 0)
+      // MQTT false (no detection) → show "Detected" (value = 1)
       if (sensor.type === 'IR Sensor') {
         if (data.ir_sensor !== undefined && data.ir_sensor !== null) {
-          const detected = data.ir_sensor ? 1 : 0;
+          // Invert the value: true becomes 0, false becomes 1
+          const detected = data.ir_sensor ? 0 : 1;
           return {
             ...sensor,
             value: detected,

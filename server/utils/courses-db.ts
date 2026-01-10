@@ -46,6 +46,7 @@ export interface UserCoursesInfo {
     totalBadges: number;
     completedCourses: number;
   };
+  completedProblems?: string[]; // Format: "topicId-questionIndex"
   createdAt?: Date;
   updatedAt?: Date;
 }
