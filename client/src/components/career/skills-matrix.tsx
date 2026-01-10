@@ -12,7 +12,7 @@ export function SkillsMatrix() {
     enabled: !!localStorage.getItem("userId"),
   });
 
-  const skills = userCareer?.skills || [];
+  const skills = userCareer?.skills as Skill[] || [];
 
   const getSkillLevelColor = (level: string) => {
     switch (level) {
@@ -63,7 +63,7 @@ export function SkillsMatrix() {
   }
 
   // Group skills by category
-  const skillsByCategory = skills.reduce((acc, skill) => {
+  const skillsByCategory = skills.reduce((acc: Record<string, Skill[]>, skill: Skill) => {
     if (!acc[skill.category]) {
       acc[skill.category] = [];
     }
@@ -93,7 +93,7 @@ export function SkillsMatrix() {
               {category.replace(/-/g, " ")}
             </h3>
             <div className="space-y-3">
-              {categorySkills.map((skill, index) => (
+              {categorySkills.map((skill: any, index: number) => (
                 <motion.div
                   key={skill.id}
                   initial={{ opacity: 0, x: -10 }}
@@ -123,7 +123,7 @@ export function SkillsMatrix() {
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
               <span className="font-semibold">
-                {Math.round(skills.reduce((sum, skill) => sum + skill.progress, 0) / skills.length)}%
+                {Math.round(skills.reduce((sum: number, skill: Skill) => sum + skill.progress, 0) / skills.length)}%
               </span>
             </div>
           </div>
