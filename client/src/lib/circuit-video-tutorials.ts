@@ -14,7 +14,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'led-blink',
     title: 'LED Blink Circuit',
     description: 'Learn how to create a simple LED blink circuit using Arduino. This tutorial covers basic wiring, resistor selection, and Arduino programming.',
-    youtubeId: 'Zf4UPzpbdvY', // Arduino LED Blink Tutorial
+    youtubeId: 'sCUv1sJSNPY', // Arduino LED Blink Tutorial
     componentIds: ['led', 'resistor', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'beginner',
     duration: '5:30',
@@ -24,7 +24,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'button-led',
     title: 'Button Controlled LED',
     description: 'Build an interactive circuit where pressing a button controls an LED. Learn about digital inputs, pull-up resistors, and button debouncing.',
-    youtubeId: 'EdirF3-bmxs', // Arduino Button Tutorial
+    youtubeId: 'fPpF1ceQPXU', // Arduino Button Tutorial
     componentIds: ['led', 'resistor', 'button', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'beginner',
     duration: '7:15',
@@ -34,7 +34,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'potentiometer-dimmer',
     title: 'Potentiometer LED Dimmer',
     description: 'Create a dimmable LED circuit using a potentiometer. Understand analog inputs, PWM signals, and voltage division.',
-    youtubeId: 'dQw4w9WgXcQ', // Placeholder - replace with actual tutorial video ID
+    youtubeId: 'Bbc37dRkpgE', // Placeholder - replace with actual tutorial video ID
     componentIds: ['led', 'resistor', 'potentiometer', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'intermediate',
     duration: '8:45',
@@ -44,7 +44,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'ultrasonic-sensor',
     title: 'Ultrasonic Distance Sensor',
     description: 'Build a distance measurement system using an ultrasonic sensor. Learn about sensor interfacing, timing calculations, and serial communication.',
-    youtubeId: 'dQw4w9WgXcQ', // Placeholder - replace with actual tutorial video ID
+    youtubeId: 'dp1NyhmsdH4', // Placeholder - replace with actual tutorial video ID
     componentIds: ['ultrasonic', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'intermediate',
     duration: '12:20',
@@ -54,7 +54,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'dht11-sensor',
     title: 'DHT11 Temperature & Humidity Sensor',
     description: 'Interface a DHT11 sensor to measure temperature and humidity. Learn about digital sensor protocols and data reading.',
-    youtubeId: 'dQw4w9WgXcQ', // Placeholder - replace with actual tutorial video ID
+    youtubeId: 'Esl6FLbZq7o', // Placeholder - replace with actual tutorial video ID
     componentIds: ['dht11', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'intermediate',
     duration: '10:30',
@@ -64,7 +64,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'servo-motor',
     title: 'Servo Motor Control',
     description: 'Control a servo motor with Arduino. Learn about PWM control, angle positioning, and servo motor applications.',
-    youtubeId: 'dQw4w9WgXcQ', // Placeholder - replace with actual tutorial video ID
+    youtubeId: 'tHOH-bYjR4k', // Placeholder - replace with actual tutorial video ID
     componentIds: ['servo', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'intermediate',
     duration: '9:15',
@@ -74,7 +74,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'ir-sensor',
     title: 'IR Sensor Circuit',
     description: 'Build an IR sensor circuit for object detection. Understand digital sensors, threshold values, and detection logic.',
-    youtubeId: 'dQw4w9WgXcQ', // Placeholder - replace with actual tutorial video ID
+    youtubeId: 'nF8z7RcEulk', // Placeholder - replace with actual tutorial video ID
     componentIds: ['ir-sensor', 'led', 'resistor', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'beginner',
     duration: '6:45',
@@ -84,7 +84,7 @@ export const circuitTutorials: CircuitTutorial[] = [
     id: 'buzzer-alarm',
     title: 'Buzzer Alarm Circuit',
     description: 'Create an alarm system using a buzzer. Learn about audio output, frequency control, and alarm patterns.',
-    youtubeId: 'dQw4w9WgXcQ', // Placeholder - replace with actual tutorial video ID
+    youtubeId: 'xGdsn14rzc0', // Placeholder - replace with actual tutorial video ID
     componentIds: ['buzzer', 'arduino-uno', '5v', 'gnd'],
     difficulty: 'beginner',
     duration: '5:20',
