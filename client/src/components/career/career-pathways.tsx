@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Target, TrendingUp, Clock, DollarSign } from "lucide-react";
 import { motion } from "framer-motion";
-import type { CareerPathway } from "@shared/career-schema";
+import type { CareerPathway, UserCareerData } from "@shared/career-schema";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -21,7 +21,7 @@ export function CareerPathways({ onSelectPath }: CareerPathwaysProps) {
     queryKey: ["/api/career/pathways"],
   });
 
-  const { data: userCareer } = useQuery({
+  const { data: userCareer } = useQuery<UserCareerData>({
     queryKey: ["/api/career"],
     enabled: !!localStorage.getItem("userId"),
   });

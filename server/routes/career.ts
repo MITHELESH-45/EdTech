@@ -10,7 +10,7 @@ export function registerCareerRoutes(app: Express): void {
   // Get user's career data
   app.get("/api/career", async (req: Request, res: Response) => {
     try {
-      let userId = (req.session as any)?.userId;
+      let userId = (req as any).session?.userId;
       
       // Try to get from request header as fallback (for client-side storage)
       if (!userId) {
@@ -28,7 +28,7 @@ export function registerCareerRoutes(app: Express): void {
 
       // If no career data exists, create default
       if (!careerData) {
-        careerData = {
+        const newCareerData: UserCareerData = {
           userId,
           skills: [],
           certificates: [],
@@ -36,7 +36,8 @@ export function registerCareerRoutes(app: Express): void {
           achievements: [],
           updatedAt: new Date(),
         };
-        await careerCollection.insertOne(careerData);
+        const result = await careerCollection.insertOne(newCareerData);
+        careerData = { ...newCareerData, _id: result.insertedId };
       }
 
       res.json(careerData);
@@ -49,7 +50,7 @@ export function registerCareerRoutes(app: Express): void {
   // Set career goal
   app.post("/api/career/goal", async (req: Request, res: Response) => {
     try {
-      let userId = (req.session as any)?.userId;
+      let userId = (req as any).session?.userId;
       if (!userId) {
         userId = req.headers["x-user-id"] as string;
       }
@@ -106,7 +107,7 @@ export function registerCareerRoutes(app: Express): void {
   // Update skill progress
   app.patch("/api/career/skills/:skillId", async (req: Request, res: Response) => {
     try {
-      let userId = (req.session as any)?.userId;
+      let userId = (req as any).session?.userId;
       if (!userId) {
         userId = req.headers["x-user-id"] as string;
       }
@@ -146,7 +147,7 @@ export function registerCareerRoutes(app: Express): void {
   // Sync skills from courses
   app.post("/api/career/skills/sync", async (req: Request, res: Response) => {
     try {
-      let userId = (req.session as any)?.userId;
+      let userId = (req as any).session?.userId;
       if (!userId) {
         userId = req.headers["x-user-id"] as string;
       }
