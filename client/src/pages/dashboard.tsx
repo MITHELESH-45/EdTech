@@ -126,30 +126,27 @@ export default function Dashboard() {
   });
 
   // Fetch career data for dashboard widget
-  const { data: userCareer } = useQuery<any>({
-    queryKey: ["/api/career"],
+  const { data: userCareerPaths } = useQuery<any[]>({
+    queryKey: ["/api/career", user?.userId],
     enabled: !!user,
     retry: false,
     queryFn: async () => {
       try {
-        const response = await fetch("/api/career");
-        if (!response.ok) return null;
-        return await response.json();
+        if (!user?.userId) return [];
+        const response = await fetch(`/api/career?userId=${user.userId}`);
+        if (!response.ok) return [];
+        const data = await response.json();
+        return Array.isArray(data) ? data : (data ? [data] : []);
       } catch {
-        return null;
+        return [];
       }
     },
   });
 
-  // Generate skills from courses for career progress
-  const skills = courses ? generateSkillsFromCourses(courses) : [];
-  const careerGoal = userCareer?.careerGoal;
-  const careerPathway = careerGoal?.path 
-    ? getCareerPathway(careerGoal.path)
-    : null;
-  const careerProgress = careerGoal 
-    ? calculateCareerProgress(careerGoal, skills, courses || [])
-    : 0;
+  // Calculate generic progress (optional, or just show first one)
+  // For now, we won't calculate aggregate progress here to keep it simple.
+  
+  // ... existing code ...
 
   // Fetch saved circuits
   const { data: circuits } = useRQ<{ id: string; name: string; createdAt: string }[]>({
@@ -213,6 +210,7 @@ export default function Dashboard() {
 
   const activeCourses = filteredCourses.filter((c) => !c.isLocked);
   const inProgressCourses = activeCourses.filter((c) => c.progress > 0 && c.progress < 100);
+  const activeCareerPaths = (userCareerPaths || []).filter((p: any) => (p.progress?.totalProgress || 0) < 100);
   const completedCourses = activeCourses.filter((c) => c.progress === 100);
   const notStartedCourses = activeCourses.filter((c) => c.progress === 0);
   const coursesByDifficulty = useMemo(() => {
@@ -457,61 +455,92 @@ export default function Dashboard() {
             </motion.section>
           )}
 
-          {/* Career Progress Widget */}
+          {/* Career Progress Widget - Now Supports Multiple Paths */}
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
             className="mb-8"
           >
-            <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Briefcase className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">Career Optimization</h3>
-                      {careerPathway ? (
-                        <p className="text-sm text-muted-foreground">
-                          {careerPathway.name} • {careerProgress}% complete
-                        </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Set your career goal to get personalized recommendations
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Link href="/career">
-                    <Button variant="outline" size="sm" className="group">
-                      {careerPathway ? "View Progress" : "Set Career Goal"}
-                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                </div>
-                {careerPathway && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Career Pathway Progress</span>
-                      <span className="font-semibold">{careerProgress}%</span>
-                    </div>
-                    <Progress value={careerProgress} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {careerPathway.milestones.filter(m => m.completed).length} of {careerPathway.milestones.length} milestones completed
-                    </p>
-                  </div>
-                )}
-                {!careerPathway && (
-                  <div className="pt-2">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Choose from 5 career paths: Embedded Systems, IoT Developer, Hardware Engineer, Robotics Engineer, or Electronics Designer
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+             <div className="flex items-center gap-3 mb-4">
+                <Briefcase className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold">Your Career Paths</h3>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {userCareerPaths && userCareerPaths.length > 0 ? (
+                 userCareerPaths.map((path: any, idx: number) => {
+                    const progress = path.progress?.totalProgress || 0;
+                    
+                    return (
+                      <Card key={idx} className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Briefcase className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-lg">{path.careerDecision?.role || "Career Path"}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {progress}% complete
+                                </p>
+                              </div>
+                            </div>
+                            <Link href={`/career?role=${encodeURIComponent(path.careerDecision?.role)}`}>
+                              <Button variant="outline" size="sm" className="group">
+                                Continue
+                                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                              </Button>
+                            </Link>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Progress value={progress} className="h-2" />
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {path.progress?.completedDays?.length || 0} of {path.summary?.totalDays || 20} days completed
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                 })
+               ) : (
+                 <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center justify-center text-center py-6">
+                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                           <Sparkles className="h-6 w-6 text-primary" />
+                         </div>
+                         <h3 className="font-semibold text-lg mb-2">Discover Your Path</h3>
+                         <p className="text-sm text-muted-foreground mb-4 max-w-md">
+                           Not sure which tech career is right for you? Chat with our AI mentor to build a personalized roadmap.
+                         </p>
+                         <Link href="/career">
+                           <Button className="group">
+                             Start Career Journey
+                             <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                           </Button>
+                         </Link>
+                      </div>
+                    </CardContent>
+                 </Card>
+               )}
+               
+               {/* Add New Path Button (if paths exist) */}
+               {userCareerPaths && userCareerPaths.length > 0 && (
+                 <Link href="/career">
+                    <Card className="border-dashed border-2 border-border/50 bg-transparent hover:bg-accent/5 transition-colors h-full flex items-center justify-center cursor-pointer min-h-[150px]">
+                      <div className="flex flex-col items-center text-muted-foreground">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-2">
+                          <Briefcase className="h-5 w-5" />
+                        </div>
+                        <span className="font-medium">Explore Another Role</span>
+                      </div>
+                    </Card>
+                 </Link>
+               )}
+             </div>
           </motion.section>
 
           {/* Error Message */}
@@ -546,7 +575,7 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Continue Learning Section */}
-          {!isLoading && inProgressCourses.length > 0 && (
+          {!isLoading && (inProgressCourses.length > 0 || activeCareerPaths.length > 0) && (
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -557,16 +586,63 @@ export default function Dashboard() {
                 <PlayCircle className="h-6 w-6 text-primary" />
                 <h2 className="text-2xl font-bold text-foreground">Continue Learning</h2>
                 <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                  {inProgressCourses.length} course{inProgressCourses.length !== 1 ? "s" : ""}
+                  {inProgressCourses.length + activeCareerPaths.length} item{(inProgressCourses.length + activeCareerPaths.length) !== 1 ? "s" : ""}
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Career Paths */}
+                {activeCareerPaths.map((path: any, index: number) => {
+                   const progress = path.progress?.totalProgress || 0;
+                   return (
+                    <motion.div
+                      key={`career-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      className="h-full"
+                    >
+                      <Card className="h-full border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all flex flex-col">
+                        <CardContent className="p-6 flex flex-col h-full">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Briefcase className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-lg line-clamp-1">{path.careerDecision?.role || "Career Path"}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {progress}% complete
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 mb-4 flex-1">
+                            <Progress value={progress} className="h-2" />
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {path.progress?.completedDays?.length || 0} of {path.summary?.totalDays || 20} days completed
+                            </p>
+                          </div>
+
+                          <Link href={`/career?role=${encodeURIComponent(path.careerDecision?.role)}`}>
+                            <Button variant="outline" size="sm" className="w-full group mt-auto">
+                              Continue Roadmap
+                              <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                            </Button>
+                          </Link>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                   );
+                })}
+
+                {/* Courses */}
                 {inProgressCourses.map((course, index) => (
                   <motion.div
                     key={course.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    transition={{ duration: 0.5, delay: (index + activeCareerPaths.length) * 0.1 }}
                     className="h-full"
                   >
                     <CourseCard course={course} />
