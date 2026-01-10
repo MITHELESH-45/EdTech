@@ -1,5 +1,4 @@
 import type { Course, ElectronicComponent, Lesson } from "@shared/schema";
-
 export interface CourseLevel {
   id: string;
   name: string;
@@ -21,6 +20,7 @@ export const mockCourses: ExtendedCourse[] = [
     description: "Learn fundamental concepts of electronics including voltage, current, and resistance.",
     difficulty: "beginner",
     progress: 45,
+    image: "/Basics-of-Electronics.png",
     isLocked: false,
     lessons: [
       {
@@ -72,6 +72,7 @@ export const mockCourses: ExtendedCourse[] = [
     description: "Master the fundamentals of digital circuits, logic gates, and binary systems.",
     difficulty: "intermediate",
     progress: 20,
+    image: "/Digital-Electronics-Fundamentals.png",
     isLocked: false,
     lessons: [
       {
@@ -108,6 +109,7 @@ export const mockCourses: ExtendedCourse[] = [
     description: "Get started with Arduino microcontrollers and build your first projects.",
     difficulty: "beginner",
     progress: 0,
+    image: "/Arduino-for-Beginners.png",
     isLocked: false,
     lessons: [
       {
@@ -138,42 +140,7 @@ export const mockCourses: ExtendedCourse[] = [
       }
     ]
   },
-  {
-    id: "4",
-    title: "Sensors & Actuators",
-    description: "Explore various sensors and actuators used in electronic projects and IoT.",
-    difficulty: "intermediate",
-    progress: 0,
-    isLocked: false,
-    lessons: [
-      {
-        id: "4-1",
-        title: "Introduction to Sensors",
-        content: "A sensor is a device that detects and responds to some type of input from the physical environment.",
-        diagramPlaceholder: "sensor-types"
-      }
-    ],
-    levels: [
-      {
-        id: "4-level-1",
-        name: "Level 1: Sensor Types",
-        description: "Overview of common sensor types",
-        youtubeUrl: "https://www.youtube.com/watch?v=WKFxPWgj2Vc",
-        notesUrl: "/notes/sensors-level1.pdf",
-        duration: "22 min",
-        isCompleted: false
-      },
-      {
-        id: "4-level-2",
-        name: "Level 2: Temperature Sensors",
-        description: "Using DHT11 and LM35 sensors",
-        youtubeUrl: "https://www.youtube.com/watch?v=IpKRxe-JQmo",
-        notesUrl: "/notes/sensors-level2.pdf",
-        duration: "25 min",
-        isCompleted: false
-      }
-    ]
-  },
+ 
   {
     id: "5",
     title: "IoT Basics",
@@ -182,18 +149,10 @@ export const mockCourses: ExtendedCourse[] = [
     progress: 0,
     isLocked: true,
     lessons: [],
-    levels: []
+    levels: [],
+    image: "/IoT-Basics.png",
   },
-  {
-    id: "6",
-    title: "PCB Design Principles",
-    description: "Understand the principles behind designing printed circuit boards.",
-    difficulty: "advanced",
-    progress: 0,
-    isLocked: true,
-    lessons: [],
-    levels: []
-  }
+  
 ];
 
 export const mockComponents: ElectronicComponent[] = [
@@ -273,6 +232,13 @@ export const mockComponents: ElectronicComponent[] = [
     category: "power",
     icon: "ground",
     description: "Ground connection"
+  },
+  {
+    id: "object",
+    name: "Object",
+    category: "base",
+    icon: "object",
+    description: "Detectable object for proximity sensors"
   },
   {
     id: "arduino-uno",

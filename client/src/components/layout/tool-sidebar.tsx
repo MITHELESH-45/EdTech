@@ -26,8 +26,8 @@ const tools: ToolItem[] = [
     name: "IoT Simulation",
     icon: Globe,
     path: "/iot-simulation",
-    isActive: false,
-    comingSoon: true,
+    isActive: true,
+    comingSoon: false,
   },
   {
     id: "no-code-editor",

@@ -1,7 +1,7 @@
-import { Search, User, ChevronDown, Settings, LogOut, HelpCircle } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { User, ChevronDown, Settings, LogOut, HelpCircle, Zap, Trophy, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,14 +11,41 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { ThemeToggleSwitch } from "@/components/iot-simulation/ThemeToggleSwitch";
+import { GrootChatModal } from "@/components/groot/GrootChatModal";
+import { useState } from "react";
+import GrootSvg from "@/components/ui/groot";
 
 export function Header() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [grootOpen, setGrootOpen] = useState(false);
+  
+  // Fetch courses info for activity points and completed courses
+  const { data: coursesInfo } = useQuery({
+    queryKey: ["/api/courses/info", user?.userId],
+    queryFn: async () => {
+      if (!user?.userId) return null;
+      const response = await fetch("/api/courses/info", {
+        headers: {
+          "x-user-id": user.userId,
+        },
+      });
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user?.userId && isAuthenticated,
+    retry: 1,
+  });
+  
+  const activityPoints = coursesInfo?.activity?.totalPoints || 0;
+  const completedCourses = coursesInfo?.badges?.completedCourses || 0;
 
   const handleLogout = () => {
     logout();
-    setLocation("/login");
+    setLocation("/about");
   };
 
   const initials = user?.name
@@ -50,24 +77,40 @@ export function Header() {
           <span className="font-semibold text-lg tracking-tight">E-GROOTS</span>
         </Link>
 
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search courses..."
-              className="pl-9 bg-muted/50 border-transparent focus:border-border"
-              data-testid="input-search"
-            />
-          </div>
-        </div>
+        <div className="flex items-center gap-2 ml-auto"> 
+          {/* Activity Points and Completed Courses - Only show when authenticated */}
+          {isAuthenticated && (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">{activityPoints}</span>
+                <span className="text-xs text-muted-foreground">points</span>
+              </div>
+              {completedCourses > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-chart-4/10 border border-chart-4/20">
+                  <Trophy className="h-4 w-4 text-chart-4" />
+                  <span className="text-sm font-semibold text-foreground">{completedCourses}</span>
+                  <span className="text-xs text-muted-foreground">completed</span>
+                </div>
+              )}
+            </>
+          )}
+          
+          {/* Ask GROOT Button - Only show when authenticated */}
+          {isAuthenticated && (
+            <div
+              onClick={() => setGrootOpen(true)}
+              className="flex items-center justify-center cursor-pointer px-3 py-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 border border-blue-500/30 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:shadow-md transition-all duration-200 hover:scale-105"
+              data-testid="button-ask-groot"
+            >
+              <span className="font-medium text-xs mr-1.5">Ask GROOT</span>
+              <GrootSvg width={20} height={20} fill="#6B4F2A" className="dark:fill-emerald-400" />
+            </div>
+          )}
 
-        <div className="flex items-center gap-2">
-          <Link href="/about">
-            <Button variant="ghost" size="sm" data-testid="link-about">
-              About
-            </Button>
-          </Link>
+          <div className="pl-2 border-l border-border">
+            <ThemeToggleSwitch />
+          </div>
 
           {isAuthenticated ? (
             <DropdownMenu>
@@ -91,16 +134,25 @@ export function Header() {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
+                
                 <Link href="/profile">
                   <DropdownMenuItem data-testid="menu-item-profile" className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem data-testid="menu-item-settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
+                <Link href="/career">
+                  <DropdownMenuItem data-testid="menu-item-career" className="cursor-pointer">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Career
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/settings">
+                  <DropdownMenuItem data-testid="menu-item-settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
                 <Link href="/help">
                   <DropdownMenuItem data-testid="menu-item-help" className="cursor-pointer">
                     <HelpCircle className="mr-2 h-4 w-4" />
@@ -127,6 +179,9 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* GROOT Chat Modal */}
+      <GrootChatModal open={grootOpen} onOpenChange={setGrootOpen} />
     </header>
   );
 }
