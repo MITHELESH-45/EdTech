@@ -320,8 +320,8 @@ export default function CareerPage() {
       {/* SELECTION VIEW */}
       {view === "selection" && (
         <main className="flex-1 overflow-auto p-6">
-          <div className="max-w-5xl mx-auto space-y-8">
-            <div className="text-center space-y-4 mb-12">
+          <div className="max-w-5xl mx-auto space-y-6">
+            <div className="text-center space-y-4 mb-8">
               <h1 className="text-4xl font-bold tracking-tight">Choose Your Career Path</h1>
               <p className="text-xl text-muted-foreground">
                 Select a role to start your journey or let our AI mentor guide you.
@@ -330,7 +330,7 @@ export default function CareerPage() {
 
             {/* Existing Paths Section */}
             {allPaths.length > 0 && (
-              <div className="mb-12">
+              <div className="mb-8">
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                   <LayoutDashboard className="h-6 w-6 text-primary" />
                   Your Active Journeys
@@ -363,7 +363,7 @@ export default function CareerPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {ROLES.map((role) => (
                 <Card 
                   key={role.title} 
