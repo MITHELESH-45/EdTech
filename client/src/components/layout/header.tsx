@@ -79,22 +79,22 @@ export function Header() {
 
         <div className="flex items-center gap-2 ml-auto"> 
           {/* Activity Points and Completed Courses - Only show when authenticated */}
-          {isAuthenticated && (
-            <>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">{activityPoints}</span>
-                <span className="text-xs text-muted-foreground">points</span>
-              </div>
-              {completedCourses > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-chart-4/10 border border-chart-4/20">
-                  <Trophy className="h-4 w-4 text-chart-4" />
-                  <span className="text-sm font-semibold text-foreground">{completedCourses}</span>
-                  <span className="text-xs text-muted-foreground">completed</span>
-                </div>
-              )}
-            </>
-          )}
+          {/* {isAuthenticated && (
+            // <>
+            //   <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20">
+            //     <Zap className="h-4 w-4 text-primary" />
+            //     <span className="text-sm font-semibold text-foreground">{activityPoints}</span>
+            //     <span className="text-xs text-muted-foreground">points</span>
+            //   </div>
+            //   {completedCourses > 0 && (
+            //     <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-chart-4/10 border border-chart-4/20">
+            //       <Trophy className="h-4 w-4 text-chart-4" />
+            //       <span className="text-sm font-semibold text-foreground">{completedCourses}</span>
+            //       <span className="text-xs text-muted-foreground">completed</span>
+            //     </div>
+            //   )}
+            // </>
+          )} */}
           
           {/* Ask GROOT Button - Only show when authenticated */}
           {isAuthenticated && (

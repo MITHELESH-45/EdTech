@@ -201,7 +201,7 @@ export function GrootModelViewer({ scrollProgress }: GrootModelViewerProps) {
           enableZoom={false}
           enablePan={false}
           autoRotate
-          autoRotateSpeed={0.6}
+          autoRotateSpeed={15}
           minPolarAngle={Math.PI / 3}
           maxPolarAngle={Math.PI / 2}
         />
