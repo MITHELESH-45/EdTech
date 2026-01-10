@@ -26,6 +26,9 @@ import { FaJava } from "react-icons/fa";
 import { TbBrackets, TbRepeat, TbSquare, TbLetterT, TbFunction } from "react-icons/tb";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { Progress } from "@/components/ui/progress";
 
 const languageBadges = [
   { id: "c", label: "C", color: "bg-gradient-to-br from-sky-500 to-sky-700", sub: "Systems", icon: SiC },
@@ -149,6 +152,25 @@ function AnimatedBackground() {
 
 export default function CodingLearning() {
   const topics = getAllTopics();
+  const { user } = useAuth();
+
+  const { data: coursesInfo } = useQuery({
+    queryKey: ["/api/courses/info", user?.userId],
+    queryFn: async () => {
+      if (!user?.userId) return null;
+      const response = await fetch("/api/courses/info", {
+        headers: {
+          "x-user-id": user.userId,
+        },
+      });
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user?.userId,
+  });
+
+  const completedProblems = coursesInfo?.completedProblems || [];
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8 max-w-6xl mx-auto relative">
@@ -277,64 +299,84 @@ export default function CodingLearning() {
 
       {/* Topic Cards Grid */}
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {topics.map((topic, index) => (
-          <motion.div
-            key={topic.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-          >
-            <Link href={`/coding/learn/${topic.id}`}>
-              <motion.div
-                whileHover={{ y: -4 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Card className="h-full hover:border-primary/60 hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden bg-gradient-to-br from-card via-card to-muted/40 border-2">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <CardHeader className="relative">
-                    <div className="flex items-start justify-between mb-3">
-                      <motion.div
-                        whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
-                        transition={{ duration: 0.5 }}
-                        className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover:from-primary/30 group-hover:to-primary/20 transition-all shadow-md border border-primary/20"
-                      >
-                        {(() => {
-                          const IconComponent = topicIcons[topic.id] || Code;
-                          return <IconComponent className="h-6 w-6 text-primary" />;
-                        })()}
-                      </motion.div>
-                      <motion.div
-                        whileHover={{ x: 4 }}
-                        transition={{ type: "spring", stiffness: 400 }}
-                      >
-                        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </motion.div>
-                    </div>
-                    <CardTitle className="text-xl flex items-center gap-2 font-bold">
-                      {topic.title}
-                    </CardTitle>
-                    <CardDescription className="mt-2 text-sm leading-relaxed">
-                      {topic.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0 pb-4 flex items-center justify-between relative">
-                    <div className="flex flex-wrap gap-1.5">
-                      <Badge variant="outline" className="text-[11px] border-primary/40 bg-primary/10 text-primary font-medium">
-                        Concept
-                      </Badge>
-                      <Badge variant="outline" className="text-[11px] border-slate-400/50 bg-slate-500/10 text-slate-600 dark:text-slate-300">
-                        Language‑independent
-                      </Badge>
-                    </div>
-                    <Button className="gap-1 shadow-md hover:shadow-lg" size="sm" variant="outline">
-                      Start Learning
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Link>
-          </motion.div>
-        ))}
+        {topics.map((topic, index) => {
+          // Calculate Progress
+          const totalQuestions = topic.questions?.length || 0;
+          const completedCount = topic.questions?.filter((_, qIdx) => 
+            completedProblems.includes(`${topic.id}-${qIdx}`)
+          ).length || 0;
+          const progressPercent = totalQuestions > 0 ? (completedCount / totalQuestions) * 100 : 0;
+          const isCompleted = completedCount === totalQuestions && totalQuestions > 0;
+
+          return (
+            <motion.div
+              key={topic.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+            >
+              <Link href={`/coding/learn/${topic.id}`}>
+                <motion.div
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className={`h-full hover:border-primary/60 hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden bg-gradient-to-br from-card via-card to-muted/40 border-2 ${isCompleted ? 'border-emerald-500/30' : ''}`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="relative">
+                      <div className="flex items-start justify-between mb-3">
+                        <motion.div
+                          whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
+                          transition={{ duration: 0.5 }}
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-md border ${isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/20 group-hover:from-primary/30 group-hover:to-primary/20'}`}
+                        >
+                          {(() => {
+                            const IconComponent = topicIcons[topic.id] || Code;
+                            return <IconComponent className={`h-6 w-6 ${isCompleted ? 'text-emerald-500' : 'text-primary'}`} />;
+                          })()}
+                        </motion.div>
+                        <motion.div
+                          whileHover={{ x: 4 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <ArrowRight className={`h-5 w-5 transition-colors ${isCompleted ? 'text-emerald-500' : 'text-muted-foreground group-hover:text-primary'}`} />
+                        </motion.div>
+                      </div>
+                      <CardTitle className="text-xl flex items-center gap-2 font-bold">
+                        {topic.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2 text-sm leading-relaxed">
+                        {topic.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-4 relative">
+                      <div className="flex items-center justify-between mb-2">
+                         <span className="text-xs font-medium text-muted-foreground">Progress</span>
+                         <span className="text-xs font-medium text-muted-foreground">{completedCount}/{totalQuestions}</span>
+                      </div>
+                      <Progress value={progressPercent} className={`h-2 mb-4 ${isCompleted ? '[&>div]:bg-emerald-500' : ''}`} />
+
+                      <div className="flex flex-wrap gap-1.5 justify-between items-center">
+                        <div className="flex gap-1.5">
+                          <Badge variant="outline" className="text-[11px] border-primary/40 bg-primary/10 text-primary font-medium">
+                            Concept
+                          </Badge>
+                          {isCompleted && (
+                            <Badge variant="outline" className="text-[11px] border-emerald-500/40 bg-emerald-500/10 text-emerald-500 font-medium">
+                              Completed
+                            </Badge>
+                          )}
+                        </div>
+                        <Button className={`gap-1 shadow-md hover:shadow-lg h-8 text-xs ${isCompleted ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`} size="sm" variant={isCompleted ? "default" : "outline"}>
+                          {isCompleted ? 'Review' : 'Start Learning'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Link>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Quick Access Note */}
