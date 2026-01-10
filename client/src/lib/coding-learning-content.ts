@@ -22,6 +22,7 @@ export interface CodingTopic {
     input: string;
     output: string;
     explanation?: string;
+    examples?: Array<{ input: string; output: string }>;
   }>;
 }
 
@@ -174,18 +175,30 @@ if (num > 0) {
         input: "6",
         output: "Even",
         explanation: "An even number is divisible by 2 with no remainder. Use the modulo operator (%) to check if num % 2 == 0.",
+        examples: [
+          { input: "6", output: "Even" },
+          { input: "7", output: "Odd" }
+        ]
       },
       {
         problem: "Find the largest of two numbers. Read two integers and print the larger one.",
         input: "15\n23",
         output: "23",
         explanation: "Compare the two numbers using > operator. If first number is greater, print it; otherwise print the second number.",
+        examples: [
+          { input: "15\n23", output: "23" },
+          { input: "100\n5", output: "100" }
+        ]
       },
       {
         problem: "Determine the grade based on score. If score >= 90, print 'A'; if score >= 80, print 'B'; if score >= 70, print 'C'; otherwise print 'F'.",
         input: "85",
         output: "B",
         explanation: "Use if-else if chain to check score ranges. Remember to check from highest to lowest.",
+        examples: [
+          { input: "95", output: "A" },
+          { input: "90", output: "A" }
+        ]
       },
     ],
   },
@@ -323,18 +336,30 @@ for (int i = 1; i <= 10; i++) {
         input: "5",
         output: "1\n2\n3\n4\n5",
         explanation: "Use a for loop starting from 1 and going up to N (inclusive). Print each number in the loop.",
+        examples: [
+          { input: "5", output: "1\n2\n3\n4\n5" },
+          { input: "1", output: "1" }
+        ]
       },
       {
         problem: "Print the multiplication table of a number. Read a number and print its multiplication table from 1 to 10.",
         input: "7",
         output: "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70",
         explanation: "Use a for loop from 1 to 10. In each iteration, multiply the input number by the loop counter and print the result.",
+        examples: [
+          { input: "5", output: "5 x 1 = 5\n5 x 2 = 10\n5 x 3 = 15\n5 x 4 = 20\n5 x 5 = 25\n5 x 6 = 30\n5 x 7 = 35\n5 x 8 = 40\n5 x 9 = 45\n5 x 10 = 50" },
+          { input: "1", output: "1 x 1 = 1\n1 x 2 = 2\n1 x 3 = 3\n1 x 4 = 4\n1 x 5 = 5\n1 x 6 = 6\n1 x 7 = 7\n1 x 8 = 8\n1 x 9 = 9\n1 x 10 = 10" }
+        ]
       },
       {
         problem: "Calculate the sum of first N natural numbers. Read N and calculate 1 + 2 + 3 + ... + N.",
         input: "10",
         output: "55",
         explanation: "Initialize a sum variable to 0. Use a loop from 1 to N, adding each number to the sum. Print the final sum.",
+        examples: [
+          { input: "10", output: "55" },
+          { input: "1", output: "1" }
+        ]
       },
     ],
   },
@@ -472,18 +497,30 @@ cout << "Sum: " << sum;}`,
         input: "5\n10 20 30 40 50",
         output: "150",
         explanation: "Read N, create an array of size N, read N integers into the array, then loop through and add all elements.",
+        examples: [
+          { input: "5\n10 20 30 40 50", output: "150" },
+          { input: "3\n1 1 1", output: "3" }
+        ]
       },
       {
         problem: "Find the maximum element in an array. Read N, then N integers, and print the largest number.",
         input: "5\n34 12 78 45 23",
         output: "78",
         explanation: "Initialize max with first element. Loop through array, compare each element with max, update max if current element is larger.",
+        examples: [
+          { input: "5\n34 12 78 45 23", output: "78" },
+          { input: "3\n1 2 3", output: "3" }
+        ]
       },
       {
         problem: "Print array elements in reverse order. Read N, then N integers, and print them in reverse.",
         input: "5\n1 2 3 4 5",
         output: "5 4 3 2 1",
         explanation: "Read array normally, then loop from last index (N-1) down to 0, printing each element.",
+        examples: [
+          { input: "5\n1 2 3 4 5", output: "5 4 3 2 1" },
+          { input: "3\n10 20 30", output: "30 20 10" }
+        ]
       },
     ],
   },
@@ -657,18 +694,30 @@ cout << "Vowels: " << count;}`,
         input: "Hello",
         output: "olleH",
         explanation: "Loop through the string from the last character to the first, printing each character. Or use built-in reverse functions if available.",
+        examples: [
+          { input: "Hello", output: "olleH" },
+          { input: "World", output: "dlroW" }
+        ]
       },
       {
         problem: "Count the number of vowels in a string. Read a string and count how many vowels (a, e, i, o, u) it contains (case-insensitive).",
         input: "Programming",
         output: "3",
         explanation: "Loop through each character, check if it's a vowel (a, e, i, o, u), and increment a counter. Remember to handle both uppercase and lowercase.",
+        examples: [
+          { input: "Programming", output: "3" },
+          { input: "aeiou", output: "5" }
+        ]
       },
       {
         problem: "Check if a string is a palindrome. Read a string and print 'Yes' if it reads the same forwards and backwards, otherwise print 'No'.",
         input: "racecar",
         output: "Yes",
         explanation: "Compare characters from start and end moving towards center. If all match, it's a palindrome.",
+        examples: [
+          { input: "racecar", output: "Yes" },
+          { input: "hello", output: "No" }
+        ]
       },
     ],
   },

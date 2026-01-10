@@ -270,26 +270,7 @@ export default function CodingLearnTopic() {
             transition={{ duration: 0.5, delay: 0.6 }}
             className="sticky bottom-6 z-10"
           >
-            <Card className="bg-card border-border shadow-md">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1 text-foreground">Ready to Practice?</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Open the code editor and start coding with the concepts you've learned.
-                    </p>
-                  </div>
-                  <Link href="/code-editor">
-                    <Button size="lg" className="gap-2">
-                      <Play className="h-5 w-5" />
-                      Practice in Code Editor
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
           </motion.div>
     </div>
   );
 }
-

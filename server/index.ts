@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
-import { createServer } from "http";
+import { createServer, type Server } from "http";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -104,6 +104,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await registerRoutes(app);
   // Initialize MongoDB connection
   try {
     const { connectToMongoDB } = await import("./utils/mongodb");
@@ -118,7 +119,7 @@ app.use((req, res, next) => {
     console.error("  3. MongoDB server is running and accessible");
   }
 
-  await registerRoutes(httpServer, app);
+  
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -129,17 +130,21 @@ app.use((req, res, next) => {
   });
 
   // Production vs development setup
+  const port = parseInt(process.env.PORT || "5000", 10);
+  
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
+    app.listen(port, () => {
+      log(`serving on http://localhost:${port}`);
+    });
   } else {
+    // For development, create server for Vite HMR
+    
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
+    
+    httpServer.listen(port, () => {
+      log(`serving on http://localhost:${port}`);
+    });
   }
-
-  // ✅ Windows-safe server listen
-  const port = parseInt(process.env.PORT || "5000", 10);
-
-  httpServer.listen(port, () => {
-    log(`serving on http://localhost:${port}`);
-  });
 })();

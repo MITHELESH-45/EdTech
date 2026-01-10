@@ -134,7 +134,7 @@ export default function About() {
 
         {/* What is E-GROOTS */}
         <section className="py-20 px-6 relative overflow-hidden bg-gradient-to-br from-blue-50/50 via-background to-purple-50/30 dark:from-blue-950/20 dark:via-background dark:to-purple-950/20">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] opacity-30"></div>
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_2px,transparent_2px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] opacity-90"></div>
           <div className="max-w-4xl mx-auto relative z-10">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">What is E-GROOTS?</h2>
@@ -171,7 +171,7 @@ export default function About() {
 
         {/* Who is it for */}
         <section className="py-20 px-6 relative overflow-hidden bg-gradient-to-br from-muted/50 via-muted/30 to-background">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(59,130,246,0.1),transparent_100%)]"></div>
           <div className="max-w-4xl mx-auto relative z-10">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Who is E-GROOTS For?</h2>

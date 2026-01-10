@@ -8,6 +8,24 @@ import type { PlacedBlock, BlockConnection } from "@/lib/block-types";
 import { CodeGenerator } from "@/lib/code-generator";
 import { schemaData } from "@/lib/no-code-blocks";
 import { generateArduinoCodeFromBlocks } from "@/lib/no-code-arduino-generator";
+import { Terminal, ChevronDown, Upload, Usb, Loader2, RefreshCw, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { VideoLibraryModal } from "@/components/simulation/video-library-modal";
+import { VideoPlayerPanel } from "@/components/simulation/video-player-panel";
+import type { CircuitTutorial } from "@/lib/circuit-video-tutorials";
 
 function PaletteSkeleton() {
   return (
@@ -52,6 +70,7 @@ export default function NocodeEditor() {
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [manualPort, setManualPort] = useState<string>("COM11");
   const [useManualPort, setUseManualPort] = useState(false);
+<<<<<<< HEAD
   const [selectedBoard, setSelectedBoard] = useState<string>("nano");
   
   // Serial monitor state
@@ -64,6 +83,16 @@ export default function NocodeEditor() {
     { id: "esp32", name: "ESP32" },
     { id: "esp32wroom32", name: "ESP32-WROOM-32" },
   ];
+=======
+  const [serialMonitorExpanded, setSerialMonitorExpanded] = useState(false);
+  const [arduinoUploadExpanded, setArduinoUploadExpanded] = useState(false);
+  
+  // Video panel state
+  const [showVideoLibrary, setShowVideoLibrary] = useState(false);
+  const [selectedTutorial, setSelectedTutorial] = useState<CircuitTutorial | null>(null);
+  const [showVideoPanel, setShowVideoPanel] = useState(false);
+  const [isVideoPanelMinimized, setIsVideoPanelMinimized] = useState(false);
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
 
   const handleSelectBlock = useCallback((blockId: string) => {
     setSelectedBlockType(blockId);
@@ -847,7 +876,7 @@ void loop() {
   }, []);
 
   return (
-    <div className="h-screen w-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-full w-full bg-background flex flex-col overflow-hidden">
     <div className="flex flex-1 min-h-0 w-full">
       <div className="w-56 flex-shrink-0 border-r border-border overflow-y-auto">
         <NocodeSidebar
@@ -863,23 +892,202 @@ void loop() {
         />
       </div>
   
-      <div className="flex-1 min-w-0 overflow-hidden">
-        <BlockCanvas
-          placedBlocks={placedBlocks}
-          connections={connections}
-          selectedBlockId={selectedBlockId}
-          selectedBlockType={selectedBlockType}
-          onPlaceBlock={handlePlaceBlock}
-          onSelectBlock={setSelectedBlockId}
-          onDeleteBlock={handleDeleteBlock}
-          onUpdateBlockValues={handleUpdateBlockValues}
-          onConnectBlocks={handleConnectBlocks}
-          onDeleteConnection={handleDeleteConnection}
-          onMoveBlock={handleMoveBlock}
-        />
+      <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <BlockCanvas
+            placedBlocks={placedBlocks}
+            connections={connections}
+            selectedBlockId={selectedBlockId}
+            selectedBlockType={selectedBlockType}
+            onPlaceBlock={handlePlaceBlock}
+            onSelectBlock={setSelectedBlockId}
+            onDeleteBlock={handleDeleteBlock}
+            onUpdateBlockValues={handleUpdateBlockValues}
+            onConnectBlocks={handleConnectBlocks}
+            onDeleteConnection={handleDeleteConnection}
+            onMoveBlock={handleMoveBlock}
+          />
+        </div>
+        
+        {/* Arduino Upload Section - Moved to Canvas Area */}
+        <div className="border-t border-border bg-card flex flex-col shrink-0">
+          <button
+            onClick={() => setArduinoUploadExpanded(!arduinoUploadExpanded)}
+            className="px-4 py-2 flex items-center justify-between border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Usb className="w-4 h-4 text-blue-600" />
+              <h2 className="font-semibold text-sm text-foreground">Arduino Upload</h2>
+            </div>
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 transition-transform text-muted-foreground",
+                !arduinoUploadExpanded && "-rotate-90"
+              )}
+            />
+          </button>
+          {arduinoUploadExpanded && (
+            <div className="p-4 space-y-4 border-b border-border">
+              {/* Upload Button */}
+              <Button
+                onClick={handleUpload}
+                disabled={isUploading || !arduinoCode || arduinoCode.trim().length === 0}
+                className="w-full"
+                size="sm"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload to Arduino
+                  </>
+                )}
+              </Button>
+
+              {/* Arduino Status */}
+              {arduinoStatus && (
+                <div className="flex justify-around items-center text-xs">
+                  <div className="flex items-start gap-2">
+                    {arduinoStatus.cliInstalled ? (
+                      <CheckCircle className="h-3 w-3 text-green-500 mt-0.5" />
+                    ) : (
+                      <XCircle className="h-3 w-3 text-red-500 mt-0.5" />
+                    )}
+                    <span>Arduino CLI</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {arduinoStatus.coreInstalled ? (
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <XCircle className="h-3 w-3 text-red-500" />
+                    )}
+                    <span>AVR Core</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Port Selection */}
+              <div className="space-y-2">
+                <Label className="text-xs">Serial Port</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="manual-port-checkbox"
+                    checked={useManualPort}
+                    onCheckedChange={(checked) => setUseManualPort(!!checked)}
+                  />
+                  <Label htmlFor="manual-port-checkbox" className="text-xs font-medium leading-none">
+                    Enter port manually
+                  </Label>
+                </div>
+                {useManualPort ? (
+                  <Input
+                    type="text"
+                    value={manualPort}
+                    onChange={(e) => setManualPort(e.target.value)}
+                    placeholder="e.g., COM11 or /dev/ttyUSB0"
+                    className="h-8 text-xs"
+                  />
+                ) : (
+                  <Select value={selectedPort} onValueChange={setSelectedPort}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select port" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(availablePorts) && availablePorts.length > 0 ? (
+                        availablePorts.map((port) => (
+                          <SelectItem key={port} value={port}>
+                            {port}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          No ports available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Button
+                  onClick={fetchAvailablePorts}
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-7 text-xs"
+                >
+                  <RefreshCw className="h-3 w-3 mr-2" /> Refresh Ports
+                </Button>
+              </div>
+
+              {/* Arduino CLI Installation Instructions */}
+              {arduinoStatus && !arduinoStatus.cliInstalled && (
+                <Alert variant="destructive" className="text-xs">
+                  <AlertTriangle className="h-3 w-3" />
+                  <AlertTitle className="text-xs">Arduino CLI Not Found</AlertTitle>
+                  <AlertDescription className="text-[10px] mt-1">
+                    <p>Please install Arduino CLI and restart the server.</p>
+                    <p className="mt-1">Windows: <code>choco install arduino-cli</code></p>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Serial Monitor - Moved to Canvas Area */}
+        <div className="border-t border-border bg-card flex flex-col shrink-0">
+          <button
+            onClick={() => setSerialMonitorExpanded(!serialMonitorExpanded)}
+            className="px-4 py-2 flex items-center justify-between border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-cyan-600" />
+              <h2 className="font-semibold text-sm text-foreground">Serial Monitor</h2>
+            </div>
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 transition-transform text-muted-foreground",
+                !serialMonitorExpanded && "-rotate-90"
+              )}
+            />
+          </button>
+          {serialMonitorExpanded && (
+            <div className="flex overflow-hidden" style={{ height: '200px' }}>
+              <div className="w-10 bg-muted border-r border-border py-2 text-right shrink-0 overflow-y-auto">
+                {outputContent.split('\n').map((_, i) => (
+                  <div key={i} className="text-xs text-muted-foreground px-2 leading-5">
+                    {i + 1}
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1 overflow-auto bg-background">
+                <pre className="px-3 py-2 text-xs font-mono text-foreground whitespace-pre-wrap leading-5">
+                  {outputContent}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
   
-      <div className="flex-shrink-0 border-l border-border ">
+      <div className="flex-shrink-0 border-l border-border flex flex-col h-full overflow-hidden">
+        {/* Video Player Panel - Above Embedded Section */}
+        {showVideoPanel && (
+          <VideoPlayerPanel
+            tutorial={selectedTutorial}
+            isOpen={showVideoPanel}
+            isMinimized={isVideoPanelMinimized}
+            onClose={() => {
+              setShowVideoPanel(false);
+              setIsVideoPanelMinimized(false);
+            }}
+            onMinimize={() => setIsVideoPanelMinimized(true)}
+            onMaximize={() => setIsVideoPanelMinimized(false)}
+          />
+        )}
+        
         <NocodePanel
           isRunning={false}
           ledState={false}
@@ -895,18 +1103,8 @@ void loop() {
           wireCount={connections.length}
           arduinoCode={arduinoCode}
           onArduinoCodeChange={handleArduinoCodeChange}
-          isUploading={isUploading}
-          onUpload={handleUpload}
-          arduinoStatus={arduinoStatus}
-          selectedPort={selectedPort}
-          availablePorts={availablePorts}
-          manualPort={manualPort}
-          useManualPort={useManualPort}
-          onPortChange={setSelectedPort}
-          onManualPortChange={setManualPort}
-          onUseManualPortChange={setUseManualPort}
-          onRefreshPorts={fetchAvailablePorts}
           outputContent={outputContent}
+<<<<<<< HEAD
           selectedBoard={selectedBoard}
           availableBoards={availableBoards}
           onBoardChange={setSelectedBoard}
@@ -914,8 +1112,22 @@ void loop() {
           isSerialMonitorActive={isSerialMonitorActive}
           onStartSerialMonitor={startSerialMonitor}
           onStopSerialMonitor={stopSerialMonitor}
+=======
+          onOpenVideoLibrary={() => setShowVideoLibrary(true)}
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
         />
       </div>
+      
+      {/* Video Library Modal */}
+      <VideoLibraryModal
+        open={showVideoLibrary}
+        onOpenChange={setShowVideoLibrary}
+        onSelectTutorial={(tutorial) => {
+          setSelectedTutorial(tutorial);
+          setShowVideoPanel(true);
+          setIsVideoPanelMinimized(false);
+        }}
+      />
     </div>
     </div>
   );

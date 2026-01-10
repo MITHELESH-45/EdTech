@@ -93,10 +93,11 @@ export default function ArduinoCodeEditor() {
   
   // Arduino status
   const [arduinoStatus, setArduinoStatus] = useState<ArduinoStatus | null>(null);
-  const [selectedPort, setSelectedPort] = useState<string>("COM11");
+  const [selectedPort, setSelectedPort] = useState<string>("");
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
-  const [manualPort, setManualPort] = useState<string>("COM11");
+  const [manualPort, setManualPort] = useState<string>("");
   const [useManualPort, setUseManualPort] = useState(false);
+  
   
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -117,10 +118,8 @@ export default function ArduinoCodeEditor() {
   useEffect(() => {
     checkArduinoStatus();
     fetchAvailablePorts();
-    // Default to COM11 if available
-    setSelectedPort("COM11");
-    setManualPort("COM11");
   }, []);
+  
 
   // Regenerate code when blocks change
   useEffect(() => {
@@ -914,4 +913,3 @@ export default function ArduinoCodeEditor() {
     </div>
   );
 }
-

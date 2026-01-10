@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ToolSidebar } from "@/components/layout/tool-sidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   BookOpen,
@@ -20,10 +20,12 @@ import {
   Download,
   ExternalLink,
   Lock,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Course, Difficulty } from "@shared/schema";
 import type { CourseLevel, ExtendedCourse } from "@/lib/mock-data";
+import { useCourseTracking } from "@/lib/course-tracking-context";
 
 const difficultyConfig: Record<Difficulty, { label: string; className: string }> = {
   beginner: {
@@ -44,7 +46,6 @@ function CourseDetailSkeleton() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1">
-        <ToolSidebar />
         <main className="flex-1 overflow-auto">
           <div className="border-b border-border bg-card">
             <div className="max-w-4xl mx-auto px-6 py-6">
@@ -74,12 +75,39 @@ function CourseDetailSkeleton() {
 }
 
 function LevelCard({ level, index, courseId }: { level: CourseLevel; index: number; courseId: string }) {
+  const { completeModule, isModuleCompleted, isLoading } = useCourseTracking();
+  const { toast } = useToast();
+  const [isCompleting, setIsCompleting] = useState(false);
+  // Use level.isCompleted from prop (which is synced with real data) or check via hook
+  const isCompleted = level.isCompleted || isModuleCompleted(courseId, level.id);
+
   const handleWatchVideo = () => {
     window.open(level.youtubeUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleDownloadNotes = () => {
     window.open(level.notesUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const handleMarkAsCompleted = async () => {
+    if (isCompleted || isCompleting) return;
+
+    setIsCompleting(true);
+    try {
+      await completeModule(courseId, level.id);
+      toast({
+        title: "Module Completed!",
+        description: `You've completed "${level.name}". Great job!`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark module as completed",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCompleting(false);
+    }
   };
 
   return (
@@ -147,6 +175,34 @@ function LevelCard({ level, index, courseId }: { level: CourseLevel; index: numb
                   <Download className="h-3 w-3 mr-1" />
                   Notes
                 </Button>
+
+                <Button
+                  size="sm"
+                  variant={isCompleted ? "default" : "outline"}
+                  onClick={handleMarkAsCompleted}
+                  disabled={isCompleting || isLoading}
+                  data-testid={`button-complete-${level.id}`}
+                  className={cn(
+                    isCompleted && "bg-chart-4/20 text-chart-4 border-chart-4/30 hover:bg-chart-4/30"
+                  )}
+                >
+                  {isCompleting ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Completing...
+                    </>
+                  ) : isCompleted ? (
+                    <>
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Completed
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Mark as Completed
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </div>
@@ -159,10 +215,48 @@ function LevelCard({ level, index, courseId }: { level: CourseLevel; index: numb
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState("levels");
+  const { enrollCourse, getCourseProgress, isLoading: isTrackingLoading } = useCourseTracking();
 
   const { data: course, isLoading, error } = useQuery<ExtendedCourse>({
     queryKey: ["/api/courses", id],
   });
+
+  // Auto-enroll user in course when viewing it (only once)
+  const [hasEnrolled, setHasEnrolled] = useState(false);
+  useEffect(() => {
+    if (course && !isTrackingLoading && !hasEnrolled) {
+      const courseProgress = getCourseProgress(course.id);
+      if (!courseProgress) {
+        // Enroll user in course with all modules
+        const moduleIds = course.levels.map((level) => level.id);
+        const moduleNames = course.levels.map((level) => level.name);
+        enrollCourse(course.id, course.title, moduleIds, moduleNames)
+          .then(() => {
+            setHasEnrolled(true);
+          })
+          .catch((error) => {
+            console.error("Failed to enroll in course:", error);
+          });
+      } else {
+        setHasEnrolled(true);
+      }
+    }
+  }, [course?.id, isTrackingLoading, hasEnrolled]); // Only depend on course.id, not the whole course object
+
+  // Get real progress from tracking
+  const courseProgress = course ? getCourseProgress(course.id) : null;
+  const levels = course?.levels || [];
+  
+  // Merge real completion status with course levels
+  const levelsWithProgress = levels.map((level) => {
+    const isCompleted = courseProgress
+      ? courseProgress.modules.find((m) => m.moduleId === level.id)?.completed || false
+      : level.isCompleted;
+    return { ...level, isCompleted };
+  });
+
+  const completedLevels = levelsWithProgress.filter((l) => l.isCompleted).length;
+  const progressPercentage = courseProgress?.progressPercentage || 0;
 
   if (isLoading) {
     return <CourseDetailSkeleton />;
@@ -188,13 +282,10 @@ export default function CourseDetail() {
   }
 
   const config = difficultyConfig[course.difficulty];
-  const levels = course.levels || [];
-  const completedLevels = levels.filter((l) => l.isCompleted).length;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1">
-        <ToolSidebar />
 
         <main className="flex-1 overflow-auto">
           <div className="border-b border-border bg-card">
@@ -239,7 +330,7 @@ export default function CourseDetail() {
 
                     {levels.length > 0 && (
                       <div className="flex items-center gap-2">
-                        <Progress value={(completedLevels / levels.length) * 100} className="w-32 h-2" />
+                        <Progress value={progressPercentage} className="w-32 h-2" />
                         <span className="text-sm font-medium">
                           {completedLevels}/{levels.length}
                         </span>
@@ -281,7 +372,7 @@ export default function CourseDetail() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {levels.map((level, index) => (
+                    {levelsWithProgress.map((level, index) => (
                       <LevelCard
                         key={level.id}
                         level={level}

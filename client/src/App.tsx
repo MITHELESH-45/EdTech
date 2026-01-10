@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { CourseTrackingProvider } from "@/lib/course-tracking-context";
 import { Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import NotFound from "@/pages/not-found";
@@ -24,6 +25,7 @@ import CodingLearnTopic from "@/pages/coding-learn-topic";
 import CodeEditorPage from "@/pages/code-editor";
 import RoboticsHelper from "./pages/robotics-helper";
 import Settings from "@/pages/settings";
+import CareerPage from "@/pages/career";
 function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -137,6 +139,9 @@ function Router() {
       <Route path="/help">
         <ProtectedRoute component={Help} />
       </Route>
+      <Route path="/career">
+        <ProtectedRoute component={CareerPage} />
+      </Route>
       <Route path="/about">
         <AppLayout>
           <About />
@@ -152,10 +157,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <CourseTrackingProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </CourseTrackingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

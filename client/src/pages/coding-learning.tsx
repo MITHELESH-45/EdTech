@@ -13,24 +13,168 @@ import {
   ArrowRight,
   BookOpen,
   Sparkles,
-  Braces,
   Cpu,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { getAllTopics } from "@/lib/coding-learning-content";
+import { 
+  SiC, 
+  SiCplusplus, 
+  SiPython
+} from "react-icons/si";
+import { FaJava } from "react-icons/fa";
+import { TbBrackets, TbRepeat, TbSquare, TbLetterT, TbFunction } from "react-icons/tb";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { Progress } from "@/components/ui/progress";
 
 const languageBadges = [
-  { id: "c", label: "C", color: "bg-sky-600", sub: "Systems" },
-  { id: "cpp", label: "C++", color: "bg-indigo-600", sub: "OOP" },
-  { id: "python", label: "Python", color: "bg-yellow-500 text-black", sub: "Beginner‑friendly" },
-  { id: "java", label: "Java", color: "bg-orange-500", sub: "Enterprise" },
+  { id: "c", label: "C", color: "bg-gradient-to-br from-sky-500 to-sky-700", sub: "Systems", icon: SiC },
+  { id: "cpp", label: "C++", color: "bg-gradient-to-br from-indigo-500 to-indigo-700", sub: "OOP", icon: SiCplusplus },
+  { id: "python", label: "Python", color: "bg-gradient-to-br from-yellow-400 to-yellow-600 text-black", sub: "Beginner‑friendly", icon: SiPython },
+  { id: "java", label: "Java", color: "bg-gradient-to-br from-orange-500 to-orange-700", sub: "Enterprise", icon: FaJava },
 ];
+
+const topicIcons: Record<string, any> = {
+  conditionals: TbBrackets,
+  loops: TbRepeat,
+  arrays: TbSquare,
+  strings: TbLetterT,
+  functions: TbFunction,
+};
+
+// Three.js Background Component
+function AnimatedBackground() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    // Camera
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.z = 5;
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // Create floating particles
+    const particles: THREE.Mesh[] = [];
+    const particleCount = 30;
+
+    for (let i = 0; i < particleCount; i++) {
+      const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.7, 0.6),
+        transparent: true,
+        opacity: 0.6,
+      });
+      const particle = new THREE.Mesh(geometry, material);
+      particle.position.set(
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10
+      );
+      scene.add(particle);
+      particles.push(particle);
+    }
+
+    // Animation loop
+    const animate = () => {
+      animationFrameRef.current = requestAnimationFrame(animate);
+
+      particles.forEach((particle, i) => {
+        particle.rotation.x += 0.01;
+        particle.rotation.y += 0.01;
+        particle.position.y += Math.sin(Date.now() * 0.001 + i) * 0.01;
+        particle.position.x += Math.cos(Date.now() * 0.001 + i) * 0.01;
+      });
+
+      camera.rotation.z += 0.001;
+      renderer.render(scene, camera);
+    };
+
+    animate();
+
+    // Handle resize
+    const handleResize = () => {
+      if (!containerRef.current || !rendererRef.current) return;
+      const newWidth = container.offsetWidth;
+      const newHeight = container.offsetHeight;
+      camera.aspect = newWidth / newHeight;
+      camera.updateProjectionMatrix();
+      rendererRef.current.setSize(newWidth, newHeight);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (rendererRef.current && containerRef.current) {
+        containerRef.current.removeChild(rendererRef.current.domElement);
+        rendererRef.current.dispose();
+      }
+      particles.forEach((particle) => {
+        particle.geometry.dispose();
+        (particle.material as THREE.Material).dispose();
+        scene.remove(particle);
+      });
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 -z-10 opacity-20 pointer-events-none"
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
+}
 
 export default function CodingLearning() {
   const topics = getAllTopics();
+  const { user } = useAuth();
+
+  const { data: coursesInfo } = useQuery({
+    queryKey: ["/api/courses/info", user?.userId],
+    queryFn: async () => {
+      if (!user?.userId) return null;
+      const response = await fetch("/api/courses/info", {
+        headers: {
+          "x-user-id": user.userId,
+        },
+      });
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user?.userId,
+  });
+
+  const completedProblems = coursesInfo?.completedProblems || [];
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8 max-w-6xl mx-auto">
+    <div className="flex flex-col gap-6 p-4 md:p-8 max-w-6xl mx-auto relative">
+      <AnimatedBackground />
       {/* Header / Hero */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -81,22 +225,29 @@ export default function CodingLearning() {
 
             {/* Language logos */}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
-              {languageBadges.map((lang) => (
-                <div
-                  key={lang.id}
-                  className="flex items-center gap-3 rounded-xl bg-slate-900/70 px-3 py-2 border border-slate-700/70 shadow-sm"
-                >
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold uppercase ${lang.color}`}
+              {languageBadges.map((lang, idx) => {
+                const IconComponent = lang.icon;
+                return (
+                  <motion.div
+                    key={lang.id}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: 0.6 + idx * 0.1 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    className="flex items-center gap-3 rounded-xl bg-slate-900/80 backdrop-blur-sm px-3 py-2.5 border border-slate-700/70 shadow-lg hover:shadow-xl transition-all cursor-default"
                   >
-                    {lang.label}
-                  </div>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-semibold text-slate-100">{lang.label}</span>
-                    <span className="text-[11px] text-slate-400">{lang.sub}</span>
-                  </div>
-                </div>
-              ))}
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg ${lang.color} shadow-md`}
+                    >
+                      <IconComponent className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-xs font-semibold text-slate-100">{lang.label}</span>
+                      <span className="text-[11px] text-slate-400">{lang.sub}</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -121,14 +272,21 @@ export default function CodingLearning() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="bg-card border border-border rounded-xl p-6 shadow-sm"
+        className="relative bg-gradient-to-br from-card via-card to-muted/30 border border-border/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all overflow-hidden group"
       >
-        <div className="flex items-start gap-4">
-          <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0">
-            <BookOpen className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Why Learn Concepts First?</h2>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative flex items-start gap-4">
+          <motion.div
+            whileHover={{ rotate: 360, scale: 1.1 }}
+            transition={{ duration: 0.5 }}
+            className="mt-1 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 text-primary flex-shrink-0 shadow-md border border-primary/20"
+          >
+            <BookOpen className="h-6 w-6" />
+          </motion.div>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              Why Learn Concepts First?
+            </h2>
             <p className="text-muted-foreground leading-relaxed">
               Before diving into coding, it's essential to understand the fundamental concepts that apply across all programming languages. 
               This module teaches you the core ideas behind conditionals, loops, arrays, strings, and functions - concepts that are universal 
@@ -141,50 +299,84 @@ export default function CodingLearning() {
 
       {/* Topic Cards Grid */}
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {topics.map((topic, index) => (
-          <motion.div
-            key={topic.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-          >
-            <Link href={`/coding/learn/${topic.id}`}>
-              <Card className="h-full hover:border-primary/60 hover:shadow-xl transition-all cursor-pointer group bg-gradient-to-b from-background to-muted/60">
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      {topic.id === "conditionals" && <Braces className="h-5 w-5 text-primary" />}
-                      {topic.id === "loops" && <Code className="h-5 w-5 text-primary" />}
-                      {topic.id === "arrays" && <Cpu className="h-5 w-5 text-primary" />}
-                      {topic.id === "strings" && <Code className="h-5 w-5 text-primary rotate-90" />}
-                      {topic.id === "functions" && <Sparkles className="h-5 w-5 text-primary" />}
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    {topic.title}
-                  </CardTitle>
-                  <CardDescription className="mt-2 text-sm leading-relaxed">
-                    {topic.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0 pb-4 flex items-center justify-between">
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="outline" className="text-[11px] border-primary/40 text-primary">
-                      Concept
-                    </Badge>
-                    <Badge variant="outline" className="text-[11px] border-slate-400/50 text-slate-600 dark:text-slate-300">
-                      Language‑independent
-                    </Badge>
-                  </div>
-                  <Button className="gap-1" size="sm" variant="outline">
-                    Start Learning
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-        ))}
+        {topics.map((topic, index) => {
+          // Calculate Progress
+          const totalQuestions = topic.questions?.length || 0;
+          const completedCount = topic.questions?.filter((_, qIdx) => 
+            completedProblems.includes(`${topic.id}-${qIdx}`)
+          ).length || 0;
+          const progressPercent = totalQuestions > 0 ? (completedCount / totalQuestions) * 100 : 0;
+          const isCompleted = completedCount === totalQuestions && totalQuestions > 0;
+
+          return (
+            <motion.div
+              key={topic.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+            >
+              <Link href={`/coding/learn/${topic.id}`}>
+                <motion.div
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className={`h-full hover:border-primary/60 hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden bg-gradient-to-br from-card via-card to-muted/40 border-2 ${isCompleted ? 'border-emerald-500/30' : ''}`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <CardHeader className="relative">
+                      <div className="flex items-start justify-between mb-3">
+                        <motion.div
+                          whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
+                          transition={{ duration: 0.5 }}
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all shadow-md border ${isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-gradient-to-br from-primary/20 to-primary/10 border-primary/20 group-hover:from-primary/30 group-hover:to-primary/20'}`}
+                        >
+                          {(() => {
+                            const IconComponent = topicIcons[topic.id] || Code;
+                            return <IconComponent className={`h-6 w-6 ${isCompleted ? 'text-emerald-500' : 'text-primary'}`} />;
+                          })()}
+                        </motion.div>
+                        <motion.div
+                          whileHover={{ x: 4 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <ArrowRight className={`h-5 w-5 transition-colors ${isCompleted ? 'text-emerald-500' : 'text-muted-foreground group-hover:text-primary'}`} />
+                        </motion.div>
+                      </div>
+                      <CardTitle className="text-xl flex items-center gap-2 font-bold">
+                        {topic.title}
+                      </CardTitle>
+                      <CardDescription className="mt-2 text-sm leading-relaxed">
+                        {topic.description}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 pb-4 relative">
+                      <div className="flex items-center justify-between mb-2">
+                         <span className="text-xs font-medium text-muted-foreground">Progress</span>
+                         <span className="text-xs font-medium text-muted-foreground">{completedCount}/{totalQuestions}</span>
+                      </div>
+                      <Progress value={progressPercent} className={`h-2 mb-4 ${isCompleted ? '[&>div]:bg-emerald-500' : ''}`} />
+
+                      <div className="flex flex-wrap gap-1.5 justify-between items-center">
+                        <div className="flex gap-1.5">
+                          <Badge variant="outline" className="text-[11px] border-primary/40 bg-primary/10 text-primary font-medium">
+                            Concept
+                          </Badge>
+                          {isCompleted && (
+                            <Badge variant="outline" className="text-[11px] border-emerald-500/40 bg-emerald-500/10 text-emerald-500 font-medium">
+                              Completed
+                            </Badge>
+                          )}
+                        </div>
+                        <Button className={`gap-1 shadow-md hover:shadow-lg h-8 text-xs ${isCompleted ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`} size="sm" variant={isCompleted ? "default" : "outline"}>
+                          {isCompleted ? 'Review' : 'Start Learning'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Link>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Quick Access Note */}
@@ -192,11 +384,12 @@ export default function CodingLearning() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.8 }}
-        className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center"
+        className="relative bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/30 rounded-xl p-5 text-center shadow-lg overflow-hidden group"
       >
-        <p className="text-sm text-muted-foreground">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <p className="text-sm text-muted-foreground relative">
           After learning each concept, you can practice directly in the{" "}
-          <Link href="/code-editor" className="text-primary hover:underline font-medium">
+          <Link href="/code-editor" className="text-primary hover:text-primary/80 font-semibold underline decoration-2 underline-offset-2 transition-colors">
             Code Editor
           </Link>
         </p>

@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX, Save, FolderOpen, FileJson, Cpu } from "lucide-react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, Volume2, VolumeX, Save, FolderOpen, FileJson, Cpu, Video, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,12 @@ interface ControlPanelProps {
   onSaveCircuit: () => void;
   onLoadCircuit: () => void;
   isDirty: boolean;
+  // Video library
+  onOpenVideoLibrary: () => void;
+  // Minimize/maximize
+  isMinimized?: boolean;
+  onMinimize?: () => void;
+  onMaximize?: () => void;
 }
 
 export function ControlPanel({
@@ -77,19 +83,60 @@ export function ControlPanel({
   onSaveCircuit,
   onLoadCircuit,
   isDirty,
+  onOpenVideoLibrary,
+  isMinimized = false,
+  onMinimize,
+  onMaximize,
 }: ControlPanelProps) {
+  // Minimized view - show only a thin bar with buttons
+  if (isMinimized && onMaximize) {
+    return (
+      <div className="w-12 border-l border-border bg-card flex flex-col items-center py-2">
+        {onMaximize && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMaximize}
+            className="h-8 w-8"
+            title="Expand control panel"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-72 border-l border-border bg-card flex flex-col overflow-y-auto">
-      {/* Circuit File Operations - Same style as No-Code Editor */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-3">
+      {/* Header with minimize button */}
+      <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
           <FileJson className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold text-sm">Circuit</h2>
+          <h2 className="font-semibold text-sm">Controls</h2>
           {isDirty && (
-            <span className="ml-auto text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 px-2 py-0.5 rounded-full">
               Unsaved
             </span>
           )}
+        </div>
+        {onMinimize && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMinimize}
+            className="h-8 w-8"
+            title="Minimize control panel"
+          >
+            <Minimize2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Circuit File Operations - Same style as No-Code Editor */}
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="font-semibold text-sm">Circuit</h2>
         </div>
         <div className="space-y-2">
           <Button
@@ -117,6 +164,18 @@ export function ControlPanel({
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm mb-3">Controls</h2>
         <div className="space-y-2">
+          <Button
+            onClick={onOpenVideoLibrary}
+            variant="outline"
+            className="w-full justify-start gap-2"
+            data-testid="button-video-library"
+          >
+            <Video className="h-4 w-4" />
+            Video Library
+          </Button>
+          
+          <Separator className="my-3" />
+          
           <Button
             onClick={onToggleWireMode}
             variant={wireMode ? "default" : "outline"}

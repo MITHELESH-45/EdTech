@@ -181,18 +181,10 @@ export const useSensorStore = create<SensorStore>((set) => ({
       };
       }
       
-      // Handle Touch Sensor (count increments)
+      // Handle Touch Sensor - skip random updates, only update from explicit input (MQTT)
       if (sensor.type === 'Touch Sensor') {
-        // Randomly increment count (simulate touch events)
-        const shouldIncrement = Math.random() > 0.7;
-        const newCount = shouldIncrement ? sensor.value + 1 : sensor.value;
-        const clampedCount = Math.min(sensor.max, newCount);
-        
-        return {
-          ...sensor,
-          value: clampedCount,
-          history: [...sensor.history, { time: now, value: clampedCount }].slice(-20)
-        };
+        // Keep current value, don't randomly increment
+        return sensor;
       }
       
       // Handle IR Sensor (0 or 1 - detection status)
@@ -403,10 +395,13 @@ export const useSensorStore = create<SensorStore>((set) => ({
         return sensor;
       }
       
-      // Update IR Sensor (boolean)
+      // Update IR Sensor (boolean) - INVERTED LOGIC
+      // MQTT true (detection) → show "No Detection" (value = 0)
+      // MQTT false (no detection) → show "Detected" (value = 1)
       if (sensor.type === 'IR Sensor') {
         if (data.ir_sensor !== undefined && data.ir_sensor !== null) {
-          const detected = data.ir_sensor ? 1 : 0;
+          // Invert the value: true becomes 0, false becomes 1
+          const detected = data.ir_sensor ? 0 : 1;
           return {
             ...sensor,
             value: detected,

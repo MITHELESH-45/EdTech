@@ -27,9 +27,13 @@ import {
   downloadCircuit,
   openFilePicker,
   loadCircuitFile,
+  serializeCircuit,
   type CircuitData,
 } from "@/lib/circuit-file";
 import { UnsavedChangesDialog } from "@/components/simulation/unsaved-changes-dialog";
+import { VideoLibraryModal } from "@/components/simulation/video-library-modal";
+import { VideoPlayerPanel } from "@/components/simulation/video-player-panel";
+import type { CircuitTutorial } from "@/lib/circuit-video-tutorials";
 
 interface ExtendedWire extends Wire {
   startTerminal?: { componentId: string; terminalId: string };
@@ -145,6 +149,15 @@ export default function ElectronicSimulation() {
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const pendingActionRef = useRef<(() => void) | null>(null);
+
+  // Video panel state
+  const [showVideoLibrary, setShowVideoLibrary] = useState(false);
+  const [selectedTutorial, setSelectedTutorial] = useState<CircuitTutorial | null>(null);
+  const [showVideoPanel, setShowVideoPanel] = useState(false);
+  const [isVideoPanelMinimized, setIsVideoPanelMinimized] = useState(false);
+  
+  // Control panel minimize state
+  const [isControlPanelMinimized, setIsControlPanelMinimized] = useState(false);
 
   const simulationEngine = useMemo(() => new SimulationEngine(), []);
 
@@ -874,15 +887,82 @@ export default function ElectronicSimulation() {
       controlStates,
       mcuPinStates,
     };
-    
+    // Ask user for a name to store the circuit
+    const name = window.prompt("Enter a name for this circuit:", "My Circuit");
+    if (!name) {
+      toast({ title: "Save cancelled" });
+      return;
+    }
+
+    // Download locally as before
     downloadCircuit(circuitData);
-    setIsDirty(false);
-    
-    toast({
-      title: "Circuit Saved",
-      description: "Your circuit has been downloaded as a .egroots.json file.",
-    });
+
+    // Send to server to persist in MongoDB
+    (async () => {
+      try {
+        const circuitFile = serializeCircuit(circuitData);
+        const resp = await fetch("/api/circuits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, circuitFile }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          toast({ title: "Save failed", description: err.error || "Server error", variant: "destructive" });
+          return;
+        }
+        setIsDirty(false);
+        toast({ title: "Circuit Saved", description: "Saved locally and to your account." });
+      } catch (e) {
+        console.error("Failed to save circuit to server:", e);
+        toast({ title: "Save failed", description: "Could not save to server", variant: "destructive" });
+      }
+    })();
   }, [placedComponents, wires, resistorValues, controlStates, mcuPinStates, toast]);
+
+  // If simulation page is opened with ?loadCircuitId=..., fetch and load that circuit
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const loadId = params.get("loadCircuitId");
+    if (!loadId) return;
+
+    (async () => {
+      try {
+        const resp = await fetch(`/api/circuits/${loadId}`);
+        if (!resp.ok) {
+          console.warn("Failed to fetch circuit", await resp.text());
+          return;
+        }
+        const data = await resp.json();
+        const circuitFile = data.circuitFile;
+        if (!circuitFile || !circuitFile.data) return;
+
+        // Stop any running simulation
+        setIsRunning(false);
+        stopBuzzerSound();
+
+        const d = circuitFile.data as CircuitData;
+        setPlacedComponents(d.placedComponents || []);
+        setWires((d.wires || []).map((w) => ({ ...w, isActive: false })));
+        setResistorValues(d.resistorValues || {});
+        setControlStates(d.controlStates || {});
+        setMcuPinStates(d.mcuPinStates || {});
+
+        setSimulationResult(null);
+        setSelectedComponent(null);
+        setWireMode(false);
+        setWireStart(null);
+        setSelectedPlacedId(null);
+        setSelectedWireId(null);
+        simulationEngine.reset();
+
+        setIsDirty(false);
+        toast({ title: "Circuit Loaded", description: `Loaded circuit "${data.name}"` });
+      } catch (e) {
+        console.error("Error loading circuit by id:", e);
+      }
+    })();
+  }, [simulationEngine, toast]);
 
   // Load circuit from local file
   const performLoadCircuit = useCallback(async () => {
@@ -1059,6 +1139,17 @@ export default function ElectronicSimulation() {
         onOpenChange={setShowLogicPanel}
       />
 
+      {/* Video Library Modal */}
+      <VideoLibraryModal
+        open={showVideoLibrary}
+        onOpenChange={setShowVideoLibrary}
+        onSelectTutorial={(tutorial) => {
+          setSelectedTutorial(tutorial);
+          setShowVideoPanel(true);
+          setIsVideoPanelMinimized(false);
+        }}
+      />
+
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Main content row: Palette | Canvas | Controls */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1147,6 +1238,10 @@ export default function ElectronicSimulation() {
                 onSaveCircuit={handleSaveCircuit}
                 onLoadCircuit={handleLoadCircuit}
                 isDirty={isDirty}
+                onOpenVideoLibrary={() => setShowVideoLibrary(true)}
+                isMinimized={isControlPanelMinimized}
+                onMinimize={() => setIsControlPanelMinimized(true)}
+                onMaximize={() => setIsControlPanelMinimized(false)}
               />
             </div>
 
@@ -1157,6 +1252,22 @@ export default function ElectronicSimulation() {
                   isRunning={isRunning}
                 />
               </div>
+            )}
+
+            {/* Video Player Panel */}
+            {showVideoPanel && (
+              <VideoPlayerPanel
+                tutorial={selectedTutorial}
+                isOpen={showVideoPanel}
+                isMinimized={isVideoPanelMinimized}
+                onClose={() => {
+                  setShowVideoPanel(false);
+                  setSelectedTutorial(null);
+                  setIsVideoPanelMinimized(false);
+                }}
+                onMinimize={() => setIsVideoPanelMinimized(true)}
+                onMaximize={() => setIsVideoPanelMinimized(false)}
+              />
             )}
           </div>
         </div>

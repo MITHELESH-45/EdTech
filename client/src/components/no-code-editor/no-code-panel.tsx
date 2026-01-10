@@ -1,21 +1,15 @@
+<<<<<<< HEAD
 import { useState, useEffect, useRef } from "react";
 import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, ChevronDown, Terminal, Info, Upload, Cpu, RefreshCw, Loader2, XCircle, Usb } from "lucide-react";
+=======
+import { useState } from "react";
+import { Play, Square, RotateCcw, Zap, AlertTriangle, CheckCircle, MousePointer2, Bug, ChevronDown, Info, Cpu, Video } from "lucide-react";
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -33,21 +27,14 @@ interface ControlPanelProps {
   // Arduino code props
   arduinoCode?: string;
   onArduinoCodeChange?: (code: string) => void;
-  isUploading?: boolean;
-  onUpload?: () => void;
-  arduinoStatus?: any;
-  selectedPort?: string;
-  availablePorts?: string[];
-  manualPort?: string;
-  useManualPort?: boolean;
-  onPortChange?: (port: string) => void;
-  onManualPortChange?: (port: string) => void;
-  onUseManualPortChange?: (use: boolean) => void;
-  onRefreshPorts?: () => void;
   outputContent?: string;
+<<<<<<< HEAD
   selectedBoard?: string;
   availableBoards?: Array<{ id: string; name: string }>;
   onBoardChange?: (board: string) => void;
+=======
+  onOpenVideoLibrary?: () => void;
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
 }
 
 export function NocodePanel({
@@ -65,18 +52,8 @@ export function NocodePanel({
   wireCount,
   arduinoCode = "",
   onArduinoCodeChange,
-  isUploading = false,
-  onUpload,
-  arduinoStatus,
-  selectedPort = "COM11",
-  availablePorts = [],
-  manualPort = "COM11",
-  useManualPort = false,
-  onPortChange,
-  onManualPortChange,
-  onUseManualPortChange,
-  onRefreshPorts,
   outputContent: propOutputContent = '>>> Welcome to the No-Code Editor\n>>> Serial.print output will appear here',
+<<<<<<< HEAD
   selectedBoard = "nano",
   availableBoards = [],
   onBoardChange,
@@ -84,10 +61,13 @@ export function NocodePanel({
   isSerialMonitorActive = false,
   onStartSerialMonitor,
   onStopSerialMonitor,
+=======
+  onOpenVideoLibrary,
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
 }: ControlPanelProps) {
   const [arduinoExpanded, setArduinoExpanded] = useState(true);
-  const [outputExpanded, setOutputExpanded] = useState(false);
   const [circuitExpanded, setCircuitExpanded] = useState(true);
+<<<<<<< HEAD
   const [arduinoExpandedSection, setArduinoExpandedSection] = useState(false);
   const [outputContent, setOutputContent] = useState(propOutputContent);
   const outputTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -105,12 +85,16 @@ export function NocodePanel({
   }, [outputContent, isSerialMonitorActive]);
 
   const expandedCount = [arduinoExpanded, outputExpanded, circuitExpanded, arduinoExpandedSection].filter(Boolean).length;
+=======
+
+  const expandedCount = [arduinoExpanded, circuitExpanded].filter(Boolean).length;
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
   
   const arduinoLines = arduinoCode.split('\n').length;
-  const outputLines = outputContent.split('\n').length;
 
   return (
     <div className="w-80 border-l border-border bg-card flex flex-col h-full overflow-hidden">
+<<<<<<< HEAD
       {/* Arduino Upload Button - Top of Panel */}
       <div className="border-b border-border p-3 shrink-0 bg-muted/30">
         <Button
@@ -134,6 +118,22 @@ export function NocodePanel({
           )}
         </Button>
       </div>
+=======
+      {/* Video Library Button - Top of Panel */}
+      {onOpenVideoLibrary && (
+        <div className="border-b border-border p-3 shrink-0 bg-muted/30">
+          <Button
+            onClick={onOpenVideoLibrary}
+            variant="outline"
+            className="w-full"
+            size="sm"
+          >
+            <Video className="h-4 w-4 mr-2" />
+            Video Library
+          </Button>
+        </div>
+      )}
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
 
       {/* Arduino Code Section */}
       <div className={cn(
@@ -186,6 +186,7 @@ export function NocodePanel({
         )}
       </div>
 
+<<<<<<< HEAD
       {/* Output Section */}
       <div className={cn(
         "border-b border-border flex flex-col min-h-0",
@@ -432,6 +433,9 @@ export function NocodePanel({
           </ScrollArea>
         )}
       </div>
+=======
+
+>>>>>>> be92af514c5e3eaff3c0d33f5ee5d0fe0c120001
 
       {/* Circuit Info Section */}
       <div className={cn(

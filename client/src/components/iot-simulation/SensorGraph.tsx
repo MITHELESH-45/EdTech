@@ -67,7 +67,7 @@ export const SensorGraph: React.FC<SensorGraphProps> = ({ sensor }) => {
               tickLine={false}
               axisLine={false}
               domain={[min - padding, max + padding]}
-              tickFormatter={(value) => Math.round(value * 10) / 10}
+              tickFormatter={(value) => (Math.round(value * 10) / 10).toString()}
             />
             <Tooltip 
               contentStyle={{ backgroundColor: tooltipBg, borderColor: tooltipBorder, color: tooltipText, borderRadius: '8px' }}
