@@ -20,7 +20,11 @@ import {
  * Get userId from request headers (set by auth middleware or frontend)
  */
 function getUserId(req: Request): string | null {
-  // Try to get from header first (if set by middleware)
+  // Try to get from session first (set by auth middleware)
+  const userIdFromSession = (req.session as any)?.userId;
+  if (userIdFromSession) return userIdFromSession;
+  
+  // Try to get from header (if set by frontend)
   const userIdFromHeader = req.headers["x-user-id"] as string;
   if (userIdFromHeader) return userIdFromHeader;
   

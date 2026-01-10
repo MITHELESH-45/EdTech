@@ -6,6 +6,7 @@ import { registerCodingRoutes } from "./coding-routes";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerCourseRoutes } from "./routes/courses";
 import { registerCareerRoutes } from "./routes/career";
+import { registerLeaderboardRoutes } from "./routes/leaderboard";
 
 export async function registerRoutes(
   app: Express
@@ -16,6 +17,8 @@ export async function registerRoutes(
   registerCourseRoutes(app);
   // Register Career optimization routes
   registerCareerRoutes(app);
+  // Register Leaderboard routes
+  registerLeaderboardRoutes(app);
   // Register Arduino upload routes
   registerArduinoRoutes(app);
   // Register GROOT chat routes
@@ -142,4 +145,5 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch circuit" });
     }
   });
+  
 }

@@ -19,7 +19,10 @@ import {
   Sparkles,
   ArrowRight,
   PlayCircle,
-  Briefcase
+  Briefcase,
+  Trophy,
+  Medal,
+  Crown
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCourseTracking } from "@/lib/course-tracking-context";
@@ -27,6 +30,8 @@ import type { Course } from "@shared/schema";
 import { generateSkillsFromCourses, calculateCareerProgress, getCareerPathway } from "@/lib/career-utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -139,6 +144,35 @@ export default function Dashboard() {
         return null;
       }
     },
+  });
+
+  // Fetch user's leaderboard rank
+  const { data: userRankData } = useQuery<{
+    success: boolean;
+    data: {
+      rank: number;
+      activityPoints: number;
+      completedCourses: number;
+      dailyStreak: number;
+      totalUsers: number;
+    };
+  }>({
+    queryKey: ["/api/leaderboard/user-rank"],
+    enabled: !!user,
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/leaderboard/user-rank", {
+          headers: {
+            "x-user-id": user?.userId || "",
+          },
+        });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        return null;
+      }
+    },
+    retry: false,
   });
 
   // Generate skills from courses for career progress
@@ -454,6 +488,85 @@ export default function Dashboard() {
                   <div className="text-sm text-muted-foreground">No saved circuits yet. Save circuits from the simulator.</div>
                 )}
               </div>
+            </motion.section>
+          )}
+
+          {/* Leaderboard Widget */}
+          {userRankData?.data && (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.55 }}
+              className="mb-8"
+            >
+              <Card className="border-border/50 bg-gradient-to-br from-yellow-500/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+                        <Trophy className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Your Ranking</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Rank #{userRankData.data.rank} out of {userRankData.data.totalUsers} students
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary">
+                          {userRankData.data.rank === 1 ? (
+                            <Crown className="h-6 w-6 text-yellow-500" />
+                          ) : userRankData.data.rank === 2 ? (
+                            <Medal className="h-6 w-6 text-gray-400" />
+                          ) : userRankData.data.rank === 3 ? (
+                            <Medal className="h-6 w-6 text-orange-600" />
+                          ) : (
+                            <span className="text-lg font-bold text-primary">#{userRankData.data.rank}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold">Your Position</p>
+                          <p className="text-xs text-muted-foreground">
+                            {userRankData.data.activityPoints} points • {userRankData.data.completedCourses} courses
+                          </p>
+                        </div>
+                      </div>
+                      {userRankData.data.totalUsers > 0 && (
+                        <Badge variant="outline" className="bg-primary/10 border-primary/30">
+                          Top {Math.round((userRankData.data.rank / userRankData.data.totalUsers) * 100)}%
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Activity Points</p>
+                        <p className="text-xl font-bold flex items-center justify-center gap-1">
+                          <Zap className="h-4 w-4 text-yellow-500" />
+                          {userRankData.data.activityPoints}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Courses</p>
+                        <p className="text-xl font-bold flex items-center justify-center gap-1">
+                          <BookOpen className="h-4 w-4 text-blue-500" />
+                          {userRankData.data.completedCourses}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Streak</p>
+                        <p className="text-xl font-bold flex items-center justify-center gap-1">
+                          <TrendingUp className="h-4 w-4 text-orange-500" />
+                          {userRankData.data.dailyStreak}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.section>
           )}
 
