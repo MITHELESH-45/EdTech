@@ -76,7 +76,7 @@ export function VideoPlayerPanel({
   }
 
   return (
-    <div className="w-[400px] min-w-[300px] max-w-[50vw] border-l border-border bg-card flex flex-col overflow-hidden">
+    <div className="w-[600px] min-w-[400px] max-w-[80vw] border-l border-border bg-card flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
         <div className="flex-1 min-w-0">

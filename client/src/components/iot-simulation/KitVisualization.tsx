@@ -58,11 +58,8 @@ export const KitVisualization: React.FC = () => {
         // Check if sensor is at the bottom (y >= 50%)
         const isBottomSensor = parseFloat(pos.y) >= 50;
         
-        // Check if this is one of the bottom sensors that needs to be moved up slightly (Ultrasonic, Sound, PIR, Barometer)
-        const needsMoveUp = sensor.type === 'Proximity' || // Ultrasonic
-                           sensor.type === 'Sound' ||
-                           sensor.type === 'Motion' || // PIR
-                           sensor.type === 'Pressure'; // Barometer
+        // Check if this is one of the bottom sensors that needs to be moved up slightly (Ultrasonic)
+        const needsMoveUp = sensor.type === 'Ultrasonic Sensor';
         
         // Calculate top position - move up slightly (1cm) if needed
         const topPosition = needsMoveUp 

@@ -58,7 +58,7 @@ export function VideoLibraryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
@@ -111,7 +111,7 @@ export function VideoLibraryModal({
         </div>
 
         {/* Tutorial Grid */}
-        <ScrollArea className="flex-1 mt-4">
+        <ScrollArea className="flex-1 mt-4 min-h-0">
           {filteredTutorials.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>No tutorials found matching your search.</p>
