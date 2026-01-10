@@ -43,8 +43,64 @@ interface ArduinoConfig {
   port: string;
   // Path to arduino-cli executable
   cliPath: string;
+  // Path to PlatformIO CLI executable
+  platformioPath: string;
   // Temp directory for sketches
   sketchDir: string;
+}
+
+// Try to find PlatformIO CLI in common locations
+async function findPlatformIO(): Promise<string> {
+  const possiblePaths = [
+    "pio", // In PATH
+    "platformio", // Alternative command name
+    "pio.exe", // Windows with .exe
+    "platformio.exe", // Windows with .exe
+  ];
+
+  // Windows common installation paths
+  if (process.platform === "win32") {
+    const userProfile = process.env.USERPROFILE || process.env.HOME || "";
+    const localAppData = process.env.LOCALAPPDATA || "";
+    const pythonUserBase = process.env.PYTHONUSERBASE || path.join(userProfile, "AppData", "Roaming", "Python");
+    
+    possiblePaths.push(
+      path.join(userProfile, ".platformio", "penv", "Scripts", "platformio.exe"),
+      path.join(localAppData, "platformio", "platformio.exe"),
+      path.join(pythonUserBase, "Scripts", "platformio.exe"),
+      path.join(pythonUserBase, "Scripts", "pio.exe"),
+    );
+  } else {
+    // Linux/Mac common paths
+    const home = process.env.HOME || "";
+    possiblePaths.push(
+      path.join(home, ".platformio", "penv", "bin", "platformio"),
+      path.join(home, ".platformio", "penv", "bin", "pio"),
+      path.join(home, ".local", "bin", "platformio"),
+      path.join(home, ".local", "bin", "pio"),
+      path.join(home, "bin", "platformio"),
+      path.join(home, "bin", "pio"),
+      "/usr/local/bin/platformio",
+      "/usr/local/bin/pio",
+      "/usr/bin/platformio",
+      "/usr/bin/pio",
+    );
+  }
+
+  // Test each path
+  for (const cliPath of possiblePaths) {
+    try {
+      await execAsync(`"${cliPath}" --version`, { timeout: 5000 });
+      console.log(`[PlatformIO] Found CLI at: ${cliPath}`);
+      return cliPath;
+    } catch {
+      // Try next path
+      continue;
+    }
+  }
+
+  // Default fallback
+  return "pio";
 }
 
 // Try to find Arduino CLI in common locations
@@ -95,8 +151,10 @@ async function findArduinoCli(): Promise<string> {
   return "arduino-cli";
 }
 
-// Initialize CLI path
+// Initialize CLI paths
 let detectedCliPath = "arduino-cli";
+let detectedPlatformIOPath = "pio";
+
 findArduinoCli().then((path) => {
   detectedCliPath = path;
   console.log(`[Arduino] Using CLI path: ${detectedCliPath}`);
@@ -104,10 +162,18 @@ findArduinoCli().then((path) => {
   console.warn("[Arduino] Could not auto-detect CLI path, using default");
 });
 
+findPlatformIO().then((path) => {
+  detectedPlatformIOPath = path;
+  console.log(`[PlatformIO] Using CLI path: ${detectedPlatformIOPath}`);
+}).catch(() => {
+  console.warn("[PlatformIO] Could not auto-detect PlatformIO path, using default");
+});
+
 const defaultConfig: ArduinoConfig = {
   fqbn: "arduino:avr:nano",
   port: process.platform === "win32" ? "COM3" : "/dev/ttyUSB0",
   cliPath: detectedCliPath,
+  platformioPath: detectedPlatformIOPath,
   sketchDir: path.join(os.tmpdir(), "egroots-arduino"),
 };
 
@@ -199,6 +265,21 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
       // List connected boards
       const boards = cliInstalled ? await listConnectedBoards() : [];
       
+      // Check if PlatformIO is installed
+      const platformioInstalled = await checkPlatformIO();
+      let platformioVersion = "";
+      let platformioPathInfo = config.platformioPath;
+      if (platformioInstalled) {
+        try {
+          const { stdout } = await execAsync(`"${config.platformioPath}" --version`, { timeout: 5000 });
+          platformioVersion = stdout.trim();
+        } catch {
+          // Ignore
+        }
+      } else {
+        platformioPathInfo = "Not found in PATH or common locations";
+      }
+      
       // Check if cores are installed (only if CLI is installed)
       // These functions now verify CLI path internally, so we get consistent results
       let avrCoreInstalled = false;
@@ -239,6 +320,9 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
         cliInstalled,
         cliVersion,
         cliPath: cliPathInfo,
+        platformioInstalled,
+        platformioVersion,
+        platformioPath: platformioPathInfo,
         coreInstalled: avrCoreInstalled, // Keep for backward compatibility
         avrCoreInstalled,
         esp32CoreInstalled,
@@ -406,6 +490,86 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
     
     console.log(`[Arduino] Upload request - Board: ${selectedBoard}, FQBN: ${fqbn}, Port: ${uploadPort}`);
     
+    // Check if PlatformIO is available first (preferred method)
+    const platformioInstalled = await checkPlatformIO();
+    const usePlatformIO = platformioInstalled && req.query.method !== "arduino-cli";
+    
+    if (usePlatformIO) {
+      console.log(`[PlatformIO] Using PlatformIO for upload (preferred method)`);
+      // Redirect to PlatformIO upload logic (inline implementation)
+      try {
+        // Close any active serial monitor on this port before upload
+        if (serialMonitors.has(uploadPort)) {
+          console.log(`[PlatformIO] Closing serial monitor on ${uploadPort} before upload...`);
+          stopSerialMonitor(uploadPort);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Create sketch directory
+        const sketchName = `pio_sketch_${Date.now()}`;
+        const sketchPath = path.join(config.sketchDir, sketchName);
+        const srcDir = path.join(sketchPath, "src");
+        const inoPath = path.join(srcDir, "main.cpp");
+        
+        // Create directories
+        await fs.promises.mkdir(srcDir, { recursive: true });
+        
+        // Convert Arduino .ino code to C++ (add Arduino.h if needed)
+        let cppCode = fixedCode;
+        if (!cppCode.includes("#include") && !cppCode.includes("Arduino.h")) {
+          cppCode = "#include <Arduino.h>\n\n" + cppCode;
+        }
+        
+        await fs.promises.writeFile(inoPath, cppCode, "utf8");
+        console.log(`[PlatformIO] Saved sketch to: ${inoPath}`);
+        
+        // Compile using PlatformIO
+        const compileResult = await compileWithPlatformIO(sketchPath, selectedBoard);
+        
+        if (!compileResult.success) {
+          try {
+            await fs.promises.rm(sketchPath, { recursive: true, force: true });
+          } catch {}
+          return res.status(400).json({
+            error: "Compilation failed (PlatformIO)",
+            details: compileResult.error,
+            output: compileResult.output,
+          });
+        }
+        
+        // Upload using PlatformIO
+        const uploadResult = await uploadWithPlatformIO(sketchPath, selectedBoard, uploadPort);
+        
+        // Cleanup
+        try {
+          await fs.promises.rm(sketchPath, { recursive: true, force: true });
+        } catch {}
+        
+        if (!uploadResult.success) {
+          return res.status(400).json({
+            error: "Upload failed (PlatformIO)",
+            details: uploadResult.error,
+            output: uploadResult.output,
+          });
+        }
+        
+        return res.json({
+          success: true,
+          message: `Code uploaded successfully to ${selectedBoard} using PlatformIO`,
+          port: uploadPort,
+          board: selectedBoard,
+          method: "platformio",
+        });
+      } catch (error: any) {
+        console.error("[PlatformIO] Upload error:", error);
+        // Fall through to Arduino CLI if PlatformIO fails
+        console.log("[PlatformIO] Upload failed, falling back to Arduino CLI...");
+      }
+    }
+    
+    // Fall back to Arduino CLI
+    console.log(`[Arduino] Using Arduino CLI for upload${usePlatformIO ? " (PlatformIO fallback)" : ""}`);
+    
     // Check if required core is installed before attempting upload
     const isESP32 = fqbn.includes("esp32");
     const isAVR = fqbn.includes("arduino:avr");
@@ -419,8 +583,8 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
       const cliInstalled = await checkArduinoCli();
       if (!cliInstalled) {
         return res.status(400).json({
-          error: "Arduino CLI not found",
-          details: `Arduino CLI is not installed or not found in PATH.\n\nPlease install Arduino CLI:\n• Windows: choco install arduino-cli\n• Or download: https://arduino.github.io/arduino-cli/installation/\n\nAfter installation, restart the server.`,
+          error: "No upload tool available",
+          details: `Neither PlatformIO nor Arduino CLI is installed.\n\nPlease install one of:\n• PlatformIO: pip install platformio\n• Arduino CLI: choco install arduino-cli\n\nOr visit:\n• PlatformIO: https://platformio.org/install/cli\n• Arduino CLI: https://arduino.github.io/arduino-cli/installation/\n\nAfter installation, restart the server.`,
         });
       }
       
@@ -546,6 +710,175 @@ export function registerArduinoRoutes(app: Express, httpServer?: HttpServer): vo
       
     } catch (error: any) {
       console.error("[Arduino] Upload error:", error);
+      res.status(500).json({
+        error: "Upload failed",
+        details: error.message,
+      });
+    }
+  });
+
+  // ==========================================================================
+  // POST /api/arduino/upload-platformio - Upload using PlatformIO CLI (alternative method)
+  // ==========================================================================
+  app.post("/api/arduino/upload-platformio", async (req: Request, res: Response) => {
+    const { code, port: userPort, board } = req.body;
+    
+    // Validate request
+    if (!code || typeof code !== "string") {
+      return res.status(400).json({
+        error: "Missing or invalid 'code' in request body",
+        details: "Code must be a non-empty string containing valid Arduino C++ code",
+      });
+    }
+    
+    // Auto-fix code if setup() or loop() is missing
+    let fixedCode = code;
+    const hasSetup = code.includes("void setup()");
+    const hasLoop = code.includes("void loop()");
+    
+    if (!hasLoop) {
+      return res.status(400).json({
+        error: "Invalid Arduino code",
+        details: "Code must contain a void loop() function",
+      });
+    }
+    
+    if (!hasSetup) {
+      const loopIndex = fixedCode.indexOf("void loop()");
+      if (loopIndex > 0) {
+        fixedCode = fixedCode.substring(0, loopIndex) + 
+          "void setup() {\n  // No setup required\n}\n\n" + 
+          fixedCode.substring(loopIndex);
+      } else {
+        fixedCode = "void setup() {\n  // No setup required\n}\n\n" + fixedCode;
+      }
+      console.log("[PlatformIO] Auto-added missing setup() function");
+    }
+    
+    // Check for Python code
+    if (code.includes("import ") || code.includes("def ") || code.includes("print(")) {
+      return res.status(400).json({
+        error: "Python code detected",
+        details: "Only Arduino C++ code can be uploaded. Python is for display only.",
+      });
+    }
+    
+    // Board mapping
+    const selectedBoard: string = typeof board === "string" && board.length > 0 ? board : "nano";
+    const supportedBoards = ["nano", "esp32", "esp32wroom32"];
+    
+    if (!supportedBoards.includes(selectedBoard.toLowerCase())) {
+      return res.status(400).json({
+        error: "Unsupported board for PlatformIO",
+        details: `Board "${selectedBoard}" not supported. Supported boards: ${supportedBoards.join(", ")}`,
+      });
+    }
+    
+    // Validate and clean port
+    let uploadPort = userPort || config.port;
+    if (!uploadPort) {
+      return res.status(400).json({
+        error: "No serial port specified",
+        details: "Please select a COM port from the list or enter one manually",
+      });
+    }
+    
+    uploadPort = uploadPort.trim().toUpperCase();
+    if (!uploadPort.match(/^COM\d+$/)) {
+      return res.status(400).json({
+        error: "Invalid port format",
+        details: `Port must be in format COM1, COM2, etc. Got: ${uploadPort}`,
+      });
+    }
+    
+    console.log(`[PlatformIO] Upload request - Board: ${selectedBoard}, Port: ${uploadPort}`);
+    
+    try {
+      // Check if PlatformIO CLI is installed
+      const platformioInstalled = await checkPlatformIO();
+      if (!platformioInstalled) {
+        return res.status(400).json({
+          error: "PlatformIO CLI not found",
+          details: `PlatformIO CLI is not installed or not found in PATH.\n\nPlease install PlatformIO CLI:\n• Windows: pip install platformio\n• Linux/Mac: pip3 install platformio\n• Or visit: https://platformio.org/install/cli\n\nAfter installation, restart the server.`,
+        });
+      }
+      
+      // Step 0: Close any active serial monitor on this port before upload
+      if (serialMonitors.has(uploadPort)) {
+        console.log(`[PlatformIO] Closing serial monitor on ${uploadPort} before upload...`);
+        stopSerialMonitor(uploadPort);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Step 1: Create sketch directory
+      const sketchName = `pio_sketch_${Date.now()}`;
+      const sketchPath = path.join(config.sketchDir, sketchName);
+      const srcDir = path.join(sketchPath, "src");
+      const inoPath = path.join(srcDir, "main.cpp");
+      
+      // Create directories
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      
+      // Step 2: Write the code file (PlatformIO uses main.cpp instead of .ino)
+      // Convert Arduino .ino code to C++ (add Arduino.h if needed)
+      let cppCode = fixedCode;
+      if (!cppCode.includes("#include") && !cppCode.includes("Arduino.h")) {
+        cppCode = "#include <Arduino.h>\n\n" + cppCode;
+      }
+      
+      await fs.promises.writeFile(inoPath, cppCode, "utf8");
+      console.log(`[PlatformIO] Saved sketch to: ${inoPath}`);
+      
+      // Step 3: Compile the sketch using PlatformIO
+      console.log(`[PlatformIO] Compiling sketch for ${selectedBoard}...`);
+      const compileResult = await compileWithPlatformIO(sketchPath, selectedBoard);
+      
+      if (!compileResult.success) {
+        // Cleanup
+        try {
+          await fs.promises.rm(sketchPath, { recursive: true, force: true });
+        } catch {}
+        
+        return res.status(400).json({
+          error: "Compilation failed",
+          details: compileResult.error,
+          output: compileResult.output,
+        });
+      }
+      
+      console.log(`[PlatformIO] Compilation successful`);
+      
+      // Step 4: Upload to board using PlatformIO
+      console.log(`[PlatformIO] Uploading to port ${uploadPort}...`);
+      const uploadResult = await uploadWithPlatformIO(sketchPath, selectedBoard, uploadPort);
+      
+      // Step 5: Clean up temp files
+      try {
+        await fs.promises.rm(sketchPath, { recursive: true, force: true });
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+      
+      if (!uploadResult.success) {
+        return res.status(400).json({
+          error: "Upload failed",
+          details: uploadResult.error,
+          output: uploadResult.output,
+        });
+      }
+      
+      console.log(`[PlatformIO] Upload successful!`);
+      
+      res.json({
+        success: true,
+        message: `Code uploaded successfully to ${selectedBoard} using PlatformIO`,
+        port: uploadPort,
+        board: selectedBoard,
+        method: "platformio",
+      });
+      
+    } catch (error: any) {
+      console.error("[PlatformIO] Upload error:", error);
       res.status(500).json({
         error: "Upload failed",
         details: error.message,
@@ -977,8 +1310,29 @@ async function checkArduinoCore(): Promise<boolean> {
     }
     
     // CLI path is valid, check cores
-    const { stdout } = await execAsync(`${cmd} core list`, { timeout: 10000 });
-    const output = stdout.toLowerCase();
+    // Ensure Arduino CLI config is initialized first (skip if it exists)
+    try {
+      // Check if config exists first (config init fails if config already exists, which is fine)
+      await execAsync(`${cmd} config init`, { timeout: 5000 });
+    } catch (initError: any) {
+      // If config already exists, error message usually contains "already exists" - that's fine
+      if (!initError.message?.toLowerCase().includes("already exists") && 
+          !initError.stderr?.toLowerCase().includes("already exists")) {
+        console.log(`[Arduino] Config init note: ${initError.message || "Config might already exist"}`);
+      }
+    }
+    
+    // Run core list with proper timeout and buffer
+    const { stdout, stderr } = await execAsync(`${cmd} core list`, { 
+      timeout: 30000, 
+      maxBuffer: 10 * 1024 * 1024 
+    });
+    const output = (stdout || "").toLowerCase();
+    const errorOutput = (stderr || "").toLowerCase();
+    
+    // Log output for debugging
+    if (stdout) console.log(`[Arduino] Core list stdout: ${stdout.substring(0, 500)}`);
+    if (stderr) console.log(`[Arduino] Core list stderr: ${stderr.substring(0, 500)}`);
     
     // Check for various formats: arduino:avr, arduino:avr@version, arduino avr
     const hasCore = output.includes("arduino:avr") || 
@@ -988,7 +1342,11 @@ async function checkArduinoCore(): Promise<boolean> {
     console.log(`[Arduino] AVR core ${hasCore ? 'detected' : 'not found'}`);
     return hasCore;
   } catch (error: any) {
-    console.error("[Arduino] Failed to check AVR core:", error.message);
+    const errorOutput = error.stderr || error.stdout || error.message || "Unknown error";
+    console.error("[Arduino] Failed to check AVR core:");
+    console.error(`[Arduino] Error message: ${error.message}`);
+    console.error(`[Arduino] Stderr: ${error.stderr || "No stderr"}`);
+    console.error(`[Arduino] Stdout: ${error.stdout || "No stdout"}`);
     return false;
   }
 }
@@ -1017,7 +1375,7 @@ async function checkESP32Core(): Promise<boolean> {
         await execAsync(`${newCmd} version`, { timeout: 5000 });
         // Use new command for core list
         const { stdout } = await execAsync(`${newCmd} core list`, { timeout: 10000 });
-        const output = stdout.toLowerCase();
+    const output = stdout.toLowerCase();
         const hasCore = output.includes("esp32:esp32") || output.includes("esp32");
         console.log(`[Arduino] ESP32 core ${hasCore ? 'detected' : 'not found'}`);
         return hasCore;
@@ -1027,15 +1385,41 @@ async function checkESP32Core(): Promise<boolean> {
     }
     
     // CLI path is valid, check cores
-    const { stdout } = await execAsync(`${cmd} core list`, { timeout: 10000 });
+    // Ensure Arduino CLI config is initialized first (skip if it exists)
+    try {
+      // Check if config exists first (config init fails if config already exists, which is fine)
+      await execAsync(`${cmd} config init`, { timeout: 5000 });
+    } catch (initError: any) {
+      // If config already exists, error message usually contains "already exists" - that's fine
+      if (!initError.message?.toLowerCase().includes("already exists") && 
+          !initError.stderr?.toLowerCase().includes("already exists")) {
+        console.log(`[Arduino] Config init note: ${initError.message || "Config might already exist"}`);
+      }
+    }
+    
+    // Run core list with proper timeout and buffer
+    const { stdout, stderr } = await execAsync(`${cmd} core list`, { 
+      timeout: 30000, 
+      maxBuffer: 10 * 1024 * 1024 
+    });
     // Check for esp32:esp32 in the output (case-insensitive)
-    const output = stdout.toLowerCase();
+    const output = (stdout || "").toLowerCase();
+    const errorOutput = (stderr || "").toLowerCase();
+    
+    // Log output for debugging
+    if (stdout) console.log(`[Arduino] Core list stdout: ${stdout.substring(0, 500)}`);
+    if (stderr) console.log(`[Arduino] Core list stderr: ${stderr.substring(0, 500)}`);
+    
     const hasCore = output.includes("esp32:esp32") || output.includes("esp32");
     
     console.log(`[Arduino] ESP32 core ${hasCore ? 'detected' : 'not found'}`);
     return hasCore;
   } catch (error: any) {
-    console.error("[Arduino] Failed to check ESP32 core:", error.message);
+    const errorOutput = error.stderr || error.stdout || error.message || "Unknown error";
+    console.error("[Arduino] Failed to check ESP32 core:");
+    console.error(`[Arduino] Error message: ${error.message}`);
+    console.error(`[Arduino] Stderr: ${error.stderr || "No stderr"}`);
+    console.error(`[Arduino] Stdout: ${error.stdout || "No stdout"}`);
     return false;
   }
 }
@@ -1046,7 +1430,23 @@ async function checkESP32Core(): Promise<boolean> {
 async function listConnectedBoards(): Promise<Array<{ port: string; board: string; fqbn?: string }>> {
   try {
     const cmd = config.cliPath.includes(" ") ? `"${config.cliPath}"` : config.cliPath;
-    const { stdout } = await execAsync(`${cmd} board list --format json`, { timeout: 10000 });
+    
+    // Ensure Arduino CLI config is initialized first
+    try {
+      await execAsync(`${cmd} config init`, { timeout: 5000 });
+    } catch {
+      // Config might already exist, ignore
+    }
+    
+    const { stdout, stderr } = await execAsync(`${cmd} board list --format json`, { 
+      timeout: 30000, 
+      maxBuffer: 10 * 1024 * 1024 
+    });
+    
+    // Log output for debugging
+    if (stdout) console.log(`[Arduino] Board list stdout: ${stdout.substring(0, 500)}`);
+    if (stderr) console.log(`[Arduino] Board list stderr: ${stderr.substring(0, 500)}`);
+    
     const data = JSON.parse(stdout);
     
     if (Array.isArray(data)) {
@@ -1065,7 +1465,10 @@ async function listConnectedBoards(): Promise<Array<{ port: string; board: strin
     }
     return [];
   } catch (error: any) {
-    console.error("[Arduino] Failed to list connected boards:", error.message);
+    console.error("[Arduino] Failed to list connected boards:");
+    console.error(`[Arduino] Error message: ${error.message}`);
+    console.error(`[Arduino] Stderr: ${error.stderr || "No stderr"}`);
+    console.error(`[Arduino] Stdout: ${error.stdout || "No stdout"}`);
     return [];
   }
 }
@@ -1150,11 +1553,11 @@ async function listSerialPorts(): Promise<string[]> {
     } catch (error: any) {
       console.log("[Arduino] SerialPort library detection failed:", error.message);
       // Fallback: try common device paths
-      const commonPorts = [
-        "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2",
-        "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2",
-        "/dev/tty.usbserial", "/dev/tty.usbmodem",
-      ];
+    const commonPorts = [
+      "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2",
+      "/dev/ttyACM0", "/dev/ttyACM1", "/dev/ttyACM2",
+      "/dev/tty.usbserial", "/dev/tty.usbmodem",
+    ];
       for (const port of commonPorts) {
         if (!ports.includes(port)) {
           ports.push(port);
@@ -1272,6 +1675,224 @@ async function compileSketch(
       success: false,
       output: combinedOutput.substring(0, 1000) || stdoutOutput.substring(0, 1000),
       error: errorMessage.substring(0, 500),
+    };
+  }
+}
+
+/**
+ * Map board names to PlatformIO board IDs
+ */
+function getPlatformIOBoard(board: string): string {
+  const boardMap: Record<string, string> = {
+    nano: "atmega328", // Arduino Nano with ATmega328
+    esp32: "esp32dev", // ESP32 Dev Module
+    esp32wroom32: "esp32dev", // ESP32-WROOM-32 uses same as ESP32 Dev
+  };
+  return boardMap[board.toLowerCase()] || "atmega328";
+}
+
+/**
+ * Create platformio.ini configuration file for a sketch
+ */
+async function createPlatformIOConfig(
+  sketchPath: string,
+  board: string
+): Promise<string> {
+  const pioBoard = getPlatformIOBoard(board);
+  const isESP32 = board.toLowerCase().includes("esp32");
+  
+  let configContent = `[env:${pioBoard}]
+platform = ${isESP32 ? "espressif32" : "atmelavr"}
+board = ${pioBoard}
+framework = arduino
+`;
+
+  // Add upload settings
+  if (isESP32) {
+    configContent += `upload_speed = 460800
+monitor_speed = 115200
+`;
+  } else {
+    configContent += `upload_speed = 57600
+monitor_speed = 9600
+`;
+  }
+
+  const iniPath = path.join(sketchPath, "platformio.ini");
+  await fs.promises.writeFile(iniPath, configContent, "utf8");
+  console.log(`[PlatformIO] Created platformio.ini at: ${iniPath}`);
+  return iniPath;
+}
+
+/**
+ * Check if PlatformIO CLI is installed
+ */
+async function checkPlatformIO(): Promise<boolean> {
+  try {
+    const cmd = config.platformioPath.includes(" ") ? `"${config.platformioPath}"` : config.platformioPath;
+    await execAsync(`${cmd} --version`, { timeout: 5000 });
+    return true;
+  } catch {
+    // Try to re-detect
+    const newPath = await findPlatformIO();
+    if (newPath !== config.platformioPath) {
+      config.platformioPath = newPath;
+      try {
+        const cmd = config.platformioPath.includes(" ") ? `"${config.platformioPath}"` : config.platformioPath;
+        await execAsync(`${cmd} --version`, { timeout: 5000 });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+}
+
+/**
+ * Compile sketch using PlatformIO
+ */
+async function compileWithPlatformIO(
+  sketchPath: string,
+  board: string
+): Promise<{ success: boolean; output: string; error?: string }> {
+  try {
+    // Re-detect PlatformIO path
+    const pioPath = await findPlatformIO();
+    config.platformioPath = pioPath;
+    
+    // Check if PlatformIO is available
+    const cmdCheck = config.platformioPath.includes(" ") ? `"${config.platformioPath}"` : config.platformioPath;
+    
+    // Verify PlatformIO works
+    try {
+      await execAsync(`${cmdCheck} --version`, { timeout: 5000 });
+    } catch (error: any) {
+      return {
+        success: false,
+        output: "",
+        error: `PlatformIO CLI not found at: ${config.platformioPath}\n\nPlease install PlatformIO CLI:\n• Windows: pip install platformio\n• Linux/Mac: pip3 install platformio\n• Or visit: https://platformio.org/install/cli\n\nAfter installation, restart the server.`,
+      };
+    }
+    
+    // Create platformio.ini configuration file
+    await createPlatformIOConfig(sketchPath, board);
+    
+    // Initialize PlatformIO project (if not already initialized)
+    try {
+      await execAsync(`${cmdCheck} project init --board ${getPlatformIOBoard(board)} --project-dir "${sketchPath}"`, { 
+        timeout: 10000 
+      });
+    } catch {
+      // Project might already be initialized, that's fine
+      console.log("[PlatformIO] Project already initialized or init failed (continuing anyway)");
+    }
+    
+    // Compile using PlatformIO
+    console.log(`[PlatformIO] Compiling for ${board}...`);
+    const cmd = `${cmdCheck} run --project-dir "${sketchPath}"`;
+    console.log(`[PlatformIO] Running: ${cmd}`);
+    
+    const { stdout, stderr } = await execAsync(cmd, {
+      timeout: 180000, // 3 minutes timeout
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    
+    const output = stdout + (stderr ? `\n${stderr}` : "");
+    const hasError = /error/i.test(output) && !/warning/i.test(output) || /failed/i.test(output);
+    
+    if (hasError && !output.toLowerCase().includes("success")) {
+      return {
+        success: false,
+        output: output,
+        error: `PlatformIO compilation failed. Check the output for details.\n\n${output.substring(0, 1000)}`,
+      };
+    }
+    
+    console.log(`[PlatformIO] Compilation successful`);
+    return {
+      success: true,
+      output: output,
+    };
+  } catch (error: any) {
+    const errorOutput = error.stderr || error.stdout || error.message || "Unknown error";
+    console.error("[PlatformIO] Compilation error:", errorOutput);
+    
+    return {
+      success: false,
+      output: errorOutput.substring(0, 1000),
+      error: error.message || "PlatformIO compilation failed",
+    };
+  }
+}
+
+/**
+ * Upload sketch using PlatformIO
+ */
+async function uploadWithPlatformIO(
+  sketchPath: string,
+  board: string,
+  port: string
+): Promise<{ success: boolean; output: string; error?: string }> {
+  try {
+    const isESP32 = board.toLowerCase().includes("esp32");
+    const portFormatted = port.trim().toUpperCase();
+    const cmdCheck = config.platformioPath.includes(" ") ? `"${config.platformioPath}"` : config.platformioPath;
+    
+    // For ESP32, automatically reset to boot mode before upload
+    if (isESP32) {
+      console.log(`[PlatformIO/ESP32] Preparing ESP32 for upload...`);
+      await resetESP32ToBootMode(portFormatted);
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    // Upload using PlatformIO
+    console.log(`[PlatformIO] Uploading to ${portFormatted}...`);
+    const uploadCmd = `${cmdCheck} run --target upload --upload-port ${portFormatted} --project-dir "${sketchPath}"`;
+    console.log(`[PlatformIO] Running: ${uploadCmd}`);
+    
+    const { stdout, stderr } = await execAsync(uploadCmd, {
+      timeout: 180000, // 3 minutes timeout for ESP32
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    
+    const output = stdout + (stderr ? `\n${stderr}` : "");
+    
+    // Check for success/failure
+    const hasError = /error/i.test(output) || /failed/i.test(output) || /timeout/i.test(output);
+    const hasSuccess = /success/i.test(output) || /uploading/i.test(output) && !hasError || 
+                       (isESP32 && /hash of data verified/i.test(output));
+    
+    if (hasSuccess && !hasError) {
+      console.log(`[PlatformIO] ✓ Upload successful`);
+      return {
+        success: true,
+        output: output || "Upload completed successfully",
+      };
+    }
+    
+    if (hasError) {
+      console.error(`[PlatformIO] Upload failed`);
+      return {
+        success: false,
+        output: output,
+        error: `PlatformIO upload failed. Check the output for details.\n\n${output.substring(0, 500)}`,
+      };
+    }
+    
+    // If unclear, assume success if no clear errors
+    return {
+      success: true,
+      output: output || "Upload completed",
+    };
+  } catch (error: any) {
+    const errorOutput = error.stderr || error.stdout || error.message || "Unknown error";
+    console.error("[PlatformIO] Upload error:", errorOutput);
+    
+    return {
+      success: false,
+      output: errorOutput.substring(0, 1000),
+      error: error.message || "PlatformIO upload failed",
     };
   }
 }
@@ -1410,15 +2031,15 @@ async function uploadSketch(
             await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
-        
-        const cmd = `${cmdCheck} upload ${verboseFlag} -p ${portFormatted} --fqbn ${actualFqbn} "${sketchPath}"`.trim();
+    
+    const cmd = `${cmdCheck} upload ${verboseFlag} -p ${portFormatted} --fqbn ${actualFqbn} "${sketchPath}"`.trim();
         console.log(`[Arduino] Running upload command (attempt ${attempt}/${uploadAttempts}): ${cmd}`);
-        console.log(`[Arduino] Port: ${portFormatted}, FQBN: ${actualFqbn}, ESP32: ${isESP32}`);
-        
-        const { stdout, stderr } = await execAsync(cmd, {
-          timeout: timeout,
-        });
-        
+    console.log(`[Arduino] Port: ${portFormatted}, FQBN: ${actualFqbn}, ESP32: ${isESP32}`);
+    
+    const { stdout, stderr } = await execAsync(cmd, {
+      timeout: timeout,
+    });
+    
         // Combine all output
         const stdoutStr = stdout ? String(stdout) : "";
         const stderrStr = stderr ? String(stderr) : "";
@@ -1452,8 +2073,8 @@ async function uploadSketch(
         // If successful, break out of retry loop
         if (hasSuccess && !hasError) {
           console.log(`[Arduino] ✓ Success on attempt ${attempt}`);
-          return {
-            success: true,
+    return {
+      success: true,
             output: output || "Upload completed successfully",
           };
         }
@@ -1704,7 +2325,7 @@ async function uploadSketch(
           lowerLine.includes("cannot")) &&
           !lowerLine.includes("esptool") &&
           !lowerLine.includes("arduino-cli") &&
-          line.length < 300) {
+            line.length < 300) {
           errorMessage = line.trim();
           break;
         }
