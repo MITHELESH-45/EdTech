@@ -25,14 +25,20 @@ function GrootModel({ scrollProgress, onClick }: GrootModelProps) {
         obj.castShadow = false;
         obj.receiveShadow = false;
         
-        // Find eye meshes - try multiple naming patterns
+        // Check if it's an eye by name or material
         const name = obj.name.toLowerCase();
-        const materialName = obj.material?.name?.toLowerCase() || "";
+        let materialName = "";
+        
+        if (Array.isArray(obj.material)) {
+          materialName = obj.material.map((m: any) => m.name || "").join(" ").toLowerCase();
+        } else if (obj.material) {
+          materialName = obj.material.name?.toLowerCase() || "";
+        }
         
         // Check if it's an eye by name or material
         if (name.includes("eye") || 
             name.includes("pupil") || 
-            name.includes("iris") ||
+            name.includes("iris") || 
             name.includes("eyeball") ||
             materialName.includes("eye") ||
             materialName.includes("pupil")) {
@@ -146,7 +152,7 @@ function GrootModel({ scrollProgress, onClick }: GrootModelProps) {
       <primitive
         object={cloned}
         scale={2.8}
-        position={[0, -1.6, 0]}
+        position={[0, -2.5, 0]}
         rotation={[0, -1, 0]}
       />
     </group>
@@ -201,7 +207,7 @@ export function GrootModelViewer({ scrollProgress }: GrootModelViewerProps) {
           enableZoom={false}
           enablePan={false}
           autoRotate
-          autoRotateSpeed={0.6}
+          autoRotateSpeed={13.5}
           minPolarAngle={Math.PI / 3}
           maxPolarAngle={Math.PI / 2}
         />

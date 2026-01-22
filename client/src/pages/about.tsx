@@ -55,11 +55,7 @@ const targetAudiences = [
     title: "Makers & Hobbyists",
     description: "Prototype and test circuits before building physical projects.",
   },
-  {
-    icon: Target,
-    title: "Educators",
-    description: "Teaching tool for classrooms and online courses.",
-  },
+  
 ];
 
 const futureVision = [
@@ -181,7 +177,7 @@ export default function About() {
               </p>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {targetAudiences.map((audience) => {
                 const Icon = audience.icon;
                 return (
