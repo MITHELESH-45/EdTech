@@ -19,10 +19,7 @@ import {
   Sparkles,
   ArrowRight,
   PlayCircle,
-  Briefcase,
-  Trophy,
-  Medal,
-  Crown
+  Briefcase
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useCourseTracking } from "@/lib/course-tracking-context";
@@ -30,8 +27,6 @@ import type { Course } from "@shared/schema";
 import { generateSkillsFromCourses, calculateCareerProgress, getCareerPathway } from "@/lib/career-utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
@@ -131,65 +126,30 @@ export default function Dashboard() {
   });
 
   // Fetch career data for dashboard widget
-  const { data: userCareerPaths } = useQuery<any[]>({
-    queryKey: ["/api/career", user?.userId],
+  const { data: userCareer } = useQuery<any>({
+    queryKey: ["/api/career"],
     enabled: !!user,
     retry: false,
     queryFn: async () => {
       try {
-        if (!user?.userId) return [];
-        const response = await fetch(`/api/career?userId=${user.userId}`);
-        if (!response.ok) return [];
-        const data = await response.json();
-        return Array.isArray(data) ? data : (data ? [data] : []);
-      } catch {
-        return [];
-      }
-    },
-  });
-
-  // Fetch user's leaderboard rank
-  const { data: userRankData } = useQuery<{
-    success: boolean;
-    data: {
-      rank: number;
-      activityPoints: number;
-      completedCourses: number;
-      dailyStreak: number;
-      totalUsers: number;
-    };
-  }>({
-    queryKey: ["/api/leaderboard/user-rank"],
-    enabled: !!user,
-    queryFn: async () => {
-      try {
-        const response = await fetch("/api/leaderboard/user-rank", {
-          headers: {
-            "x-user-id": user?.userId || "",
-          },
-        });
+        const response = await fetch("/api/career");
         if (!response.ok) return null;
         return await response.json();
       } catch {
         return null;
       }
     },
-    retry: false,
   });
 
   // Generate skills from courses for career progress
   const skills = courses ? generateSkillsFromCourses(courses) : [];
-  const careerGoal = userCareerPaths?.[0]?.careerGoal;
+  const careerGoal = userCareer?.careerGoal;
   const careerPathway = careerGoal?.path 
     ? getCareerPathway(careerGoal.path)
     : null;
   const careerProgress = careerGoal 
     ? calculateCareerProgress(careerGoal, skills, courses || [])
     : 0;
-  // Calculate generic progress (optional, or just show first one)
-  // For now, we won't calculate aggregate progress here to keep it simple.
-  
-  // ... existing code ...
 
   // Fetch saved circuits
   const { data: circuits } = useRQ<{ id: string; name: string; createdAt: string }[]>({
@@ -253,7 +213,6 @@ export default function Dashboard() {
 
   const activeCourses = filteredCourses.filter((c) => !c.isLocked);
   const inProgressCourses = activeCourses.filter((c) => c.progress > 0 && c.progress < 100);
-  const activeCareerPaths = (userCareerPaths || []).filter((p: any) => (p.progress?.totalProgress || 0) < 100);
   const completedCourses = activeCourses.filter((c) => c.progress === 100);
   const notStartedCourses = activeCourses.filter((c) => c.progress === 0);
   const coursesByDifficulty = useMemo(() => {
@@ -275,86 +234,9 @@ export default function Dashboard() {
       {/* MAIN LAYOUT */}
       <div className="flex flex-1 min-h-0 relative">
 
-        {/* LEFT — STATIC GROOT with Ranking Card */}
-        <div className="fixed left-0 top-16 bottom-0 w-[320px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex flex-col flex-shrink-0 z-10">
-          {/* Your Ranking Card */}
-          {userRankData?.data && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="px-4 pt-4 pb-2 pointer-events-auto"
-            >
-              <Card className="border-border/50 bg-gradient-to-br from-yellow-500/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
-                      <Trophy className="h-4 w-4 text-yellow-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm">Your Ranking</h3>
-                      <p className="text-xs text-muted-foreground truncate">
-                        #{userRankData.data.rank}/{userRankData.data.totalUsers}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-primary/10 border border-primary/30">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary flex-shrink-0">
-                          {userRankData.data.rank === 1 ? (
-                            <Crown className="h-4 w-4 text-yellow-500" />
-                          ) : userRankData.data.rank === 2 ? (
-                            <Medal className="h-4 w-4 text-gray-400" />
-                          ) : userRankData.data.rank === 3 ? (
-                            <Medal className="h-4 w-4 text-orange-600" />
-                          ) : (
-                            <span className="text-xs font-bold text-primary">#{userRankData.data.rank}</span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-xs">Rank</p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {userRankData.data.activityPoints} pts
-                          </p>
-                        </div>
-                      </div>
-                      {userRankData.data.totalUsers > 0 && (
-                        <Badge variant="outline" className="bg-primary/10 border-primary/30 text-[10px] px-1.5 py-0.5 flex-shrink-0">
-                          Top {Math.round((userRankData.data.rank / userRankData.data.totalUsers) * 100)}%
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-[9px] text-muted-foreground mb-0.5">Points</p>
-                        <p className="text-sm font-bold flex items-center justify-center gap-0.5">
-                          <Zap className="h-3 w-3 text-yellow-500" />
-                          {userRankData.data.activityPoints}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-muted-foreground mb-0.5">Courses</p>
-                        <p className="text-sm font-bold flex items-center justify-center gap-0.5">
-                          <BookOpen className="h-3 w-3 text-blue-500" />
-                          {userRankData.data.completedCourses}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-muted-foreground mb-0.5">Streak</p>
-                        <p className="text-sm font-bold flex items-center justify-center gap-0.5">
-                          <TrendingUp className="h-3 w-3 text-orange-500" />
-                          {userRankData.data.dailyStreak}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-          {/* GROOT Model */}
-          <div className="flex-1 flex items-center justify-center pointer-events-none min-h-0">
+        {/* LEFT — STATIC GROOT */}
+        <div className="fixed left-0 top-16 bottom-0 w-[320px] bg-gradient-to-br from-primary/10 via-background to-chart-2/10 flex items-center justify-center flex-shrink-0 pointer-events-none z-10">
+          <div className="h-full w-full flex items-center justify-center">
             <GrootModelViewer scrollProgress={scrollProgress} />
           </div>
         </div>
@@ -384,172 +266,38 @@ export default function Dashboard() {
                 Learn Electronics. Simulate Visually. Build Confidently.
               </p>
             </motion.div>
-             
-            {/* Stats Section */}
+
+            {/* Search Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="max-w-2xl"
+            >
+              <DotLottieReact
+                src="https://lottie.host/4359bfa6-6ec9-4e82-a1af-0af127dcdafb/f2Tn5ZA4dp.lottie"
+                loop
+                autoplay
+                style={{
+                  width: "350px",
+                  height: "350px",
+                  position: "absolute",
+                  top: "30px",
+                  left: "875px",
+                  zIndex: 1,
+                  pointerEvents: "none",
+                }}
+              />
+
+            </motion.div>
+            
+            {/* Quick Access Tools */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="mt-8 max-w-7xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10"
+              className="mt-8 max-w-2xl grid grid-cols-3 gap-4 relative z-10"
             >
-              <StatCard
-                icon={BookOpen}
-                value={inProgressCourses.length}
-                label="In Progress"
-                color="bg-primary"
-                delay={0.1}
-              />
-              <StatCard
-                icon={Target}
-                value={coursesInfo?.badges.completedCourses || completedCourses.length}
-                label="Completed"
-                color="bg-chart-4"
-                delay={0.2}
-              />
-              <StatCard
-                icon={Zap}
-                value={activeCourses.length}
-                label="Available"
-                color="bg-chart-1"
-                delay={0.3}
-              />
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.35 }}
-              >
-                <div onClick={() => setShowCircuits(!showCircuits)}>
-                  <StatCard
-                    icon={Cpu}
-                    value={circuits ? circuits.length : 0}
-                    label="Circuits Designed"
-                    color="bg-emerald-500"
-                  />
-                </div>
-              </motion.div>
-            </motion.div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          {/* Career Paths Section - Wider and Lower Height */}
-          {(!userCareerPaths || userCareerPaths.length === 0) && (
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.45 }}
-              className="mb-4"
-            >
-              <Card className="relative overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-xl hover:shadow-2xl transition-all">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-3">
-                    {/* Icon */}
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
-                      <Briefcase className="h-5 w-5 text-primary" />
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm tracking-tight mb-0.5">
-                        Discover Your Career Path
-                      </h3>
-                      <p className="text-xs text-muted-foreground leading-tight">
-                        Let our AI mentor analyze your skills and build a personalized learning roadmap.
-                      </p>
-                    </div>
-
-                    {/* CTA Button */}
-                    <div className="flex-shrink-0">
-                      <Link href="/career">
-                        <Button size="sm" className="gap-1.5 group whitespace-nowrap h-8 px-3 text-xs">
-                          Start Journey
-                          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.section>
-          )}
-
-          {/* Career Paths List (if paths exist) */}
-          {userCareerPaths && userCareerPaths.length > 0 && (
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.45 }}
-              className="mb-4"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Briefcase className="h-3.5 w-3.5 text-primary" />
-                <h3 className="text-sm font-semibold">Your Career Paths</h3>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                {userCareerPaths.map((path: any, idx: number) => {
-                  const progress = path.progress?.totalProgress || 0;
-                  
-                  return (
-                    <Card key={idx} className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all">
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <Briefcase className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm mb-0.5 truncate">{path.careerDecision?.role || "Career Path"}</h3>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">{progress}%</span>
-                                <div className="flex-1 max-w-none min-w-0">
-                                  <Progress value={progress} className="h-1" />
-                                </div>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {path.progress?.completedDays?.length || 0}/{path.summary?.totalDays || 20} days
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <Link href={`/career?role=${encodeURIComponent(path.careerDecision?.role)}`}>
-                            <Button variant="outline" size="sm" className="group flex-shrink-0 h-8 px-3 text-xs">
-                              Continue
-                              <ArrowRight className="ml-1.5 h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-              
-              {/* Add New Path Button */}
-              <Link href="/career">
-                <Card className="border-dashed border-2 border-border/50 bg-transparent hover:bg-accent/5 transition-colors cursor-pointer mt-2">
-                  <CardContent className="p-2.5">
-                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                      <Briefcase className="h-3.5 w-3.5" />
-                      <span className="font-medium text-xs">Explore Another Role</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.section>
-          )}
-
-
-          {/* Quick Access Tools */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mb-8"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <Sparkles className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-bold text-foreground">Quick Access Tools</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
                 {
                   href: "/electronic-simulation",
@@ -618,8 +366,55 @@ export default function Dashboard() {
                   </motion.div>
                 </Link>
               ))}
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          {/* Stats and Charts Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatCard
+              icon={BookOpen}
+              value={inProgressCourses.length}
+              label="In Progress"
+              color="bg-primary"
+              delay={0.1}
+            />
+            <StatCard
+              icon={Target}
+              value={coursesInfo?.badges.completedCourses || completedCourses.length}
+              label="Completed"
+              color="bg-chart-4"
+              delay={0.2}
+            />
+            <StatCard
+              icon={Zap}
+              value={activeCourses.length}
+              label="Available"
+              color="bg-chart-1"
+              delay={0.3}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+            >
+              <div onClick={() => setShowCircuits(!showCircuits)}>
+                <StatCard
+                  icon={Cpu}
+                  value={circuits ? circuits.length : 0}
+                  label="Circuits Designed"
+                  color="bg-emerald-500"
+                />
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >         
+            </motion.div>
+          </div>
 
           {/* Circuits List (toggle) */}
           {showCircuits && (
@@ -662,6 +457,63 @@ export default function Dashboard() {
             </motion.section>
           )}
 
+          {/* Career Progress Widget */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="mb-8"
+          >
+            <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Career Optimization</h3>
+                      {careerPathway ? (
+                        <p className="text-sm text-muted-foreground">
+                          {careerPathway.name} • {careerProgress}% complete
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Set your career goal to get personalized recommendations
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Link href="/career">
+                    <Button variant="outline" size="sm" className="group">
+                      {careerPathway ? "View Progress" : "Set Career Goal"}
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </div>
+                {careerPathway && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Career Pathway Progress</span>
+                      <span className="font-semibold">{careerProgress}%</span>
+                    </div>
+                    <Progress value={careerProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {careerPathway.milestones.filter(m => m.completed).length} of {careerPathway.milestones.length} milestones completed
+                    </p>
+                  </div>
+                )}
+                {!careerPathway && (
+                  <div className="pt-2">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose from 5 career paths: Embedded Systems, IoT Developer, Hardware Engineer, Robotics Engineer, or Electronics Designer
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.section>
+
           {/* Error Message */}
           {error && (
             <motion.div
@@ -694,7 +546,7 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Continue Learning Section */}
-          {!isLoading && (inProgressCourses.length > 0 || activeCareerPaths.length > 0) && (
+          {!isLoading && inProgressCourses.length > 0 && (
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -705,63 +557,16 @@ export default function Dashboard() {
                 <PlayCircle className="h-6 w-6 text-primary" />
                 <h2 className="text-2xl font-bold text-foreground">Continue Learning</h2>
                 <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                  {inProgressCourses.length + activeCareerPaths.length} item{(inProgressCourses.length + activeCareerPaths.length) !== 1 ? "s" : ""}
+                  {inProgressCourses.length} course{inProgressCourses.length !== 1 ? "s" : ""}
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Career Paths */}
-                {activeCareerPaths.map((path: any, index: number) => {
-                   const progress = path.progress?.totalProgress || 0;
-                   return (
-                    <motion.div
-                      key={`career-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                      className="h-full"
-                    >
-                      <Card className="h-full border-border/50 bg-gradient-to-br from-primary/5 via-card to-card/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all flex flex-col">
-                        <CardContent className="p-6 flex flex-col h-full">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                <Briefcase className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <h3 className="font-semibold text-lg line-clamp-1">{path.careerDecision?.role || "Career Path"}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {progress}% complete
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2 mb-4 flex-1">
-                            <Progress value={progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {path.progress?.completedDays?.length || 0} of {path.summary?.totalDays || 20} days completed
-                            </p>
-                          </div>
-
-                          <Link href={`/career?role=${encodeURIComponent(path.careerDecision?.role)}`}>
-                            <Button variant="outline" size="sm" className="w-full group mt-auto">
-                              Continue Roadmap
-                              <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                            </Button>
-                          </Link>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                   );
-                })}
-
-                {/* Courses */}
                 {inProgressCourses.map((course, index) => (
                   <motion.div
                     key={course.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: (index + activeCareerPaths.length) * 0.1 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
                     className="h-full"
                   >
                     <CourseCard course={course} />
