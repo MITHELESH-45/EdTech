@@ -4,12 +4,11 @@ import { serveStatic } from "./static";
 import { createServer, type Server } from "http";
 import dotenv from "dotenv";
 import path from "path";
-import { fileURLToPath } from "url";
+
 import fs from "fs";
 
 // Get the directory of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
 
 // Try multiple possible locations for .env file (root directory first)
 const possibleEnvPaths = [
